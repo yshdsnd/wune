@@ -64,6 +64,21 @@ class Config:
     # 90s風ラベルなど
     show_badge: bool = True
     badge_text: str = "GROOVE"
+    
+    # 周波数スケール（表示用）
+    show_freq_scale: bool = True
+    min_freq_hz: float = 20.0
+    max_freq_hz: float = 48000.0
+    scale_ticks_hz: tuple = (31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 48000)
+    show_freq_edge_labels: bool = True  # 左端/右端に最小・最大の周波数ラベルを描く
+
+    # 縦軸（dB）ラベル
+    show_db_scale: bool = True
+    db_min: float = -60.0   # 下端
+    db_max: float = 0.0     # 上端
+    db_step: float = 10.0   # 間隔
+    db_label_pad: int = 6   # ラベルの右端とバー領域の間隔(px)
+    db_unit_offset: int = 10   # dB単位ラベルを上にずらす量
 
 CFG = Config()
 
@@ -168,6 +183,7 @@ class LedBarRenderer:
         self.font_small = pg.font.SysFont("Segoe UI", 15)
         self.font_badge = pg.font.SysFont("Bahnschrift", 18, bold=True)
         self.font_logo = pg.font.SysFont("OCR A Extended, OCR A, Consolas", 16)
+        self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = "INPUT: N/A | 48.0 kHz | 24-bit | Stereo | API: N/A"
@@ -197,7 +213,7 @@ class LedBarRenderer:
             if self.cfg.info_position == "top":
                 y = self.cfg.margin_tb - ih - 8
             else:
-                y = self.cfg.height - self.cfg.margin_tb + 8
+                y = self.cfg.height - self.cfg.margin_tb + 28
             bar_rect = pg.Rect(16, y, self.cfg.width-32, ih)
             pg.draw.rect(self.surf, (12, 22, 26), bar_rect, border_radius=8)
             pg.draw.rect(self.surf, (20, 40, 44), bar_rect, width=1, border_radius=8)
@@ -216,6 +232,112 @@ class LedBarRenderer:
                     self.peak_hold[i] -= 1
                 else:
                     self.peak_pos[i] = max(0.0, self.peak_pos[i] - self.cfg.peak_fall_per_frame * self.cfg.leds_per_bar)
+
+    def _freq_to_bar(self, f_hz: float) -> int:
+        """対数スケールで周波数→バー番号へ概算マッピング"""
+        fmin = max(1.0, self.cfg.min_freq_hz)
+        fmax = max(fmin * 1.01, self.cfg.max_freq_hz)
+        import math
+        pos = (math.log10(f_hz) - math.log10(fmin)) / (math.log10(fmax) - math.log10(fmin))
+        idx = int(round(pos * (self.cfg.bars - 1)))
+        return max(0, min(self.cfg.bars - 1, idx))
+
+    def _fmt_freq_label(self, f: float, with_unit: bool = False) -> str:
+        """周波数ラベル表示をいい感じに整形"""
+        if f >= 1000:
+            v = f / 1000.0
+            s = f"{int(v)}k" if abs(v - int(v)) < 1e-6 else f"{v:.1f}k".rstrip("0").rstrip(".") + "k"
+            return s + ("Hz" if with_unit else "")
+        else:
+            s = f"{f:.1f}" if abs(f - int(f)) > 1e-6 else f"{int(f)}"
+            return s + ("Hz" if with_unit else "")
+
+    def draw_freq_scale(self):
+        """バー列の下に目盛り線とラベルを描く"""
+        if not self.cfg.show_freq_scale:
+            return
+        base_y = self.bar_y0 + self.bar_h + 4   # バーの直下
+        EPS = 1e-6
+        for f in self.cfg.scale_ticks_hz:
+            # 端ラベルと重複するのを避ける
+            if abs(f - self.cfg.min_freq_hz) < EPS or abs(f - self.cfg.max_freq_hz) < EPS:
+                continue
+            b = self._freq_to_bar(f)
+            x = self.bar_x0 + b * (self.bar_w + self.cfg.bar_gap) + self.bar_w // 2
+            # 目盛り
+            pg.draw.line(self.surf, (70, 90, 100), (x, base_y), (x, base_y + 6), 1)
+
+            if f >= 1000:
+                # 1k, 2k, 4k, 16k, 32k, 48k 表記
+                if f % 1000 == 0:
+                    label = f"{int(f/1000)}k"
+                else:
+                    label = f"{f/1000:.1f}k".rstrip("0").rstrip(".")  # 1.6k など
+            else:
+                # 31.5, 63 など。整数ならそのまま、小数点ありは 1桁
+                label = f"{f:.1f}" if (f != int(f)) else f"{int(f)}"
+
+            ts = self.font_scale.render(label, True, (150, 180, 190))
+            self.surf.blit(ts, (x - ts.get_width()//2, base_y + 8))
+
+        # 端ラベル（min/max）を明示
+        if self.cfg.show_freq_edge_labels:
+            # 左端（min）: 単位なし（例: "20"）
+            x_left = self.bar_x0
+            min_label = self._fmt_freq_label(self.cfg.min_freq_hz, with_unit=False)
+            ts_min = self.font_scale.render(min_label, True, (180, 200, 210))
+            self.surf.blit(ts_min, (x_left, base_y + 8))
+
+            # 右端（max）:
+            #  数値＋k まではバー中心下にセンタリング、単位 "Hz" は右にはみ出し
+            right_bar_center = (
+                self.bar_x0
+                + (self.cfg.bars - 1) * (self.bar_w + self.cfg.bar_gap)
+                + self.bar_w // 2
+            )
+
+            fmax = self.cfg.max_freq_hz
+            if fmax >= 1000:
+                v = fmax / 1000.0
+                # 例: 48000 -> "48k", 1600 -> "1.6k"
+                numk = f"{int(v)}k" if abs(v - int(v)) < 1e-6 else f"{v:.1f}".rstrip("0").rstrip(".") + "k"
+            else:
+                numk = f"{int(fmax)}" if abs(fmax - int(fmax)) < 1e-6 else f"{fmax:.1f}".rstrip("0").rstrip(".")
+
+            ts_numk = self.font_scale.render(numk, True, (180, 200, 210))
+            # 「48k」をバー中心にセンタリング
+            self.surf.blit(ts_numk, (right_bar_center - ts_numk.get_width() // 2, base_y + 8))
+
+            # 単位は "Hz" だけ、数字の右に少し間を空けて配置（はみ出してOK）
+            ts_unit = self.font_scale.render("Hz", True, (150, 180, 190))
+            gap_px = 2
+            self.surf.blit(
+                ts_unit,
+                (right_bar_center + ts_numk.get_width() // 2 + gap_px, base_y + 8)
+            )
+
+    def draw_db_labels(self):
+        if not self.cfg.show_db_scale:
+            return
+        # ラベルはバー領域の左外。右端をバーに揃える（右寄せ）
+        x_right = self.bar_x0 - self.cfg.db_label_pad
+        # 上端から下端へ（0, -10, -20, ...）
+        rng = np.arange(self.cfg.db_max, self.cfg.db_min - 0.1, -self.cfg.db_step)
+        denom = (self.cfg.db_max - self.cfg.db_min) if (self.cfg.db_max != self.cfg.db_min) else 1.0
+
+        for db in rng:
+            # dB値 -> 縦位置（LED段数に合わせた等間隔でOK）
+            ratio = (db - self.cfg.db_min) / denom  # 0..1
+            y = int(self.bar_y0 + self.bar_h - ratio * self.bar_h)
+
+            label = f"{int(db)}"  # -10, -20 ... なので整数表示で十分
+            ts = self.font_scale.render(label, True, (160, 180, 190))
+            # 右寄せして、バー領域から少し離す
+            self.surf.blit(ts, (x_right - ts.get_width(), y - ts.get_height() // 2))
+
+        # 単位 "dB" は左上に小さく
+        unit = self.font_scale.render("dB", True, (190, 210, 210))
+        self.surf.blit(unit, (x_right - unit.get_width(), self.bar_y0 - unit.get_height() - self.cfg.db_unit_offset))
 
     def draw(self, levels: np.ndarray):
         # 残像を薄く塗る
@@ -251,6 +373,9 @@ class LedBarRenderer:
                 y = self.bar_y0 + self.bar_h - (top_index + 1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
                 pm_rect = pg.Rect(x, y, self.bar_w, max(2, self.led_h // 5))
                 pg.draw.rect(self.surf, (240, 240, 240), pm_rect, border_radius=min(2, self.cfg.corner_radius))
+
+        self.draw_freq_scale()
+        self.draw_db_labels()
 
     def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
         # ベース（枠）
