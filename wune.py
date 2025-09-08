@@ -185,11 +185,6 @@ class LedBarRenderer:
 
         # チャンネルごとの縦レイアウト（上下2段）
         self.channels = self.cfg.channels
-        #usable_h = self.cfg.height - self.cfg.margin_tb * 2 - (self.channels - 1) * self.cfg.channel_gap
-        #self.ch_h = usable_h // self.channels
-        #self.ch_y0 = [self.cfg.margin_tb + i * (self.ch_h + self.cfg.channel_gap) for i in range(self.channels)]
-
-        # ---- 縦方向のレイアウト（上下にチャンネル分割）----
         top_reserve    = self.cfg.margin_tb + self.cfg.header_reserved
         bottom_reserve = self.cfg.margin_tb
         # Infoバーぶんを確保
@@ -200,13 +195,6 @@ class LedBarRenderer:
             bottom_reserve += self.cfg.scale_reserved
 
         usable_h = self.cfg.height - top_reserve - bottom_reserve - (self.cfg.channels - 1) * self.cfg.channel_gap
-        # 最低高さの下駄（LED段数と隙間で潰れないように）
-        #min_ch_h = max(32, (self.cfg.leds_per_bar * (self.cfg.led_gap + 4)))  # 4はLEDの最小高さの目安
-        #if usable_h // self.cfg.channels < min_ch_h:
-            # どうしても足りない場合はLED段数を削って見やすさ優先（任意）
-            # ※ auto_reduce_leds を使っているならそちらに任せてもOK
-        #    pass  # 必要ならここで leds_per_bar を調整
-
         min_ch_h = max(32, (self.cfg.leds_per_bar * (self.cfg.led_gap + 4)))
 
         # 1) 暫定の段高さ（この高さにLEDを収められるかを先に判定）
@@ -231,7 +219,6 @@ class LedBarRenderer:
         # 5) この後の計算で正式に段高さを採用
         self.ch_h = temp_ch_h
 
-        #self.ch_h = max(32, usable_h // self.cfg.channels)
         self.ch_y0 = [top_reserve + i * (self.ch_h + self.cfg.channel_gap)
                     for i in range(self.cfg.channels)]
 
@@ -332,7 +319,6 @@ class LedBarRenderer:
         
         # 下段の直下
         bottom_y0 = self.ch_y0[self.channels - 1]
-        #base_y = bottom_y0 + self.ch_h + 8
         base_y = self.cfg.height - (self.cfg.margin_tb + (self.cfg.info_height + 12 if self.cfg.info_enabled else 0) + self.cfg.scale_reserved) + 8
         EPS = 1e-6
         for f in self.cfg.scale_ticks_hz:
@@ -400,11 +386,6 @@ class LedBarRenderer:
         y0 = self.ch_y0[ch]
         ch_h = self.ch_h
 
-        # L/Rラベルを先に
-        #label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
-        #ts_lr = self.font_channel.render(label, True, (180, 200, 210))
-        #self.surf.blit(ts_lr, (x_right - ts_lr.get_width(), y0 - ts_lr.get_height() - 2))
-
         denom = (self.cfg.db_max - self.cfg.db_min) or 1.0
         rng = np.arange(self.cfg.db_max, self.cfg.db_min - 0.1, -self.cfg.db_step)
         for db in rng:
@@ -413,11 +394,6 @@ class LedBarRenderer:
             label = f"{int(db)}"
             ts = self.font_scale.render(label, True, (160, 180, 190))
             self.surf.blit(ts, (x_right - ts.get_width(), y - ts.get_height() // 2))
-
-        # 単位 “dB”（各段の上端に置く）
-        #unit = self.font_scale.render("dB", True, (190, 210, 210))
-        # 余白はあなたが調整済みの -10 を踏襲
-        #self.surf.blit(unit, (x_right - unit.get_width(), y0 - unit.get_height() - 10))
 
         # dB の位置を先に決める（各段の上端から少し下げる）
         unit = self.font_scale.render("dB", True, (190,210,210))
@@ -430,7 +406,7 @@ class LedBarRenderer:
         lr_x  = x_right - ts_lr.get_width()
         lr_y  = unit_y - ts_lr.get_height() - 2  # ← dBの上に来る
 
-        # 描画（順序はどちらでもOK）
+        # 描画
         self.surf.blit(ts_lr, (lr_x,  lr_y))
         self.surf.blit(unit,  (unit_x, unit_y))
 
@@ -515,11 +491,6 @@ class LedBarRenderer:
             # dBラベル（段ごと）
             if hasattr(self, "draw_db_labels_ch"):
                 self.draw_db_labels_ch(ch)    
-
-            # L/R ラベル（段の左上）
-            #label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
-            #ts = self.font_channel.render(label, True, (180, 200, 210))
-            #self.surf.blit(ts, (12, y0 - ts.get_height() - 2))
 
         self.draw_freq_scale()
 
