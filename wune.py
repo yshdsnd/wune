@@ -82,7 +82,7 @@ class Config:
 
     # ---- ステレオ分割 ----
     channels: int = 2           # 1=mono, 2=stereo
-    channel_gap: int = 40       # 上下の段の間隔(px)
+    channel_gap: int = 60       # 上下の段の間隔(px)
 
     # 追加（目安値。画面の見え方に合わせて微調整OK）
     header_reserved: int = 36    # 上部のロゴ/バッジ/「dB」余白
@@ -399,6 +399,12 @@ class LedBarRenderer:
         x_right = self.bar_x0 - self.cfg.db_label_pad
         y0 = self.ch_y0[ch]
         ch_h = self.ch_h
+
+        # L/Rラベルを先に
+        #label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
+        #ts_lr = self.font_channel.render(label, True, (180, 200, 210))
+        #self.surf.blit(ts_lr, (x_right - ts_lr.get_width(), y0 - ts_lr.get_height() - 2))
+
         denom = (self.cfg.db_max - self.cfg.db_min) or 1.0
         rng = np.arange(self.cfg.db_max, self.cfg.db_min - 0.1, -self.cfg.db_step)
         for db in rng:
@@ -409,9 +415,24 @@ class LedBarRenderer:
             self.surf.blit(ts, (x_right - ts.get_width(), y - ts.get_height() // 2))
 
         # 単位 “dB”（各段の上端に置く）
-        unit = self.font_scale.render("dB", True, (190, 210, 210))
+        #unit = self.font_scale.render("dB", True, (190, 210, 210))
         # 余白はあなたが調整済みの -10 を踏襲
-        self.surf.blit(unit, (x_right - unit.get_width(), y0 - unit.get_height() - 10))
+        #self.surf.blit(unit, (x_right - unit.get_width(), y0 - unit.get_height() - 10))
+
+        # dB の位置を先に決める（各段の上端から少し下げる）
+        unit = self.font_scale.render("dB", True, (190,210,210))
+        unit_x = x_right - unit.get_width()
+        unit_y = y0 - unit.get_height() - 10  # ←ここはお好みのマージン
+
+        # L/R は dB より“さらに上”に置く
+        label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
+        ts_lr = self.font_channel.render(label, True, (180,200,210))
+        lr_x  = x_right - ts_lr.get_width()
+        lr_y  = unit_y - ts_lr.get_height() - 2  # ← dBの上に来る
+
+        # 描画（順序はどちらでもOK）
+        self.surf.blit(ts_lr, (lr_x,  lr_y))
+        self.surf.blit(unit,  (unit_x, unit_y))
 
     def draw(self, levels: np.ndarray):
         # バックパネル等
@@ -491,14 +512,14 @@ class LedBarRenderer:
                             pg.draw.rect(self.surf, (8, 8, 10), cut)         # 暗線で下地を断つ
                             pg.draw.rect(self.surf, (255, 255, 255), cut)    # その上に白
 
-            # L/R ラベル（段の左上）
-            label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
-            ts = self.font_channel.render(label, True, (180, 200, 210))
-            self.surf.blit(ts, (12, y0 - ts.get_height() - 2))
-
             # dBラベル（段ごと）
             if hasattr(self, "draw_db_labels_ch"):
                 self.draw_db_labels_ch(ch)    
+
+            # L/R ラベル（段の左上）
+            #label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
+            #ts = self.font_channel.render(label, True, (180, 200, 210))
+            #self.surf.blit(ts, (12, y0 - ts.get_height() - 2))
 
         self.draw_freq_scale()
 
