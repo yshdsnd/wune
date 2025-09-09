@@ -195,7 +195,7 @@ class LedBarRenderer:
             bottom_reserve += self.cfg.scale_reserved
 
         usable_h = self.cfg.height - top_reserve - bottom_reserve - (self.cfg.channels - 1) * self.cfg.channel_gap
-        min_ch_h = max(32, (self.cfg.leds_per_bar * (self.cfg.led_gap + 4)))
+        #min_ch_h = max(32, (self.cfg.leds_per_bar * (self.cfg.led_gap + 4)))
 
         # 1) 暫定の段高さ（この高さにLEDを収められるかを先に判定）
         temp_ch_h = max(32, usable_h // self.cfg.channels)
