@@ -32,7 +32,6 @@ class App:
         self.audio_spec["channels"] = cfg.channels
         self.update_info_text()
 
-
     def toggle_fullscreen(self):
         flags = self.screen.get_flags()
         if flags & pg.FULLSCREEN:

@@ -4,8 +4,8 @@
 import numpy as np
 import pygame as pg
 from typing import Tuple
-from .colors import choose_color, BORDER_DARK, PANEL_BG
 from .config import Config
+from .colors import PANEL_BG, BORDER_DARK
 
 # ==========================
 # 描画系
@@ -273,7 +273,7 @@ class LedBarRenderer:
                 lit = float(level_leds[ch, b])
                 for j in range(self.cfg.leds_per_bar):
                     led_ratio = (j + 0.5) / self.cfg.leds_per_bar  # このLEDの高さ割合
-                    on_color, off_color = choose_color(led_ratio)
+                    on_color, off_color = self.cfg.theme.choose_color(led_ratio)
                     y = y0 + ch_h - (j+1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
                     rect = pg.Rect(x, y, self.bar_w, self.led_h)
                     on = (j < lit)

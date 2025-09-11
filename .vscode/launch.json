@@ -6,11 +6,12 @@
     "configurations": [
     
         {
-            "name": "Python デバッガー: 現在のファイル",
+            "name": "Run main.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

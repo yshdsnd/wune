@@ -1,10 +1,12 @@
 from dataclasses import dataclass
+from .colors import Theme
 
 # ==========================
 # 設定群（好みに合わせて調整）
 # ==========================
 @dataclass
 class Config:
+    theme: Theme = Theme()
     width: int = 1280
     height: int = 480
     fps: int = 60
