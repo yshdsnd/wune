@@ -87,6 +87,7 @@ class LedBarRenderer:
         self.info_text = "INPUT: N/A | 48.0 kHz | 24-bit | Stereo | API: N/A"
 
 
+
     def draw_panel(self):
         self.surf.fill(PANEL_BG)
         # 枠線
@@ -162,7 +163,12 @@ class LedBarRenderer:
         bottom_y0 = self.ch_y0[self.channels - 1]
         base_y = self.cfg.height - (self.cfg.margin_tb + (self.cfg.info_height + 12 if self.cfg.info_enabled else 0) + self.cfg.scale_reserved) + 8
         EPS = 1e-6
-        for f in self.cfg.scale_ticks_hz:
+
+        ticks = [f for f in self.cfg.scale_ticks_hz
+             if (self.cfg.min_freq_hz + EPS) < f < (self.cfg.max_freq_hz - EPS)]
+
+        last_b = None  # ★ 同じバーに落ちる tick はスキップ（重複防止）
+        for f in ticks:
             # 端ラベルと重複するのを避ける
             if abs(f - self.cfg.min_freq_hz) < EPS or abs(f - self.cfg.max_freq_hz) < EPS:
                 continue

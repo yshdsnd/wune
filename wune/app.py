@@ -5,20 +5,32 @@ from .spectrum_fake import FakeSpectrum
 from .config import Config
 from .utils import check_supported_environment
 
+try:
+    from .spectrum_audio import AudioSpectrum
+except Exception:
+    AudioSpectrum = None
+
+
 # ==========================
 # メインループ
 # ==========================
 class App:
     def __init__(self, cfg: Config):
         check_supported_environment
-        
+
         pg.init()
         pg.display.set_caption("WuneWune LED Speana v0.1")
         self.cfg = cfg
         self.screen = pg.display.set_mode((cfg.width, cfg.height), pg.RESIZABLE)
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
-        self.spectrum = FakeSpectrum(cfg.bars, cfg.channels)
+        #self.spectrum = FakeSpectrum(cfg.bars, cfg.channels)
+        self.spectrum = (AudioSpectrum(cfg, cfg.bars, cfg.channels, samplerate=48000, blocksize=2048)
+             if AudioSpectrum else FakeSpectrum(cfg, cfg.bars, cfg.channels))
+        if hasattr(self.spectrum, "set_range"):
+            self.spectrum.set_range(cfg.min_freq_hz, cfg.max_freq_hz)
+            # ★ 実際のfmaxに合わせて表示レンジも更新
+            cfg.max_freq_hz = getattr(self.spectrum, "fmax", cfg.max_freq_hz)
 
         self.running = True
         self.paused = False
@@ -74,7 +86,8 @@ class App:
         sr_k = f"{sr/1000:.1f} kHz" if isinstance(sr, (int, float)) else "N/A"
         bits = f"{bd}-bit" if bd else "-"
         chs = {1: "Mono", 2: "Stereo"}.get(ch, f"{ch}ch") if ch else "-"
-        info = f"INPUT: {dev}  |  {sr_k}  |  {bits}  |  {chs}  |  Loopback: {loop}  |  API: {api}"
+        #info = f"INPUT: {dev}  |  {sr_k}  |  {bits}  |  {chs}  |  Loopback: {loop}  |  API: {api}"
+        info = f"INPUT:{dev or 'N/A'} | {sr_k} | {bits} | " f"{'GATED' if self.spectrum.gated else 'LIVE'} RMS={self.spectrum.last_rms:.1e}"
         self.renderer.info_text = info
 
     def run(self):
@@ -93,3 +106,5 @@ class App:
                 self.renderer.draw_pause_overlay()
             pg.display.flip()
         pg.quit()
+        if hasattr(self.spectrum, "close"):
+            self.spectrum.close()

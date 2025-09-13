@@ -2,6 +2,7 @@
 
 import numpy as np
 import math
+from .config import Config
 
 # ==========================
 # スペクトラムの『それっぽい』生成器
@@ -10,7 +11,8 @@ class FakeSpectrum:
     """雰囲気重視のフェイクスペクトラム発生器。
     複数の波＋ノイズを合成して、帯域方向にウネウネさせる。
     """
-    def __init__(self, bars: int, channels: int = 2):
+    def __init__(self, cfg: Config, bars: int, channels: int = 2):
+        self.cfg = cfg
         self.bars = bars
         self.channels = channels
         self.t = 0.0

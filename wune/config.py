@@ -68,4 +68,11 @@ class Config:
     min_led_height: int = 3
     min_leds_per_bar: int = 12
 
+    silence_rms_threshold: float = 1.5e-4   # 無音判定
+    silence_decay: float = 0.90             # 無音時の減衰率
+    agc_decay: float = 0.99                 # AGCの係数（大きい=ゆっくり）
+    norm_lo_pct: float = 10.0               # 下側パーセンタイル(%)
+    norm_hi_pct: float = 95.0               # 上側パーセンタイル(%)
+    post_floor: float = 0.02                # 極小値カット閾値(0..1)
+
 CFG = Config()
