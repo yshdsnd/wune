@@ -3,12 +3,15 @@ import pygame as pg
 from .renderer import LedBarRenderer
 from .spectrum_fake import FakeSpectrum
 from .config import Config
+from .utils import check_supported_environment
 
 # ==========================
 # メインループ
 # ==========================
 class App:
     def __init__(self, cfg: Config):
+        check_supported_environment
+        
         pg.init()
         pg.display.set_caption("WuneWune LED Speana v0.1")
         self.cfg = cfg
