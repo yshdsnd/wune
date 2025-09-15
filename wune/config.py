@@ -51,7 +51,7 @@ class Config:
 
     # 縦軸（dB）ラベル
     show_db_scale: bool = True
-    db_min: float = -60.0   # 下端
+    db_min: float = -66.0   # 下端
     db_max: float = 0.0     # 上端
     db_step: float = 10.0   # 間隔
     db_label_pad: int = 6   # ラベルの右端とバー領域の間隔(px)
@@ -68,11 +68,16 @@ class Config:
     min_led_height: int = 3
     min_leds_per_bar: int = 12
 
-    silence_rms_threshold: float = 1.5e-4   # 無音判定
+    silence_rms_threshold: float = 5e-3     # 無音判定
     silence_decay: float = 0.90             # 無音時の減衰率
     agc_decay: float = 0.99                 # AGCの係数（大きい=ゆっくり）
-    norm_lo_pct: float = 10.0               # 下側パーセンタイル(%)
-    norm_hi_pct: float = 95.0               # 上側パーセンタイル(%)
-    post_floor: float = 0.02                # 極小値カット閾値(0..1)
+    norm_lo_pct: float = 20.0               # 下側パーセンタイル(%)
+    norm_hi_pct: float = 90.0               # 上側パーセンタイル(%)
+    post_floor: float = 0.04                # 極小値カット閾値(0..1)
+    quiet_dbfs_floor: float = -55.0         # これ未満は“静寂”扱いにする
+    min_norm_span_db10: float = 0.6         # パーセンタイル正規化の最小スパン（log10(power)単位、0.6 ≒ 6 dB）
+
+    #input_device = "ステレオ ミキサー (Realtek(R) Audio), Windows WASAPI"
+    input_device = "CABLE Output (VB-Audio Virtual Cable), Windows WASAPI"
 
 CFG = Config()

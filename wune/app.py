@@ -72,9 +72,9 @@ class App:
                 # ループバックON/OFF（ダミー）
                 self.audio_spec["loopback"] = not self.audio_spec["loopback"]
                 self.update_info_text()
-        elif e.type == pg.MOUSEBUTTONDOWN:
-            # どこをクリックしても一時停止/再開をトグル
-            self.paused = not self.paused
+        #elif e.type == pg.MOUSEBUTTONDOWN:
+        #    # どこをクリックしても一時停止/再開をトグル
+        #    self.paused = not self.paused
 
     def update_info_text(self):
         sr = self.audio_spec["samplerate"]

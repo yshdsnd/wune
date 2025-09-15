@@ -3,6 +3,25 @@ from __future__ import annotations
 import numpy as np
 import sounddevice as sd
 from .config import Config
+from .utils import build_band_map
+
+# 追加：視覚用エンベロープ（per-band）
+class VisEnvelope:
+    def __init__(self, attack_ms=35, release_ms=180, fps=60, bars=90):
+        import math
+        # フレーム独立係数
+        self.k_att = math.exp(-1.0 / max(1, (attack_ms/1000.0) * fps))
+        self.k_rel = math.exp(-1.0 / max(1, (release_ms/1000.0) * fps))
+        self.y = None
+        self.n = bars
+    def step(self, x):
+        import numpy as np
+        if self.y is None or self.y.shape != x.shape:
+            self.y = np.zeros_like(x, dtype=np.float32)
+        up = x > self.y
+        self.y[up]  = self.k_att*self.y[up] + (1-self.k_att)*x[up]
+        self.y[~up] = self.k_rel*self.y[~up] + (1-self.k_rel)*x[~up]
+        return self.y
 
 class AudioSpectrum:
     """
@@ -19,7 +38,6 @@ class AudioSpectrum:
         channels: int = 2,
         samplerate: int = 48_000,
         blocksize: int = 2048,
-        device: int | None = None,        # None=デフォルト
         agc_decay: float = 0.98,          # 大きいほどゆっくり追従（0.9〜0.99）
         smooth: float = 0.7               # 出力の表示滑らかさ（0..1, 大きいほどヌル）
     ):
@@ -28,8 +46,8 @@ class AudioSpectrum:
         self.channels_req = int(channels)
         self.sr = int(samplerate)
         self.nfft = int(blocksize)
-        self.device = device
-        self._smooth = float(np.clip(smooth, 0.0, 0.99))
+        self.device = cfg.input_device
+        self.smooth = float(np.clip(smooth, 0.0, 0.99))
         self._agc_decay = float(np.clip(agc_decay, 0.5, 0.999))
         self.last_rms = 0.0
         self.gated = False
@@ -86,6 +104,11 @@ class AudioSpectrum:
         self._out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
         self._agc = np.full((self.channels_req, self.bars), 1e-3, dtype=np.float32)
 
+        # ビジュアルエンベロープの作成
+        self._vis_env = VisEnvelope(attack_ms=35, release_ms=220, fps=self.cfg.fps, bars=self.bars)
+
+        self.slices, self.band_mask, self.band_labels = build_band_map(self.sr, self.nfft, self.bars)
+
     # --- public API ----------------------------------------------------------
     def set_range(self, fmin: float, fmax: float) -> None:
         """外側（Configなど）から周波数レンジを合わせる用。"""
@@ -108,6 +131,18 @@ class AudioSpectrum:
         # ★ サイレンス判定（しきい値は環境で微調整）
         frame_rms = float(np.sqrt(np.mean(np.square(data.astype(np.float32)))))
         self.last_rms = frame_rms
+
+        # ★追加：dBFSでの静寂ガード（ほぼ無音なら正規化をスキップ）
+        EPS = 1e-12
+        frame_db = 20.0 * np.log10(max(frame_rms, EPS))
+        QUIET_DB = getattr(self.cfg, "quiet_dbfs_floor", -55.0)  # 設定から読み取れるように
+
+        if frame_db < QUIET_DB:
+            self.gated = True
+            self._out *= self.cfg.silence_decay
+            self._out[self._out < self.cfg.post_floor] = 0.0
+            return self._out
+
         self.gated = (frame_rms < self.cfg.silence_rms_threshold)
         if frame_rms < self.cfg.silence_rms_threshold:
             # ゼロに落とす or 穏やかに減衰
@@ -147,12 +182,39 @@ class AudioSpectrum:
         # パーセンタイル正規化（極端値の影響を弱める）
         lo = np.percentile(out, 10, axis=1, keepdims=True)
         hi = np.percentile(self._agc, 95, axis=1, keepdims=True)  # 上側はAGC基準
-        norm = (out - lo) / (hi - lo + 1e-6)
-        norm = np.clip(norm, 0.0, 1.0).astype(np.float32)
+
+        #    log10(パワー)スケールで 0.5 は約 +5 dB（十分“差”として認識できる量）
+        min_span = getattr(self.cfg, "min_norm_span_db10", 0.6)
+        span = hi - lo
+        use_abs = span < min_span   # (ch,1) ブール
+
+        # ① 絶対dB基準の正規化（無条件で先に作る）
+        dbmin10   = self.cfg.db_min / 10.0        # -60 dB → -6.0
+        dbrange10 = (self.cfg.db_max - self.cfg.db_min) / 10.0  # 60 dB → 6.0
+        abs_norm = (out - dbmin10) / (dbrange10 + 1e-6)
+        abs_norm = np.clip(abs_norm, 0.0, 1.0)
+
+        # 通常のパーセンタイル正規化
+        pct_norm = (out - lo) / (np.maximum(span, min_span) + 1e-6)
+        pct_norm = np.clip(pct_norm, 0.0, 1.0)
+
+        # ③ スパンが小さいチャンネルは絶対dBにフォールバック
+        #    use_abs は (ch,1) なので (ch,bins) に自動ブロードキャストされます
+        norm = np.where(use_abs, abs_norm, pct_norm).astype(np.float32)
+
+        knee = 0.25
+        gamma = 1.15
+        x = norm
+        x = x / (x + knee)
+        x = np.clip(x, 0.0, 1.0)
+        x = np.power(x, gamma, dtype=np.float32)
+        norm = x
+
+        norm = self._vis_env.step(norm)
         norm[norm < self.cfg.post_floor] = 0.0
 
         # 表示の滑らかさ
-        self._out = self._smooth * self._out + (1.0 - self._smooth) * norm
+        self._out = self.smooth * self._out + (1.0 - self.smooth) * norm
         self._out[self._out < 0.05] = 0.0
         return self._out
 
@@ -165,11 +227,32 @@ class AudioSpectrum:
 
     # --- internals -----------------------------------------------------------
     def _rebuild_bins(self) -> None:
-        """ログ等間隔のバー境界を作り、rFFT周波数→バーへの対応を前計算。"""
-        lo, hi = np.log10(self.fmin), np.log10(self.fmax)
-        edges = np.logspace(lo, hi, self.bars + 1, base=10.0)
-        idx = []
-        for i in range(self.bars):
-            mask = (self.freqs >= edges[i]) & (self.freqs < edges[i + 1])
-            idx.append(np.nonzero(mask)[0])
+        """ログ等間隔のバー境界を作り、rFFT周波数→バーへの対応を前計算。
+        各バーに最低1ビン以上必ず割り当てる（ゼロ幅禁止）。
+        """
+        freqs = self.freqs                         # len = nfft//2 + 1, 0..Nyquist
+        nyq = self.sr * 0.5
+        fmin = max(1.0, float(self.fmin))
+        fmax = min(float(self.fmax), nyq * 0.999)  # Nyquist直前にクリップ
+
+        # ログ等分の境界（bars本 → bars+1個の境界）
+        edges = np.geomspace(fmin, fmax, self.bars + 1)
+
+        # 各境界を左側に割り当て（ビン番号）
+        edge_bins = np.searchsorted(freqs, edges, side="left")
+
+        # DC(0Hz)ビンは避ける・範囲内に
+        edge_bins = np.clip(edge_bins, 1, len(freqs) - 1)
+
+        # ★単調増加＆最低幅=1を強制
+        for i in range(1, len(edge_bins)):
+            if edge_bins[i] <= edge_bins[i - 1]:
+                edge_bins[i] = min(edge_bins[i - 1] + 1, len(freqs) - 1)
+
+        starts = edge_bins[:-1]
+        stops  = edge_bins[1:]
+
+        # 各バーのインデックス配列を作成（必ず hi>lo）
+        idx = [np.arange(int(lo), int(hi), dtype=np.int32) for lo, hi in zip(starts, stops)]
         self._bin_idx = idx
+
