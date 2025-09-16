@@ -226,33 +226,34 @@ class AudioSpectrum:
             pass
 
     # --- internals -----------------------------------------------------------
-    def _rebuild_bins(self) -> None:
-        """ログ等間隔のバー境界を作り、rFFT周波数→バーへの対応を前計算。
-        各バーに最低1ビン以上必ず割り当てる（ゼロ幅禁止）。
-        """
-        freqs = self.freqs                         # len = nfft//2 + 1, 0..Nyquist
-        nyq = self.sr * 0.5
-        fmin = max(1.0, float(self.fmin))
-        fmax = min(float(self.fmax), nyq * 0.999)  # Nyquist直前にクリップ
 
-        # ログ等分の境界（bars本 → bars+1個の境界）
+    def _rebuild_bins(self) -> None:
+        """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
+        各バーに最低1ビン以上を必ず割り当て、最終帯域はNyquistビンを含める。
+        """
+        freqs = self.freqs                        # len = nfft//2+1, 0..Nyquist
+        nyq = self.sr * 0.5
+
+        fmin = max(1.0, float(self.fmin))
+        fmax = min(float(self.fmax), nyq * 0.999)  # Nyquist手前に倒す（安全側）
+
+        # ログ等分の境界（bars → bars+1 個）
         edges = np.geomspace(fmin, fmax, self.bars + 1)
 
-        # 各境界を左側に割り当て（ビン番号）
+        # 各境界を「左側に最も近いビン」へ（整数化）
         edge_bins = np.searchsorted(freqs, edges, side="left")
+        edge_bins = np.clip(edge_bins, 1, len(freqs) - 1)  # DC(0)は避ける
 
-        # DC(0Hz)ビンは避ける・範囲内に
-        edge_bins = np.clip(edge_bins, 1, len(freqs) - 1)
-
-        # ★単調増加＆最低幅=1を強制
+        # 単調増加と最小幅=1を強制
         for i in range(1, len(edge_bins)):
-            if edge_bins[i] <= edge_bins[i - 1]:
-                edge_bins[i] = min(edge_bins[i - 1] + 1, len(freqs) - 1)
+            if edge_bins[i] <= edge_bins[i-1]:
+                edge_bins[i] = min(edge_bins[i-1] + 1, len(freqs) - 1)
 
         starts = edge_bins[:-1]
-        stops  = edge_bins[1:]
+        # ★ 最終帯域は Nyquist を必ず含めるため stop を len(freqs) に拡張
+        stops  = np.append(edge_bins[1:], len(freqs))
 
-        # 各バーのインデックス配列を作成（必ず hi>lo）
-        idx = [np.arange(int(lo), int(hi), dtype=np.int32) for lo, hi in zip(starts, stops)]
-        self._bin_idx = idx
+        # 各バーのビン配列（hi は排他）
+        self._bin_idx = [np.arange(int(lo), int(hi), dtype=np.int32)
+                        for lo, hi in zip(starts, stops)]
 
