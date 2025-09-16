@@ -95,6 +95,17 @@ class AudioSpectrum:
         self.window = np.hanning(self.nfft).astype(np.float32)
         self.freqs = np.fft.rfftfreq(self.nfft, d=1 / self.sr)
 
+        # 周波数ごとの重み付け配列を作成
+        weights = np.ones(len(self.freqs), dtype=np.float32)
+        for i, f in enumerate(self.freqs):
+            if 10000 <= f < 16000:
+                weights[i] = 1.8  # 10k-16kHzを強調 (倍率は好みで調整)
+            elif 16000 <= f < 20000:
+                weights[i] = 2.5  # 16k-20kHzをさらに強調
+            elif f >= 20000:
+                weights[i] = 0.001 # 20kHz以上は事実上カット (log10に通すためゼロにしない)
+        self.weights = np.log10(weights) # ★対数パワーに加算するので、log10しておく
+
         # 初期の周波数レンジ（Configから上書き可）
         self.fmin = 20.0
         self.fmax = float(self.sr // 2)
@@ -105,9 +116,9 @@ class AudioSpectrum:
         self._agc = np.full((self.channels_req, self.bars), 1e-3, dtype=np.float32)
 
         # ビジュアルエンベロープの作成
-        self._vis_env = VisEnvelope(attack_ms=35, release_ms=220, fps=self.cfg.fps, bars=self.bars)
+        self._vis_env = VisEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms, fps=self.cfg.fps, bars=self.bars)
 
-        self.slices, self.band_mask, self.band_labels = build_band_map(self.sr, self.nfft, self.bars)
+        #self.slices, self.band_mask, self.band_labels = build_band_map(self.sr, self.nfft, self.bars)
 
     # --- public API ----------------------------------------------------------
     def set_range(self, fmin: float, fmax: float) -> None:
@@ -167,6 +178,7 @@ class AudioSpectrum:
             spec = np.fft.rfft(self.window * x)
             pwr = (spec.real**2 + spec.imag**2).astype(np.float32) + 1e-12  # power
             logp = np.log10(pwr)  # 聴感に寄せるため対数圧縮
+            logp += self.weights # 周波数ごとの重みをここで加算
 
             # ビンに平均で落とし込み
             for b, idx in enumerate(self._bin_idx):

@@ -25,7 +25,7 @@ class App:
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
         #self.spectrum = FakeSpectrum(cfg.bars, cfg.channels)
-        self.spectrum = (AudioSpectrum(cfg, cfg.bars, cfg.channels, samplerate=48000, blocksize=2048)
+        self.spectrum = (AudioSpectrum(cfg, cfg.bars, cfg.channels, samplerate=48000, blocksize=4096)
              if AudioSpectrum else FakeSpectrum(cfg, cfg.bars, cfg.channels))
         if hasattr(self.spectrum, "set_range"):
             self.spectrum.set_range(cfg.min_freq_hz, cfg.max_freq_hz)

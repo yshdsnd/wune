@@ -77,6 +77,10 @@ class Config:
     quiet_dbfs_floor: float = -55.0         # これ未満は“静寂”扱いにする
     min_norm_span_db10: float = 0.6         # パーセンタイル正規化の最小スパン（log10(power)単位、0.6 ≒ 6 dB）
 
+    # ビジュアルエンベロープの調整
+    vis_attack_ms: int = 15
+    vis_release_ms: int = 300
+
     #input_device = "ステレオ ミキサー (Realtek(R) Audio), Windows WASAPI"
     input_device = "CABLE Output (VB-Audio Virtual Cable), Windows WASAPI"
 
