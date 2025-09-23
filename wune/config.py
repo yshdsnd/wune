@@ -58,7 +58,6 @@ class Config:
     db_unit_offset: int = 10   # dB単位ラベルを上にずらす量
 
     # ---- ステレオ分割 ----
-    channels: int = 2           # 1=mono, 2=stereo
     channel_gap: int = 60       # 上下の段の間隔(px)
 
     # 追加（目安値。画面の見え方に合わせて微調整OK）
@@ -80,6 +79,9 @@ class Config:
     # ビジュアルエンベロープの調整
     vis_attack_ms: int = 15
     vis_release_ms: int = 300
+
+    samplerate_hz: int | None = None
+    channels: int = 2 #| None = None           # None=auto, 1=mono, 2=stereo
 
     #input_device = "ステレオ ミキサー (Realtek(R) Audio), Windows WASAPI"
     input_device = "CABLE Output (VB-Audio Virtual Cable), Windows WASAPI"

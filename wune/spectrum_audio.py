@@ -97,13 +97,17 @@ class AudioSpectrum:
 
         # 周波数ごとの重み付け配列を作成
         weights = np.ones(len(self.freqs), dtype=np.float32)
+        cutoff_freq = 20000
+        if samplerate > 48000:
+            cutoff_freq = 48000
+
         for i, f in enumerate(self.freqs):
             if 10000 <= f < 16000:
                 weights[i] = 1.8  # 10k-16kHzを強調 (倍率は好みで調整)
-            elif 16000 <= f < 20000:
-                weights[i] = 2.5  # 16k-20kHzをさらに強調
-            elif f >= 20000:
-                weights[i] = 0.001 # 20kHz以上は事実上カット (log10に通すためゼロにしない)
+            elif 16000 <= f < cutoff_freq:
+                weights[i] = 2.5  # 16kHz以上をさらに強調
+            elif f >= cutoff_freq:
+                weights[i] = 0.001 # カットオフ周波数以上は事実上カット (log10に通すためゼロにしない)
         self.weights = np.log10(weights) # ★対数パワーに加算するので、log10しておく
 
         # 初期の周波数レンジ（Configから上書き可）
