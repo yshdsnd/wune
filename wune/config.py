@@ -23,14 +23,6 @@ class Config:
     info_height: int = 28
     info_position: str = "bottom"    # "top" or "bottom"
 
-    # 色分けしきい値（割合）
-    th_yellow: float = 0.60
-    th_red: float = 0.85
-
-    # レベル挙動
-    attack: float = 0.30          # 上昇スピード（0〜1）
-    release: float = 0.08         # 下降スピード（0〜1）
-
     # ピークホールド
     peak_hold_frames: int = 24    # 頂点を保持するフレーム数
     peak_fall_per_frame: float = 0.9 / 32  # 1フレームごとの落下量（LED個数比率）
@@ -70,9 +62,9 @@ class Config:
 
     silence_rms_threshold: float = 5e-3     # 無音判定
     silence_decay: float = 0.90             # 無音時の減衰率
-    agc_decay: float = 0.99                 # AGCの係数（大きい=ゆっくり）
-    norm_lo_pct: float = 20.0               # 下側パーセンタイル(%)
-    norm_hi_pct: float = 90.0               # 上側パーセンタイル(%)
+    agc_decay: float = 0.98                 # AGCの係数（大きい=ゆっくり）
+    norm_lo_pct: float = 10.0               # 下側パーセンタイル(%)
+    norm_hi_pct: float = 95.0               # 上側パーセンタイル(%)
     post_floor: float = 0.04                # 極小値カット閾値(0..1)
     quiet_dbfs_floor: float = -55.0         # これ未満は“静寂”扱いにする
     min_norm_span_db10: float = 0.6         # パーセンタイル正規化の最小スパン（log10(power)単位、0.6 ≒ 6 dB）
@@ -81,7 +73,13 @@ class Config:
     vis_attack_ms: int = 15
     vis_release_ms: int = 300
 
-    #input_device = "ステレオ ミキサー (Realtek(R) Audio), Windows WASAPI"
-    input_device = "CABLE Output (VB-Audio Virtual Cable), Windows WASAPI"
+    # Windows / VB-CABLE development input. Keep the working 48 kHz setup.
+    input_device: str | int | None = "CABLE Output (VB-Audio Virtual Cable), Windows WASAPI"
+    sample_rate: int = 48_000
+    block_size: int = 4096
+    smoothing: float = 0.7
+    output_floor: float = 0.05   # Final cutoff, distinct from post_floor.
+    compression_knee: float = 0.25
+    compression_gamma: float = 1.15
 
 CFG = Config()

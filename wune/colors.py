@@ -13,7 +13,6 @@ RED_OFF    = ( 28,  10,  10)
 
 BORDER_DARK = (12, 12, 12)
 PANEL_BG    = (6, 6, 10)
-GLASS_WHITE = (255, 255, 255)
 
 @dataclass(frozen=True)
 class Theme:
@@ -33,5 +32,3 @@ class Theme:
         elif level_ratio >= self.th_yellow:
             return self.yellow_on, self.yellow_off
         return self.green_on, self.green_off
-
-    
