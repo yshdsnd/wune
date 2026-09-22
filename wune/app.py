@@ -48,9 +48,9 @@ class App:
     def update_info_text(self):
         # float32 describes the transferred samples, not the device's ADC bit depth.
         spectrum = self.spectrum
-        device = spectrum.device if spectrum.device is not None else "Default input"
+        device = spectrum.device if spectrum.device is not None else "Default output"
         self.renderer.info_text = (
-            f"INPUT:{device} | {spectrum.sr / 1000:.1f} kHz | float32 | "
+            f"LOOPBACK:{device} | {spectrum.sr / 1000:.1f} kHz | float32 | "
             f"{'GATED' if spectrum.gated else 'LIVE'} RMS={spectrum.last_rms:.1e}"
         )
 

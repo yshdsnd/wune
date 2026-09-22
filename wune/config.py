@@ -73,8 +73,8 @@ class Config:
     vis_attack_ms: int = 15
     vis_release_ms: int = 300
 
-    # Windows / VB-CABLE development input. Keep the working 48 kHz setup.
-    input_device: str | int | None = "CABLE Output (VB-Audio Virtual Cable), Windows WASAPI"
+    # Windows render endpoint: None follows the default at startup.
+    output_device: str | None = None
     sample_rate: int = 48_000
     block_size: int = 4096
     smoothing: float = 0.7

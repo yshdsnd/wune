@@ -1,4 +1,4 @@
-"""Wune: Windows sounddevice input with an LED spectrum display.
+"""Wune: Windows WASAPI loopback with an LED spectrum display.
 
 ESC/Q: quit, F11: fullscreen, Space: pause, I: input information.
 """

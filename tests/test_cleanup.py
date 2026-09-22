@@ -1,4 +1,4 @@
-"""Hardware-free regression checks; native VB-CABLE testing is still required."""
+"""Hardware-free regression checks; native WASAPI loopback testing is still required."""
 
 import importlib
 import json
@@ -26,14 +26,17 @@ def input_frames(channels=2):
 
 class AudioCleanupTests(unittest.TestCase):
     def setUp(self):
-        self.sd = types.ModuleType("sounddevice")
-        self.sd.PortAudioError = type("PortAudioError", (Exception,), {})
-        self.sd.query_devices = MagicMock(return_value={"max_input_channels": 2})
-        self.sd.query_hostapis = MagicMock()
-        self.sd.default = types.SimpleNamespace(device=(0, 1), hostapi=0)
+        self.sc = types.ModuleType("soundcard")
+        self.speaker = types.SimpleNamespace(id="render-id", name="HDMI Speakers", channels=2)
+        self.sc.default_speaker = MagicMock(return_value=self.speaker)
+        self.sc.get_speaker = MagicMock(return_value=self.speaker)
+        self.loopback = MagicMock()
+        self.loopback.isloopback = True
+        self.sc.get_microphone = MagicMock(return_value=self.loopback)
         self.stream = MagicMock()
-        self.sd.InputStream = MagicMock(return_value=self.stream)
-        self.modules = patch.dict(sys.modules, {"sounddevice": self.sd})
+        self.recorder = self.loopback.recorder.return_value
+        self.recorder.__enter__.return_value = self.stream
+        self.modules = patch.dict(sys.modules, {"soundcard": self.sc})
         self.modules.start()
         sys.modules.pop("wune.spectrum_audio", None)
         self.audio = importlib.import_module("wune.spectrum_audio")
@@ -49,13 +52,52 @@ class AudioCleanupTests(unittest.TestCase):
         self.addCleanup(spectrum.close)
         return spectrum
 
-    def test_working_input_settings(self):
+    def test_default_render_endpoint_in_shared_stereo_mode(self):
         spectrum = self.make_spectrum()
-        self.sd.InputStream.assert_called_once_with(
-            device="CABLE Output (VB-Audio Virtual Cable), Windows WASAPI",
-            channels=2, samplerate=48000, blocksize=4096, dtype="float32",
+        self.sc.default_speaker.assert_called_once_with()
+        self.sc.get_microphone.assert_called_once_with(id="render-id", include_loopback=True)
+        self.loopback.recorder.assert_called_once_with(
+            channels=[0, 1], samplerate=48000, blocksize=4096, exclusive_mode=False,
         )
+        self.assertEqual(spectrum.device, "HDMI Speakers")
         self.assertEqual(spectrum.fmax, 23999)
+
+    def test_selected_render_endpoint(self):
+        cfg = Config(output_device="Headphones")
+        spectrum = self.audio.AudioSpectrum(cfg, cfg.bars, cfg.channels)
+        self.addCleanup(spectrum.close)
+        self.sc.get_speaker.assert_called_once_with("Headphones")
+        self.sc.default_speaker.assert_not_called()
+        self.sc.get_microphone.assert_called_once_with(id="render-id", include_loopback=True)
+
+    def test_missing_default_endpoint_is_reported(self):
+        self.sc.default_speaker.return_value = None
+        with self.assertRaisesRegex(RuntimeError, "No Windows playback"):
+            self.make_spectrum()
+        self.loopback.recorder.assert_not_called()
+
+    def test_missing_selected_endpoint_does_not_fall_back(self):
+        self.sc.get_speaker.side_effect = IndexError("device not found")
+        with self.assertRaises(IndexError):
+            self.audio.AudioSpectrum(Config(output_device="missing"), 64)
+        self.sc.default_speaker.assert_not_called()
+
+    def test_non_loopback_microphone_is_rejected(self):
+        self.loopback.isloopback = False
+        with self.assertRaisesRegex(RuntimeError, "no loopback"):
+            self.make_spectrum()
+        self.loopback.recorder.assert_not_called()
+
+    def test_mono_endpoint_is_rejected_instead_of_recording_garbage(self):
+        self.speaker.channels = 1
+        with self.assertRaisesRegex(RuntimeError, "stereo"):
+            self.make_spectrum()
+        self.loopback.recorder.assert_not_called()
+
+    def test_mono_display_still_captures_stereo(self):
+        spectrum = self.audio.AudioSpectrum(Config(channels=1), 64, 1)
+        self.addCleanup(spectrum.close)
+        self.assertEqual(self.loopback.recorder.call_args.kwargs["channels"], [0, 1])
 
     def test_analysis_matches_pre_cleanup_reference(self):
         reference = json.loads((Path(__file__).parent / "fixtures" / "spectrum_48k.json").read_text())
@@ -64,7 +106,7 @@ class AudioCleanupTests(unittest.TestCase):
                 spectrum = self.make_spectrum()
                 actual = []
                 for frame in input_frames(channels):
-                    self.stream.read.return_value = (frame, False)
+                    self.stream.record.return_value = frame
                     actual.append(spectrum.step(1 / 60).copy())
                 np.testing.assert_allclose(actual, reference[str(channels)], rtol=1e-6, atol=1e-7)
                 self.assertTrue(spectrum.gated)
@@ -74,34 +116,27 @@ class AudioCleanupTests(unittest.TestCase):
         cfg = Config(sample_rate=44100, block_size=2048)
         spectrum = self.audio.AudioSpectrum(cfg, cfg.bars, cfg.channels)
         self.addCleanup(spectrum.close)
-        self.assertEqual(self.sd.InputStream.call_args.kwargs["samplerate"], 44100)
-        self.assertEqual(self.sd.InputStream.call_args.kwargs["blocksize"], 2048)
+        self.assertEqual(self.loopback.recorder.call_args.kwargs["samplerate"], 44100)
+        self.assertEqual(self.loopback.recorder.call_args.kwargs["blocksize"], 2048)
 
-    def test_failed_start_is_closed_before_mono_retry(self):
-        failed, retry = MagicMock(), MagicMock()
-        failed.start.side_effect = self.sd.PortAudioError("start failed")
-        self.sd.InputStream.side_effect = [failed, retry]
-        spectrum = self.make_spectrum()
-        failed.close.assert_called_once()
-        self.assertEqual(self.sd.InputStream.call_args.kwargs["channels"], 1)
-        self.assertEqual(spectrum.channels_eff, 1)
-
-    def test_final_start_error_is_not_hidden(self):
-        failed, retry = MagicMock(), MagicMock()
-        failed.start.side_effect = self.sd.PortAudioError("stereo failed")
-        retry.start.side_effect = self.sd.PortAudioError("mono failed")
-        self.sd.InputStream.side_effect = [failed, retry]
-        with self.assertRaises(self.sd.PortAudioError):
+    def test_capture_start_failure_is_reported_without_input_fallback(self):
+        self.recorder.__enter__.side_effect = RuntimeError("capture failed")
+        with self.assertRaisesRegex(RuntimeError, "capture failed"):
             self.make_spectrum()
-        failed.close.assert_called_once()
-        retry.close.assert_called_once()
+        self.loopback.recorder.assert_called_once()
 
-    def test_close_runs_even_if_stop_fails(self):
-        spectrum = self.audio.AudioSpectrum(Config(), 64)
-        self.stream.stop.side_effect = self.sd.PortAudioError("stop failed")
-        with self.assertRaises(self.sd.PortAudioError):
-            spectrum.close()
-        self.stream.close.assert_called_once()
+    def test_close_exits_recorder_once(self):
+        spectrum = self.make_spectrum()
+        spectrum.close()
+        spectrum.close()
+        self.recorder.__exit__.assert_called_once()
+        self.assertEqual(self.recorder.__exit__.call_args.args[-3:], (None, None, None))
+
+    def test_record_requests_exact_fft_frame_count(self):
+        spectrum = self.make_spectrum()
+        self.stream.record.return_value = input_frames()[0]
+        spectrum.step(1 / 60)
+        self.stream.record.assert_called_once_with(numframes=4096)
 
 
 class AppCleanupTests(unittest.TestCase):
@@ -120,7 +155,7 @@ class AppCleanupTests(unittest.TestCase):
         self.app_module = importlib.import_module("wune.app")
         self.renderer_patch = patch.object(self.app_module, "LedBarRenderer")
         self.renderer_patch.start()
-        self.backend.AudioSpectrum.return_value.device = Config().input_device
+        self.backend.AudioSpectrum.return_value.device = "HDMI Speakers"
         self.backend.AudioSpectrum.return_value.sr = 48000
         self.backend.AudioSpectrum.return_value.fmax = 23999
         self.backend.AudioSpectrum.return_value.gated = False
@@ -161,7 +196,7 @@ class AppCleanupTests(unittest.TestCase):
         self.pg.quit.assert_called_once()
 
     def test_info_uses_configured_input_instead_of_placeholder(self):
-        self.assertIn("CABLE Output", self.app.renderer.info_text)
+        self.assertIn("LOOPBACK:HDMI Speakers", self.app.renderer.info_text)
         self.assertIn("48.0 kHz", self.app.renderer.info_text)
         self.assertIn("float32", self.app.renderer.info_text)
         self.assertNotIn("24-bit", self.app.renderer.info_text)

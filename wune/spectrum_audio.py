@@ -1,9 +1,10 @@
 # wune/spectrum_audio.py
 from __future__ import annotations
+from contextlib import ExitStack
 import math
 
 import numpy as np
-import sounddevice as sd
+import soundcard as sc
 from .config import Config
 
 # 視覚用エンベロープ（per-band）
@@ -22,7 +23,7 @@ class VisEnvelope:
         return self.y
 
 class AudioSpectrum:
-    """Blocking sounddevice input → Hann/rFFT → log-power bands → display levels."""
+    """Windows WASAPI loopback → Hann/rFFT → log-power bands → display levels."""
     def __init__(
         self,
         cfg: Config,
@@ -38,36 +39,10 @@ class AudioSpectrum:
         self.channels_req = int(channels)
         self.sr = int(cfg.sample_rate if samplerate is None else samplerate)
         self.nfft = int(cfg.block_size if blocksize is None else blocksize)
-        self.device = cfg.input_device
         self.smoothing = float(np.clip(cfg.smoothing if smooth is None else smooth, 0.0, 0.99))
         self._agc_decay = float(np.clip(cfg.agc_decay if agc_decay is None else agc_decay, 0.5, 0.999))
         self.last_rms = 0.0
         self.gated = False
-
-        # デバイス情報を見て「開ける入力チャンネル数」を決める
-        try:
-            if self.device is None:
-                in_index = sd.default.device[0]  # (input, output) の input
-                if in_index is None or in_index < 0:
-                    in_index = sd.query_hostapis(sd.default.hostapi)['default_input_device']
-                devinfo = sd.query_devices(in_index)
-            else:
-                devinfo = sd.query_devices(self.device)
-        except (sd.PortAudioError, ValueError):
-            # 取得に失敗したら最終的に1chで試す
-            devinfo = {"max_input_channels": 1}
-
-        open_channels = max(1, min(self.channels_req, int(devinfo.get("max_input_channels", 1))))
-
-        # まず open_channels で開く。失敗したら 1ch でリトライ。
-        try:
-            self.stream = self._open_input(open_channels)
-        except sd.PortAudioError:
-            # samplerate不一致やドライバ事情もあるので最終手段で1ch
-            self.stream = self._open_input(1)
-            open_channels = 1
-
-        self.channels_eff = open_channels  # 実際に開けたch数（後段で使う）
 
         # FFT 前処理
         self.window = np.hanning(self.nfft).astype(np.float32)
@@ -100,6 +75,10 @@ class AudioSpectrum:
         # ビジュアルエンベロープの作成
         self._vis_env = VisEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms, fps=self.cfg.fps)
 
+        # Open last so initialization errors cannot leave capture running.
+        self._capture_context = ExitStack()
+        self.stream = self._open_loopback()
+
 
     # --- public API ----------------------------------------------------------
     def set_range(self, fmin: float, fmax: float) -> None:
@@ -116,7 +95,7 @@ class AudioSpectrum:
         1フレームぶん処理して (channels,bars) の 0..1 を返す。
         無音〜小音量でも 0 に張り付かないよう軽いAGCを入れている。
         """
-        data, _ = self.stream.read(self.nfft)     # shape: (nfft, C)
+        data = self.stream.record(numframes=self.nfft)     # shape: (nfft, C)
         if data.ndim == 1:
             data = data[:, None]
 
@@ -212,28 +191,30 @@ class AudioSpectrum:
         return self._out
 
     def close(self) -> None:
-        try:
-            self.stream.stop()
-        finally:
-            self.stream.close()
+        self._capture_context.close()
 
-    # --- internals -----------------------------------------------------------
+    def _open_loopback(self):
+        """Capture the render endpoint, never a microphone or an output player."""
+        speaker = (sc.default_speaker() if self.cfg.output_device is None
+                   else sc.get_speaker(self.cfg.output_device))
+        if speaker is None:
+            raise RuntimeError("No Windows playback device is available.")
+        if speaker.channels < 2:
+            raise RuntimeError("Select a stereo Windows playback device for loopback.")
 
-    def _open_input(self, channels: int):
-        """Start one input stream and release it if PortAudio rejects startup."""
-        stream = sd.InputStream(
-            device=self.device,
-            channels=channels,
-            samplerate=self.sr,
-            blocksize=self.nfft,
-            dtype="float32",
+        # Resolve by endpoint ID: names can also match ordinary microphones.
+        loopback = sc.get_microphone(id=speaker.id, include_loopback=True)
+        if not loopback.isloopback:
+            raise RuntimeError("The selected playback endpoint has no loopback capture.")
+        self.device = speaker.name
+        self.channels_eff = 2
+        # Shared mode leaves normal playback running. Avoid SoundCard's known
+        # single-channel WASAPI issue even when the display is configured mono.
+        recorder = loopback.recorder(
+            samplerate=self.sr, channels=[0, 1], blocksize=self.nfft,
+            exclusive_mode=False,
         )
-        try:
-            stream.start()
-        except sd.PortAudioError:
-            stream.close()
-            raise
-        return stream
+        return self._capture_context.enter_context(recorder)
 
     def _rebuild_bins(self) -> None:
         """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
