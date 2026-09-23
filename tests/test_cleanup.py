@@ -363,6 +363,19 @@ class AppCleanupTests(unittest.TestCase):
         self.assertEqual(self.app.spectrum.mock_calls, [])
         self.backend.AudioSpectrum.assert_called_once()
 
+    def test_transposed_resize_limits_excess_height_without_reopening_audio(self):
+        from wune.layout import fit_window_size
+        self.app.cfg.spectrum_orientation = "frequency_vertical"
+        self.app.cfg.channel_layout = "horizontal"
+        self.app.cfg.bars = 32
+        self.app.screen.get_size.return_value = (960, 1800)
+        self.app.spectrum.reset_mock()
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.VIDEORESIZE, size=(960, 1800)))
+        expected = fit_window_size((960, 1800), self.app.cfg)
+        self.pg.display.set_mode.assert_called_with(expected, self.pg.RESIZABLE)
+        self.assertEqual(self.app._windowed_size, expected)
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+
 
 if __name__ == "__main__":
     unittest.main()

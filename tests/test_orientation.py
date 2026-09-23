@@ -3,7 +3,7 @@ from dataclasses import replace
 import numpy as np
 import pygame as pg
 from wune.config import Config
-from wune.layout import clamp_window_size, minimum_window_size
+from wune.layout import clamp_window_size, minimum_window_size, fit_window_size, calculate_layout
 from wune.renderer import LedBarRenderer
 
 
@@ -63,3 +63,26 @@ class OrientationTests(unittest.TestCase):
                 r.draw(np.zeros((2, 32), dtype=np.float32))
         with self.assertRaisesRegex(ValueError, "spectrum_orientation"):
             minimum_window_size(Config(spectrum_orientation="invalid"))
+
+    def test_window_fit_is_stable_and_removes_excess_space(self):
+        for channels in ("horizontal", "vertical"):
+            for bars in (32, 64):
+                cfg = Config(spectrum_orientation="frequency_vertical", channel_layout=channels, bars=bars)
+                for size in ((960, 800), (960, 2000), (2200, 400), (1, 1), (1400, 1000)):
+                    with self.subTest(channels=channels, bars=bars, size=size):
+                        fitted = fit_window_size(size, cfg)
+                        self.assertEqual(fit_window_size(fitted, cfg), fitted)
+                        self.assertTrue(all(a <= b for a, b in zip(fitted, clamp_window_size(size, cfg))))
+                        layout = calculate_layout(fitted, cfg)
+                        if channels == "horizontal":
+                            self.assertEqual(layout.plots[1][0] - (layout.plots[0][0]+layout.plots[0][2]), 72+16+cfg.channel_gap)
+                        # Fullscreen also packs the channel group instead of spreading it.
+                        full = calculate_layout(clamp_window_size((2400, 1600), cfg), cfg)
+                        if channels == "horizontal":
+                            self.assertEqual(full.plots[1][0] - (full.plots[0][0]+full.plots[0][2]), 72+16+cfg.channel_gap)
+
+    def test_height_cannot_grow_without_room_to_grow_gauges(self):
+        cfg = Config(spectrum_orientation="frequency_vertical", channel_layout="horizontal", bars=32)
+        fitted = fit_window_size((960, 2000), cfg)
+        self.assertLess(fitted[1], 800)
+        self.assertEqual(fit_window_size((fitted[0], 4000), cfg), fitted)

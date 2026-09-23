@@ -4,7 +4,7 @@ import numpy as np
 import pygame as pg
 
 from .config import Config
-from .layout import clamp_window_size
+from .layout import clamp_window_size, fit_window_size
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
 
@@ -15,7 +15,7 @@ class App:
         pg.display.set_caption("WuneWune LED Speana v0.1")
         self.cfg = cfg
         self._fullscreen = False
-        self._windowed_size = clamp_window_size((cfg.width, cfg.height), cfg)
+        self._windowed_size = fit_window_size((cfg.width, cfg.height), cfg)
         self.screen = pg.display.set_mode(self._windowed_size, pg.RESIZABLE)
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
@@ -33,14 +33,14 @@ class App:
 
     def toggle_fullscreen(self):
         if self._fullscreen:
-            self.screen = pg.display.set_mode(clamp_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+            self.screen = pg.display.set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
             self._fullscreen = False
         else:
             self._windowed_size = self.screen.get_size()
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
             self._fullscreen = True
             if self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
-                self.screen = pg.display.set_mode(clamp_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+                self.screen = pg.display.set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
                 self._fullscreen = False
         self.renderer.resize(self.screen)
 
@@ -49,7 +49,7 @@ class App:
             self.toggle_fullscreen()
             return
         if not self._fullscreen:
-            size = clamp_window_size(size, self.cfg)
+            size = fit_window_size(size, self.cfg)
             if self.screen.get_size() != size:
                 self.screen = pg.display.set_mode(size, pg.RESIZABLE)
             self._windowed_size = size

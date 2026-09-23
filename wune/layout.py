@@ -61,6 +61,19 @@ def clamp_window_size(size, cfg):
     return tuple(max(int(value), limit) for value, limit in zip(size, minimum_window_size(cfg)))
 
 
+def fit_window_size(size, cfg):
+    """Limit transposed windows to the space their undistorted grid can use."""
+    size = clamp_window_size(size, cfg)
+    if cfg.spectrum_orientation != "frequency_vertical":
+        return size
+    layout = calculate_layout(size, cfg)
+    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    _, _, plot_w, plot_h = layout.plots[0]
+    width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
+    height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    return clamp_window_size((width, height), cfg)
+
+
 def calculate_layout(size, cfg):
     width, height = size
     if tuple(size) != clamp_window_size(size, cfg):
@@ -93,11 +106,16 @@ def calculate_layout(size, cfg):
             break
         led_h -= 1
     plots = []
+    packed_w = left + plot_w + 16
+    packed_h = header + plot_h + scale
+    group_x = (width - (cols * packed_w + (cols-1)*cfg.channel_gap)) // 2
+    group_y = top + (bottom-top - (rows*packed_h + (rows-1)*cfg.channel_gap)) // 2
     for ch in range(cfg.channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
         x = col * (cell_w + cfg.channel_gap) + left + (available_w - plot_w) // 2
         y = top + row * (cell_h + cfg.channel_gap) + cell_h - scale - plot_h
         if cfg.spectrum_orientation == "frequency_vertical":
-            y = top + row * (cell_h + cfg.channel_gap) + header + (available_h - plot_h) // 2
+            x = group_x + col * (packed_w + cfg.channel_gap) + left
+            y = group_y + row * (packed_h + cfg.channel_gap) + header
         plots.append((x, y, plot_w, plot_h))
     return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)
