@@ -191,7 +191,7 @@ class AudioCleanupTests(unittest.TestCase):
 class AppCleanupTests(unittest.TestCase):
     def setUp(self):
         self.pg = MagicMock()
-        for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i", "K_t", "MOUSEBUTTONDOWN")):
+        for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i", "K_t", "MOUSEBUTTONDOWN", "VIDEORESIZE", "WINDOWSIZECHANGED")):
             setattr(self.pg, name, i + 1)
         self.backend = MagicMock()
         self.modules = patch.dict(sys.modules, {
@@ -285,6 +285,42 @@ class AppCleanupTests(unittest.TestCase):
         self.app.renderer.apply_preset.reset_mock()
         self.app_module.App(Config(initial_preset="BLUE"))
         self.app.renderer.apply_preset.assert_called_once_with("BLUE")
+
+    def test_fullscreen_restores_previous_window_size(self):
+        window = MagicMock()
+        window.get_size.return_value = (960, 600)
+        fullscreen = MagicMock()
+        fullscreen.get_size.return_value = (1920, 1080)
+        self.app.screen = window
+        self.pg.display.set_mode.side_effect = [fullscreen, window]
+        self.app.toggle_fullscreen()
+        self.assertTrue(self.app._fullscreen)
+        self.app.toggle_fullscreen()
+        self.assertFalse(self.app._fullscreen)
+        self.pg.display.set_mode.assert_called_with((960, 600), self.pg.RESIZABLE)
+        self.assertEqual(self.app.renderer.resize.call_count, 2)
+
+    def test_info_toggle_exits_fullscreen_if_it_no_longer_fits(self):
+        from wune.layout import minimum_window_size
+        self.app.cfg.info_enabled = False
+        self.app.screen.get_size.return_value = minimum_window_size(self.app.cfg)
+        self.app._fullscreen = True
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_i))
+        self.assertTrue(self.app.cfg.info_enabled)
+        self.assertFalse(self.app._fullscreen)
+        self.pg.display.set_mode.assert_called_with(self.app._windowed_size, self.pg.RESIZABLE)
+
+    def test_resize_clamps_window_without_reopening_audio(self):
+        from wune.layout import minimum_window_size
+        self.app.screen.get_size.return_value = (100, 100)
+        self.app.spectrum.reset_mock()
+        levels = self.app.levels
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.VIDEORESIZE, size=(100, 100)))
+        self.pg.display.set_mode.assert_called_with(minimum_window_size(self.app.cfg), self.pg.RESIZABLE)
+        self.app.renderer.resize.assert_called_once_with(self.app.screen)
+        self.assertIs(self.app.levels, levels)
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+        self.backend.AudioSpectrum.assert_called_once()
 
 
 if __name__ == "__main__":

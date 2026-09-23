@@ -4,6 +4,7 @@ import numpy as np
 import pygame as pg
 
 from .config import Config
+from .layout import clamp_window_size
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
 
@@ -13,7 +14,9 @@ class App:
         pg.init()
         pg.display.set_caption("WuneWune LED Speana v0.1")
         self.cfg = cfg
-        self.screen = pg.display.set_mode((cfg.width, cfg.height), pg.RESIZABLE)
+        self._fullscreen = False
+        self._windowed_size = clamp_window_size((cfg.width, cfg.height), cfg)
+        self.screen = pg.display.set_mode(self._windowed_size, pg.RESIZABLE)
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
         if cfg.initial_preset is not None:
@@ -29,14 +32,37 @@ class App:
         self.update_info_text()
 
     def toggle_fullscreen(self):
-        flags = self.screen.get_flags()
-        mode = pg.RESIZABLE if flags & pg.FULLSCREEN else pg.FULLSCREEN
-        self.screen = pg.display.set_mode((self.cfg.width, self.cfg.height), mode)
-        self.renderer.surf = self.screen
+        if self._fullscreen:
+            self.screen = pg.display.set_mode(clamp_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+            self._fullscreen = False
+        else:
+            self._windowed_size = self.screen.get_size()
+            self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
+            self._fullscreen = True
+            if self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
+                self.screen = pg.display.set_mode(clamp_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+                self._fullscreen = False
+        self.renderer.resize(self.screen)
+
+    def resize_window(self, size):
+        if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
+            self.toggle_fullscreen()
+            return
+        if not self._fullscreen:
+            size = clamp_window_size(size, self.cfg)
+            if self.screen.get_size() != size:
+                self.screen = pg.display.set_mode(size, pg.RESIZABLE)
+            self._windowed_size = size
+        self.renderer.resize(self.screen)
 
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.QUIT:
             self.running = False
+        elif event.type == pg.VIDEORESIZE:
+            self.resize_window(event.size)
+        elif event.type == pg.WINDOWSIZECHANGED:
+            # pygame 2 updates the display Surface when the native window resizes.
+            self.resize_window(self.screen.get_size())
         elif event.type == pg.MOUSEBUTTONDOWN:
             if event.button == 1 and self.renderer.badge_contains(event.pos):
                 self.renderer.next_preset()
@@ -49,6 +75,7 @@ class App:
                 self.paused = not self.paused
             elif event.key == pg.K_i:
                 self.cfg.info_enabled = not self.cfg.info_enabled
+                self.resize_window(self.screen.get_size())
             elif event.key == pg.K_t:
                 self.renderer.next_preset()
 
