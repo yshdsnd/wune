@@ -99,9 +99,9 @@ class App:
 
                 if not self.paused:
                     self.levels = self.spectrum.step(dt)
-                # Pause reuses the last array; the smoothing coefficient is not data.
+                # Pause reuses the last levels and freezes peak timers.
                 self.update_info_text()
-                self.renderer.draw(self.levels)
+                self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
                 if self.paused:
                     self.renderer.draw_pause_overlay()
                 pg.display.flip()

@@ -26,9 +26,9 @@ class Config:
     info_height: int = 28
     info_position: str = "bottom"    # "top" or "bottom"
 
-    # ピークホールド
-    peak_hold_frames: int = 24    # 頂点を保持するフレーム数
-    peak_fall_per_frame: float = 0.9 / 32  # 1フレームごとの落下量（LED個数比率）
+    # Time-based peak marker motion
+    peak_hold_ms: float = 120
+    peak_fall_per_second: float = 2.5  # full-scale spans per second
 
     # ほんのり残像（画面に黒を薄く重ねる）
     afterglow_alpha: int = 35     # 0で残像無し、値が大きいほど早く消える（0〜255）
@@ -63,20 +63,17 @@ class Config:
     min_led_height: int = 3
 
     silence_rms_threshold: float = 5e-3     # 無音判定
-    silence_decay: float = 0.90             # 無音時の減衰率
-    post_floor: float = 0.04                # 極小値カット閾値(0..1)
     quiet_dbfs_floor: float = -55.0         # これ未満は“静寂”扱いにする
 
     # ビジュアルエンベロープの調整
-    vis_attack_ms: int = 15
-    vis_release_ms: int = 300
+    vis_attack_ms: int = 5
+    vis_release_ms: int = 120
 
     # Windows render endpoint: None follows the default at startup.
     output_device: str | None = None
     sample_rate: int | None = None  # None: selected output's mix rate at startup.
     block_size: int = 4096
-    smoothing: float = 0.7
-    output_floor: float = 0.05   # Final cutoff, distinct from post_floor.
+    output_floor: float = 0.05   # Display-only cutoff; envelope state is retained.
 
     def spectrum_upper_hz(self, samplerate: float) -> float:
         """Display policy, limited by the requested range and Nyquist safety."""
