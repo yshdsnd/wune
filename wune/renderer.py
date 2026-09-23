@@ -8,6 +8,7 @@ import pygame as pg
 from typing import Tuple
 from .config import Config
 from .layout import calculate_layout
+from .ballistics import PeakEnvelope
 from .presets import PRESETS, get_preset
 
 # ==========================
@@ -24,8 +25,10 @@ class LedBarRenderer:
         self._layout = None
         self._led_cache = {}
         # ピーク情報を (ch, bar) で持つ
-        self.peak_pos = np.zeros((self.channels, self.cfg.bars), dtype=np.float32)
-        self.peak_hold = np.zeros((self.channels, self.cfg.bars), dtype=np.int32)
+        self._peaks = PeakEnvelope((self.channels, cfg.bars), cfg.peak_hold_ms,
+                                   cfg.peak_fall_per_second * cfg.leds_per_bar)
+        self.peak_pos = self._peaks.positions
+        self.peak_hold = self._peaks.remaining
 
         # チャンネルラベル用フォント（任意）
         self.font_channel = pg.font.SysFont("Bahnschrift", 16, bold=True)
@@ -118,20 +121,8 @@ class LedBarRenderer:
             self.surf.blit(info_surf, (bar_rect.x + 10, bar_rect.y + (ih - info_surf.get_height())//2))
 
 
-    def update_peaks(self, level_leds: np.ndarray):
-        # level_leds: shape (ch, bars)
-        for ch in range(self.channels):
-            for i, lvl in enumerate(level_leds[ch]):
-                if lvl > self.peak_pos[ch, i]:
-                    self.peak_pos[ch, i] = lvl
-                    self.peak_hold[ch, i] = self.cfg.peak_hold_frames
-                else:
-                    if self.peak_hold[ch, i] > 0:
-                        self.peak_hold[ch, i] -= 1
-                    else:
-                        self.peak_pos[ch, i] = max(
-                            0.0, self.peak_pos[ch, i] - self.cfg.peak_fall_per_frame * self.cfg.leds_per_bar
-                        )
+    def update_peaks(self, level_leds, dt=None):
+        self._peaks.step(level_leds, 1 / self.cfg.fps if dt is None else dt)
 
     def _freq_to_bar(self, f_hz: float) -> int:
         """対数スケールで周波数→バー番号へ概算マッピング"""
@@ -211,7 +202,7 @@ class LedBarRenderer:
         self.surf.blit(ts_lr, (lr_x,  lr_y))
         self.surf.blit(unit,  (unit_x, unit_y))
 
-    def draw(self, levels: np.ndarray):
+    def draw(self, levels: np.ndarray, dt=None):
         self.resize(self.surf)
         # バックパネル等
         self.draw_panel()
@@ -222,7 +213,7 @@ class LedBarRenderer:
 
         # レベルをLED段数へ変換
         level_leds = levels * self.cfg.leds_per_bar
-        self.update_peaks(level_leds)
+        self.update_peaks(level_leds, dt)
 
         for ch in range(self.channels):
             y0 = self.ch_y0[ch]           # この段の“下端”基準

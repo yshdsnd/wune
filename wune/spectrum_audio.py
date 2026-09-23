@@ -1,26 +1,12 @@
 # wune/spectrum_audio.py
 from __future__ import annotations
 from contextlib import ExitStack
-import math
 
 import numpy as np
 import soundcard as sc
 from .config import Config
 
-# 視覚用エンベロープ（per-band）
-class VisEnvelope:
-    def __init__(self, attack_ms=35, release_ms=180, fps=60):
-        # フレーム独立係数
-        self.k_att = math.exp(-1.0 / max(1, (attack_ms/1000.0) * fps))
-        self.k_rel = math.exp(-1.0 / max(1, (release_ms/1000.0) * fps))
-        self.y = None
-    def step(self, x):
-        if self.y is None or self.y.shape != x.shape:
-            self.y = np.zeros_like(x, dtype=np.float32)
-        up = x > self.y
-        self.y[up]  = self.k_att*self.y[up] + (1-self.k_att)*x[up]
-        self.y[~up] = self.k_rel*self.y[~up] + (1-self.k_rel)*x[~up]
-        return self.y
+from .ballistics import LevelEnvelope
 
 class AudioSpectrum:
     """Windows WASAPI loopback → Hann/rFFT → calibrated band power → display levels."""
@@ -31,7 +17,6 @@ class AudioSpectrum:
         channels: int = 2,
         samplerate: int | None = None,
         blocksize: int | None = None,
-        smooth: float | None = None               # 出力の表示滑らかさ（0..1, 大きいほどヌル）
     ):
         self.cfg = cfg
         self.bars = int(bars)
@@ -45,7 +30,6 @@ class AudioSpectrum:
         if self.sr <= 0:
             raise ValueError("Sample rate must be positive.")
         self.nfft = int(cfg.block_size if blocksize is None else blocksize)
-        self.smoothing = float(np.clip(cfg.smoothing if smooth is None else smooth, 0.0, 0.99))
         self.last_rms = 0.0
         self.gated = False
 
@@ -68,7 +52,7 @@ class AudioSpectrum:
         self._out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
 
         # ビジュアルエンベロープの作成
-        self._vis_env = VisEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms, fps=self.cfg.fps)
+        self._vis_env = LevelEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms)
 
         # Open last so initialization errors cannot leave capture running.
         self._capture_context = ExitStack()
@@ -103,18 +87,9 @@ class AudioSpectrum:
         frame_db = 20.0 * np.log10(max(frame_rms, EPS))
         QUIET_DB = self.cfg.quiet_dbfs_floor  # 設定から読み取れるように
 
-        if frame_db < QUIET_DB:
-            self.gated = True
-            self._out *= self.cfg.silence_decay
-            self._out[self._out < self.cfg.post_floor] = 0.0
-            return self._out
-
-        self.gated = (frame_rms < self.cfg.silence_rms_threshold)
-        if frame_rms < self.cfg.silence_rms_threshold:
-            # ゼロに落とす or 穏やかに減衰
-            self._out *= self.cfg.silence_decay   # 無音時は既存の減衰率を維持
-            self._out[self._out < self.cfg.post_floor] = 0.0
-            return self._out
+        self.gated = frame_db < QUIET_DB or frame_rms < self.cfg.silence_rms_threshold
+        if self.gated:
+            return self._animate(np.zeros_like(self._out), dt)
 
         C_in = data.shape[1]
 
@@ -126,11 +101,11 @@ class AudioSpectrum:
 
         norm = self._map_levels(data)
 
-        norm = self._vis_env.step(norm)
-        norm[norm < self.cfg.post_floor] = 0.0
+        return self._animate(norm, dt)
 
-        # 表示の滑らかさ
-        self._out = self.smoothing * self._out + (1.0 - self.smoothing) * norm
+    def _animate(self, target, dt):
+        # Apply the display floor to a copy, never to the envelope state.
+        self._out = self._vis_env.step(target, dt).copy()
         self._out[self._out < self.cfg.output_floor] = 0.0
         return self._out
 
