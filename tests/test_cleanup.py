@@ -1,8 +1,6 @@
 """Hardware-free regression checks; native WASAPI loopback testing is still required."""
 
 import importlib
-import json
-from pathlib import Path
 import sys
 import types
 import unittest
@@ -105,18 +103,61 @@ class AudioCleanupTests(unittest.TestCase):
         self.addCleanup(spectrum.close)
         self.assertEqual(self.loopback.recorder.call_args.kwargs["channels"], [0, 1])
 
-    def test_analysis_matches_pre_cleanup_reference(self):
-        reference = json.loads((Path(__file__).parent / "fixtures" / "spectrum_48k.json").read_text())
-        for channels in (1, 2):
-            with self.subTest(input_channels=channels):
-                spectrum = self.make_spectrum()
-                actual = []
-                for frame in input_frames(channels):
-                    self.stream.record.return_value = frame
-                    actual.append(spectrum.step(1 / 60).copy())
-                np.testing.assert_allclose(actual, reference[str(channels)], rtol=1e-6, atol=1e-7)
-                self.assertTrue(spectrum.gated)
-                self.assertTrue(np.any(actual[0]))
+    def test_calibrated_sine_levels_and_input_history(self):
+        for rate in (44100, 48000, 96000):
+            for bars in (32, 64):
+                cfg = Config(sample_rate=rate, bars=bars)
+                spectrum = self.audio.AudioSpectrum(cfg, bars)
+                self.addCleanup(spectrum.close)
+                spectrum.set_range(20, cfg.spectrum_upper_hz(rate))
+                t = np.arange(cfg.block_size) / rate
+                for db in (-20, -12, -6, -3, -0.1, -20):
+                    with self.subTest(rate=rate, bars=bars, db=db):
+                        tone = 10**(db/20) * np.sin(2*np.pi*1000*t)
+                        data = np.column_stack((tone, tone * 0.1))
+                        mapped = spectrum._map_levels(data)
+                        actual = mapped.max(axis=1) * (cfg.db_max-cfg.db_min) + cfg.db_min
+                        np.testing.assert_allclose(actual, (db, db-20), atol=3.1)
+                        self.stream.record.return_value = data
+                        for _ in range(180):
+                            output = spectrum.step(1/60)
+                        np.testing.assert_allclose(output.max(axis=1), mapped.max(axis=1), atol=0.002)
+
+    def test_silence_decays_and_never_normalizes_to_full_scale(self):
+        spectrum = self.make_spectrum()
+        self.stream.record.return_value = input_frames()[0]
+        for _ in range(30):
+            spectrum.step(1/60)
+        before = spectrum._out.copy()
+        self.stream.record.return_value = np.zeros((4096, 2))
+        after = spectrum.step(1/60)
+        self.assertTrue(spectrum.gated)
+        self.assertTrue(np.all(after <= before))
+        for _ in range(100):
+            spectrum.step(1/60)
+        np.testing.assert_array_equal(spectrum._out, 0)
+
+    def test_strong_multitone_reaches_red_but_quiet_copy_does_not(self):
+        spectrum = self.make_spectrum()
+        t = np.arange(4096) / spectrum.sr
+        signal = 0.8*np.sin(2*np.pi*1000*t) + 0.15*np.sin(2*np.pi*3000*t)
+        data = np.column_stack((signal, signal))
+        loud = spectrum._map_levels(data)
+        quiet = spectrum._map_levels(data * 0.1)
+        self.assertGreater(loud.max(), 0.9)
+        self.assertLess(loud.max(), 1.0)
+        self.assertLess(quiet.max(), 0.75)
+
+    def test_window_power_calibration_is_independent_of_fft_size(self):
+        for size in (2048, 4096, 8192):
+            cfg = Config(sample_rate=48000, block_size=size)
+            spectrum = self.audio.AudioSpectrum(cfg, cfg.bars)
+            self.addCleanup(spectrum.close)
+            t = np.arange(size) / 48000
+            tone = 10**(-6/20) * np.sin(2*np.pi*12000*t)
+            data = np.column_stack((tone, tone))
+            actual = spectrum._map_levels(data).max()*66-66
+            self.assertAlmostEqual(float(actual), -6, delta=0.01)
 
     def test_configured_rate_and_block_are_passed_through(self):
         cfg = Config(sample_rate=44100, block_size=2048)
@@ -325,3 +366,4 @@ class AppCleanupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -23,7 +23,7 @@ class VisEnvelope:
         return self.y
 
 class AudioSpectrum:
-    """Windows WASAPI loopback → Hann/rFFT → log-power bands → display levels."""
+    """Windows WASAPI loopback → Hann/rFFT → calibrated band power → display levels."""
     def __init__(
         self,
         cfg: Config,
@@ -31,7 +31,6 @@ class AudioSpectrum:
         channels: int = 2,
         samplerate: int | None = None,
         blocksize: int | None = None,
-        agc_decay: float | None = None,          # 大きいほどゆっくり追従（0.9〜0.99）
         smooth: float | None = None               # 出力の表示滑らかさ（0..1, 大きいほどヌル）
     ):
         self.cfg = cfg
@@ -47,7 +46,6 @@ class AudioSpectrum:
             raise ValueError("Sample rate must be positive.")
         self.nfft = int(cfg.block_size if blocksize is None else blocksize)
         self.smoothing = float(np.clip(cfg.smoothing if smooth is None else smooth, 0.0, 0.99))
-        self._agc_decay = float(np.clip(cfg.agc_decay if agc_decay is None else agc_decay, 0.5, 0.999))
         self.last_rms = 0.0
         self.gated = False
 
@@ -55,29 +53,19 @@ class AudioSpectrum:
         self.window = np.hanning(self.nfft).astype(np.float32)
         self.freqs = np.fft.rfftfreq(self.nfft, d=1 / self.sr)
 
-        # 周波数ごとの重み付け配列を作成
-        weights = np.ones(len(self.freqs), dtype=np.float32)
-        cutoff_freq = 20000
-        if self.sr > 48000:
-            cutoff_freq = 48000
-
-        for i, f in enumerate(self.freqs):
-            if 10000 <= f < 16000:
-                weights[i] = 1.8  # 10k-16kHzを強調 (倍率は好みで調整)
-            elif 16000 <= f < cutoff_freq:
-                weights[i] = 2.5  # 16kHz以上をさらに強調
-            elif f >= cutoff_freq:
-                weights[i] = 0.001 # カットオフ周波数以上は事実上カット (log10に通すためゼロにしない)
-        self.weights = np.log10(weights) # ★対数パワーに加算するので、log10しておく
+        # Parseval: positive-frequency Hann power of a unit-peak sine is
+        # N * sum(window**2) / 4. Calibrate band sums to that reference.
+        self._power_scale = 4.0 / (self.nfft * np.sum(self.window.astype(np.float64)**2))
+        if cfg.db_max <= cfg.db_min:
+            raise ValueError("db_max must be greater than db_min")
 
         # 初期の周波数レンジ（Configから上書き可）
         self.fmin = 20.0
         self.fmax = float(self.sr // 2)
         self._rebuild_bins()
 
-        # 出力とAGC/スムージングの状態
+        # 出力スムージングの状態
         self._out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
-        self._agc = np.full((self.channels_req, self.bars), 1e-3, dtype=np.float32)
 
         # ビジュアルエンベロープの作成
         self._vis_env = VisEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms, fps=self.cfg.fps)
@@ -100,7 +88,7 @@ class AudioSpectrum:
     def step(self, dt: float) -> np.ndarray:
         """
         1フレームぶん処理して (channels,bars) の 0..1 を返す。
-        無音〜小音量でも 0 に張り付かないよう軽いAGCを入れている。
+        固定の正弦波フルスケール基準で表示レベルに変換する。
         """
         data = self.stream.record(numframes=self.nfft)     # shape: (nfft, C)
         if data.ndim == 1:
@@ -136,58 +124,7 @@ class AudioSpectrum:
         elif C_in > self.channels_req:
             data = data[:, : self.channels_req]
 
-        # 出力バッファ
-        out = np.zeros_like(self._out)
-
-        # chごとにFFT→バービニング（logパワー平均）
-        for ch in range(self.channels_req):
-            x = data[:, ch].astype(np.float32, copy=False)
-            spec = np.fft.rfft(self.window * x)
-            pwr = (spec.real**2 + spec.imag**2).astype(np.float32) + 1e-12  # power
-            logp = np.log10(pwr)  # 聴感に寄せるため対数圧縮
-            logp += self.weights # 周波数ごとの重みをここで加算
-
-            # ビンに平均で落とし込み
-            for b, idx in enumerate(self._bin_idx):
-                if idx.size:
-                    out[ch, b] = np.mean(logp[idx])
-                else:
-                    out[ch, b] = -12.0  # ほぼ無音扱い
-
-        # --- 0..1 正規化（チャンネル独立の簡易AGC + スムージング） ---
-        # 更新式: agc = max( out, agc*decay ) を各バーで
-        self._agc = np.maximum(out, self._agc * self._agc_decay)
-
-        # パーセンタイル正規化（極端値の影響を弱める）
-        lo = np.percentile(out, self.cfg.norm_lo_pct, axis=1, keepdims=True)
-        hi = np.percentile(self._agc, self.cfg.norm_hi_pct, axis=1, keepdims=True)  # 上側はAGC基準
-
-        #    log10(パワー)スケールで 0.5 は約 +5 dB（十分“差”として認識できる量）
-        min_span = self.cfg.min_norm_span_db10
-        span = hi - lo
-        use_abs = span < min_span   # (ch,1) ブール
-
-        # ① 絶対dB基準の正規化（無条件で先に作る）
-        dbmin10   = self.cfg.db_min / 10.0        # -60 dB → -6.0
-        dbrange10 = (self.cfg.db_max - self.cfg.db_min) / 10.0  # 60 dB → 6.0
-        abs_norm = (out - dbmin10) / (dbrange10 + 1e-6)
-        abs_norm = np.clip(abs_norm, 0.0, 1.0)
-
-        # 通常のパーセンタイル正規化
-        pct_norm = (out - lo) / (np.maximum(span, min_span) + 1e-6)
-        pct_norm = np.clip(pct_norm, 0.0, 1.0)
-
-        # ③ スパンが小さいチャンネルは絶対dBにフォールバック
-        #    use_abs は (ch,1) なので (ch,bins) に自動ブロードキャストされます
-        norm = np.where(use_abs, abs_norm, pct_norm).astype(np.float32)
-
-        knee = self.cfg.compression_knee
-        gamma = self.cfg.compression_gamma
-        x = norm
-        x = x / (x + knee)
-        x = np.clip(x, 0.0, 1.0)
-        x = np.power(x, gamma, dtype=np.float32)
-        norm = x
+        norm = self._map_levels(data)
 
         norm = self._vis_env.step(norm)
         norm[norm < self.cfg.post_floor] = 0.0
@@ -196,6 +133,28 @@ class AudioSpectrum:
         self._out = self.smoothing * self._out + (1.0 - self.smoothing) * norm
         self._out[self._out < self.cfg.output_floor] = 0.0
         return self._out
+
+    def _map_levels(self, data: np.ndarray) -> np.ndarray:
+        """Band energy in sine-peak-equivalent dBFS, without temporal processing.
+
+        Sum linear power before taking the log. No per-frame or historical
+        gain reference: scaling input by A shifts every band by 20*log10(A).
+        A tone split across band boundaries shares its energy between them.
+        """
+        out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
+        for ch in range(self.channels_req):
+            spec = np.fft.rfft(self.window * data[:, ch])
+            power = np.abs(spec)**2 * self._power_scale
+            # DC is excluded by the band mapping; Nyquist has no negative twin.
+            if self.nfft % 2 == 0:
+                power[-1] *= 0.5
+            for band, indices in enumerate(self._bin_idx):
+                energy = float(np.sum(power[indices]))
+                db = 10.0 * np.log10(max(energy, 1e-20))
+                out[ch, band] = np.clip(
+                    (db - self.cfg.db_min) / (self.cfg.db_max - self.cfg.db_min), 0.0, 1.0
+                )
+        return out
 
     def close(self) -> None:
         self._capture_context.close()
