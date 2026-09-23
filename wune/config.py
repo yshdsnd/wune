@@ -16,7 +16,7 @@ class Config:
     leds_per_bar: int = 20        # 縦のLED個数
     led_gap: int = 1              # LEDの隙間(px)
     margin_lr: int = 40           # 左右マージン
-    margin_tb: int = 96           # 上下マージン（インフォバー分を少し広めに）
+    margin_tb: int = 16           # 上下の外側余白
     bar_gap: int = 6              # バー同士の隙間
     corner_radius: int = 4        # LED角の丸み
 
@@ -52,14 +52,14 @@ class Config:
 
     # ---- ステレオ分割 ----
     channels: int = 2           # 1=mono, 2=stereo
-    channel_gap: int = 60       # 上下の段の間隔(px)
+    channel_layout: str = "vertical"  # "vertical" or "horizontal"
+    channel_gap: int = 24       # チャンネル間の余白(px)
 
     # 追加（目安値。画面の見え方に合わせて微調整OK）
     header_reserved: int = 36    # 上部のロゴ/バッジ/「dB」余白
     scale_reserved: int = 28     # 下部の周波数ラベル一式の高さ
 
     min_led_height: int = 3
-    min_leds_per_bar: int = 12
 
     silence_rms_threshold: float = 5e-3     # 無音判定
     silence_decay: float = 0.90             # 無音時の減衰率

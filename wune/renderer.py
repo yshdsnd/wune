@@ -7,6 +7,7 @@ import numpy as np
 import pygame as pg
 from typing import Tuple
 from .config import Config
+from .layout import calculate_layout
 from .presets import PRESETS, get_preset
 
 # ==========================
@@ -19,52 +20,8 @@ class LedBarRenderer:
         self.preset_name = "CUSTOM"
         if cfg.gauge_style not in ("flat", "box"):
             raise ValueError("gauge_style must be flat or box")
-        # バー配置の算出
-        inner_w = cfg.width - cfg.margin_lr * 2
-        self.bar_w = (inner_w - (cfg.bars - 1) * cfg.bar_gap) // cfg.bars
-        self.bar_x0 = cfg.margin_lr
-        # チャンネルごとの縦レイアウト（上下2段）
-        self.channels = self.cfg.channels
-        top_reserve    = self.cfg.margin_tb + self.cfg.header_reserved
-        bottom_reserve = self.cfg.margin_tb
-        # Infoバーぶんを確保
-        if self.cfg.info_enabled:
-            bottom_reserve += self.cfg.info_height + 12
-        # 周波数スケールぶんを確保（下段の直下に出す前提）
-        if self.cfg.show_freq_scale:
-            bottom_reserve += self.cfg.scale_reserved
-
-        usable_h = self.cfg.height - top_reserve - bottom_reserve - (self.cfg.channels - 1) * self.cfg.channel_gap
-
-        # 1) 暫定の段高さ（この高さにLEDを収められるかを先に判定）
-        temp_ch_h = max(32, usable_h // self.cfg.channels)
-
-        # 2) 設定された最小LED高さと最小段数
-        min_led_h   = self.cfg.min_led_height     # 3px 以上に保つ
-        min_leds_nb = self.cfg.min_leds_per_bar  # 12段までは下げてもよい
-
-        # 3) 今の段数で何pxのLEDになるかを計算する関数
-        gap = self.cfg.led_gap
-        def led_h_for(n_leds: int) -> int:
-            avail = temp_ch_h - (n_leds - 1) * gap
-            return avail // n_leds
-
-        # 4) 小さすぎる間は leds_per_bar を減らす（下限は min_leds_nb）
-        leds = self.cfg.leds_per_bar
-        while leds > min_leds_nb and led_h_for(leds) < min_led_h:
-            leds -= 1
-        self.cfg.leds_per_bar = leds
-
-        # 5) この後の計算で正式に段高さを採用
-        self.ch_h = temp_ch_h
-
-        self.ch_y0 = [top_reserve + i * (self.ch_h + self.cfg.channel_gap)
-                    for i in range(self.cfg.channels)]
-
-        # LEDの高さは、実際に確保できたチャンネル段の高さから決定する。
-        total_gap = (self.cfg.leds_per_bar - 1) * self.cfg.led_gap
-        self.led_h = max(2, (self.ch_h - total_gap) // self.cfg.leds_per_bar)
-
+        self.channels = cfg.channels
+        self._layout = None
         # ピーク情報を (ch, bar) で持つ
         self.peak_pos = np.zeros((self.channels, self.cfg.bars), dtype=np.float32)
         self.peak_hold = np.zeros((self.channels, self.cfg.bars), dtype=np.int32)
@@ -73,7 +30,7 @@ class LedBarRenderer:
         self.font_channel = pg.font.SysFont("Bahnschrift", 16, bold=True)
 
         # 透明サーフェス（残像用）
-        self.trail = pg.Surface((cfg.width, cfg.height), pg.SRCALPHA)
+        self.trail = None
 
         # フォント
         # SysFont picks one installed font; it does not fill missing glyphs
@@ -88,6 +45,23 @@ class LedBarRenderer:
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
+        self.resize(surf)
+
+    def resize(self, surf):
+        """Refresh geometry/surfaces without resetting levels, peaks or presets."""
+        layout = calculate_layout(surf.get_size(), self.cfg)
+        size_changed = self.trail is None or self.trail.get_size() != surf.get_size()
+        self.surf = surf
+        self.width, self.height = surf.get_size()
+        if not size_changed and layout == self._layout:
+            return
+        self._layout = layout
+        self.plots = [pg.Rect(rect) for rect in layout.plots]
+        self.bar_w, self.bar_gap = layout.bar_width, layout.bar_gap
+        self.led_h = layout.led_height
+        self.ch_y0 = [rect.y for rect in self.plots]
+        self.ch_h = self.plots[0].height
+        self.trail = pg.Surface(surf.get_size(), pg.SRCALPHA)
 
     def apply_preset(self, name):
         preset = get_preset(name)
@@ -104,7 +78,7 @@ class LedBarRenderer:
         if not self.cfg.show_badge:
             return None
         width, height = self.font_badge.size(self.preset_name)
-        return pg.Rect(self.cfg.width - width - 16 - 24, 14, width + 16, height + 8)
+        return pg.Rect(self.width - width - 16 - 24, 14, width + 16, height + 8)
 
     def badge_contains(self, pos):
         rect = self.badge_rect()
@@ -115,7 +89,7 @@ class LedBarRenderer:
     def draw_panel(self):
         self.surf.fill(self.cfg.theme.background)
         # 枠線
-        pg.draw.rect(self.surf, self.cfg.theme.border, (8, 8, self.cfg.width-16, self.cfg.height-16), 2, border_radius=10)
+        pg.draw.rect(self.surf, self.cfg.theme.border, (8, 8, self.width-16, self.height-16), 2, border_radius=10)
         # ロゴ
         logo = self.font_logo.render("SPECTRA-LED 90", True, self.cfg.theme.logo_text)
         self.surf.blit(logo, (self.cfg.margin_lr, 16))
@@ -131,15 +105,11 @@ class LedBarRenderer:
             self.surf.blit(text, (bx+pad, by+2))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
-            ih = self.cfg.info_height
-            if self.cfg.info_position == "top":
-                y = self.cfg.margin_tb - ih - 8
-            else:
-                y = self.cfg.height - self.cfg.margin_tb + 28
-            bar_rect = pg.Rect(16, y, self.cfg.width-32, ih)
+            bar_rect = pg.Rect(self._layout.info_rect)
+            ih = bar_rect.height
             pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=8)
             pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
-            info_surf = self.font_small.render(self.info_text, True, self.cfg.theme.info_text)
+            info_surf = self.font_small.render(self._fit_text(self.info_text, self.font_small, bar_rect.width - 20), True, self.cfg.theme.info_text)
             self.surf.blit(info_surf, (bar_rect.x + 10, bar_rect.y + (ih - info_surf.get_height())//2))
 
 
@@ -166,90 +136,49 @@ class LedBarRenderer:
         idx = int(round(pos * (self.cfg.bars - 1)))
         return max(0, min(self.cfg.bars - 1, idx))
 
-    def _fmt_freq_label(self, f: float, with_unit: bool = False) -> str:
-        """周波数ラベル表示をいい感じに整形"""
-        if f >= 1000:
-            v = f / 1000.0
-            s = f"{int(v)}k" if abs(v - int(v)) < 1e-6 else f"{v:.1f}k".rstrip("0").rstrip(".") + "k"
-            return s + ("Hz" if with_unit else "")
-        else:
-            s = f"{f:.1f}" if abs(f - int(f)) > 1e-6 else f"{int(f)}"
-            return s + ("Hz" if with_unit else "")
+    @staticmethod
+    def _fit_text(text, font, width):
+        if font.size(text)[0] <= width:
+            return text
+        while text and font.size(text + "…")[0] > width:
+            text = text[:-1]
+        return text + "…" if text else ""
+
+    def _fmt_freq_label(self, f, with_unit=False):
+        label = f"{f / 1000:g}k" if f >= 1000 else f"{f:g}"
+        return label + ("Hz" if with_unit else "")
 
     def draw_freq_scale(self):
-        """バー列の下に目盛り線とラベルを描く"""
         if not self.cfg.show_freq_scale:
             return
-        
-        # 下段の直下
-        base_y = self.cfg.height - (self.cfg.margin_tb + (self.cfg.info_height + 12 if self.cfg.info_enabled else 0) + self.cfg.scale_reserved) + 8
-        EPS = 1e-6
-
-        ticks = [f for f in self.cfg.scale_ticks_hz
-             if (self.cfg.min_freq_hz + EPS) < f < (self.cfg.max_freq_hz - EPS)]
-
-        for f in ticks:
-            # 端ラベルと重複するのを避ける
-            if abs(f - self.cfg.min_freq_hz) < EPS or abs(f - self.cfg.max_freq_hz) < EPS:
-                continue
-            b = self._freq_to_bar(f)
-            x = self.bar_x0 + b * (self.bar_w + self.cfg.bar_gap) + self.bar_w // 2
-            # 目盛り
-            pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + 6), 1)
-
-            if f >= 1000:
-                # 1k, 2k, 4k, 16k, 32k, 48k 表記
-                if f % 1000 == 0:
-                    label = f"{int(f/1000)}k"
-                else:
-                    label = f"{f/1000:.1f}k".rstrip("0").rstrip(".")  # 1.6k など
-            else:
-                # 31.5, 63 など。整数ならそのまま、小数点ありは 1桁
-                label = f"{f:.1f}" if (f != int(f)) else f"{int(f)}"
-
-            ts = self.font_scale.render(label, True, self.cfg.theme.scale_text)
-            self.surf.blit(ts, (x - ts.get_width()//2, base_y + 8))
-
-        # 端ラベル（min/max）を明示
-        if self.cfg.show_freq_edge_labels:
-            # 左端（min）: 単位なし（例: "20"）
-            x_left = self.bar_x0
-            min_label = self._fmt_freq_label(self.cfg.min_freq_hz, with_unit=False)
-            ts_min = self.font_scale.render(min_label, True, self.cfg.theme.edge_text)
-            self.surf.blit(ts_min, (x_left, base_y + 8))
-
-            # 右端（max）:
-            #  数値＋k まではバー中心下にセンタリング、単位 "Hz" は右にはみ出し
-            right_bar_center = (
-                self.bar_x0
-                + (self.cfg.bars - 1) * (self.bar_w + self.cfg.bar_gap)
-                + self.bar_w // 2
-            )
-
-            fmax = self.cfg.max_freq_hz
-            if fmax >= 1000:
-                v = fmax / 1000.0
-                # 例: 48000 -> "48k", 1600 -> "1.6k"
-                numk = f"{int(v)}k" if abs(v - int(v)) < 1e-6 else f"{v:.1f}".rstrip("0").rstrip(".") + "k"
-            else:
-                numk = f"{int(fmax)}" if abs(fmax - int(fmax)) < 1e-6 else f"{fmax:.1f}".rstrip("0").rstrip(".")
-
-            ts_numk = self.font_scale.render(numk, True, self.cfg.theme.edge_text)
-            # 「48k」をバー中心にセンタリング
-            self.surf.blit(ts_numk, (right_bar_center - ts_numk.get_width() // 2, base_y + 8))
-
-            # 単位は "Hz" だけ、数字の右に少し間を空けて配置（はみ出してOK）
-            ts_unit = self.font_scale.render("Hz", True, self.cfg.theme.scale_text)
-            gap_px = 2
-            self.surf.blit(
-                ts_unit,
-                (right_bar_center + ts_numk.get_width() // 2 + gap_px, base_y + 8)
-            )
+        for plot in self.plots:
+            base_y = plot.bottom + 4
+            occupied = []
+            if self.cfg.show_freq_edge_labels:
+                for freq, right in ((self.cfg.min_freq_hz, False), (self.cfg.max_freq_hz, True)):
+                    label = self._fmt_freq_label(freq, with_unit=right)
+                    image = self.font_scale.render(label, True, self.cfg.theme.edge_text)
+                    rect = image.get_rect(topleft=(plot.x, base_y + 8))
+                    if right:
+                        rect.right = plot.right
+                    self.surf.blit(image, rect)
+                    occupied.append(rect.inflate(8, 0))
+            for freq in self.cfg.scale_ticks_hz:
+                if not self.cfg.min_freq_hz < freq < self.cfg.max_freq_hz:
+                    continue
+                x = plot.x + self._freq_to_bar(freq) * (self.bar_w + self.bar_gap) + self.bar_w // 2
+                pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + 5))
+                image = self.font_scale.render(self._fmt_freq_label(freq), True, self.cfg.theme.scale_text)
+                rect = image.get_rect(midtop=(x, base_y + 8))
+                if rect.left < plot.left or rect.right > plot.right or any(rect.colliderect(other) for other in occupied):
+                    continue
+                self.surf.blit(image, rect)
+                occupied.append(rect.inflate(8, 0))
 
     def draw_db_labels_ch(self, ch: int):
         if not self.cfg.show_db_scale:
             return
-        x_right = self.bar_x0 - self.cfg.db_label_pad
+        x_right = self.plots[ch].x - self.cfg.db_label_pad
         y0 = self.ch_y0[ch]
         ch_h = self.ch_h
 
@@ -278,6 +207,7 @@ class LedBarRenderer:
         self.surf.blit(unit,  (unit_x, unit_y))
 
     def draw(self, levels: np.ndarray):
+        self.resize(self.surf)
         # バックパネル等
         self.draw_panel()
 
@@ -294,7 +224,7 @@ class LedBarRenderer:
             ch_h = self.ch_h
             
             for b in range(self.cfg.bars):
-                x = self.bar_x0 + b * (self.bar_w + self.cfg.bar_gap)
+                x = self.plots[ch].x + b * (self.bar_w + self.bar_gap)
                 # 下から上へLEDを描く
                 lit = float(level_leds[ch, b])
                 for j in range(self.cfg.leds_per_bar):
@@ -417,9 +347,9 @@ class LedBarRenderer:
 
     def draw_pause_overlay(self):
         # 画面中央に "PAUSED" を半透明で表示
-        overlay = pg.Surface((self.cfg.width, self.cfg.height), pg.SRCALPHA)
+        overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
         overlay.fill((*self.cfg.theme.overlay, 100))
         text = self.font_badge.render("PAUSED", True, self.cfg.theme.pause_text)
         tw, th = text.get_size()
-        overlay.blit(text, ((self.cfg.width - tw)//2, (self.cfg.height - th)//2))
+        overlay.blit(text, ((self.width - tw)//2, (self.height - th)//2))
         self.surf.blit(overlay, (0, 0))
