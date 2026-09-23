@@ -321,8 +321,8 @@ class LedBarRenderer:
                 s = pg.Surface(gloss.size, pg.SRCALPHA)
                 s.fill((*self.cfg.theme.highlight, 45))
                 self.surf.blit(s, gloss)
-            # 立体用の縁（小型では逆に色を潰しがちなので inner.height>=4 のときだけ）
-            if inner.height >= 4:
+            # Leave a colored face between the two outline edges.
+            if inner.height >= 4 and inner.width > 2:
                 pg.draw.rect(self.surf, self.cfg.theme.led_outline, inner, width=1,
                             border_radius=max(0, self.cfg.corner_radius - 1))
 

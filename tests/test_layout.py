@@ -86,6 +86,20 @@ class LayoutTests(unittest.TestCase):
                     r.resize(pg.Surface(size))
                     r.draw(np.full((2, bars), 0.8, dtype=np.float32))
 
+    def test_narrow_leds_keep_their_face_color_in_every_preset(self):
+        for preset in ("CLASSIC", "AMBER", "BLUE", "CLASSIC BOX"):
+            r = LedBarRenderer(pg.Surface((1280, 480)), Config())
+            r.apply_preset(preset)
+            for width in range(3, 9):
+                for height in (8, 16, 32):
+                    with self.subTest(preset=preset, width=width, height=height):
+                        r.surf.fill((0, 0, 0))
+                        rect = pg.Rect(10, 10, width, height)
+                        color = r.cfg.theme.green_on
+                        r.draw_led(rect, color, True)
+                        pixels = pg.surfarray.array3d(r.surf.subsurface(rect))
+                        self.assertTrue(np.any(np.all(pixels == color, axis=2)))
+
     def test_clamp_and_validation(self):
         cfg = Config(channel_layout="horizontal", bars=32)
         self.assertEqual(clamp_window_size((1, 1), cfg), minimum_window_size(cfg))
