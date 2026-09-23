@@ -2,6 +2,8 @@
 
 import numpy as np
 import pygame as pg
+from copy import deepcopy
+import warnings
 
 from .config import Config
 from .layout import clamp_window_size, fit_window_size
@@ -10,13 +12,20 @@ from .spectrum_audio import AudioSpectrum
 
 
 class App:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, settings_store=None, saved_geometry=None):
+        cfg = deepcopy(cfg)
         pg.init()
         pg.display.set_caption("WuneWune LED Speana v0.1")
         self.cfg = cfg
+        self.settings_store = settings_store
+        self._windowed_position = None
         self._fullscreen = False
         self._windowed_size = fit_window_size((cfg.width, cfg.height), cfg)
+        if settings_store is not None:
+            from .window_geometry import restore_geometry, work_areas
+            self._windowed_size, self._windowed_position = restore_geometry(cfg, saved_geometry or {}, work_areas())
         self.screen = pg.display.set_mode(self._windowed_size, pg.RESIZABLE)
+        self._restore_position()
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
         if cfg.initial_preset is not None:
@@ -35,14 +44,39 @@ class App:
         if self._fullscreen:
             self.screen = pg.display.set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
             self._fullscreen = False
+            self._restore_position()
         else:
             self._windowed_size = self.screen.get_size()
+            self._remember_position()
             self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
             self._fullscreen = True
             if self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
                 self.screen = pg.display.set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
                 self._fullscreen = False
+                self._restore_position()
         self.renderer.resize(self.screen)
+
+    def _remember_position(self):
+        if self.settings_store is not None:
+            from pygame._sdl2.video import Window
+            self._windowed_position = tuple(Window.from_display_module().position)
+
+    def _restore_position(self):
+        if self._windowed_position is not None:
+            from pygame._sdl2.video import Window
+            Window.from_display_module().position = self._windowed_position
+
+    def save_settings(self):
+        if self.settings_store is None:
+            return
+        try:
+            if not self._fullscreen:
+                self._windowed_size = self.screen.get_size()
+                self._remember_position()
+            self.settings_store.save(self.cfg, self._windowed_size, self._windowed_position,
+                                     self.renderer.preset_name)
+        except (OSError, pg.error) as error:
+            warnings.warn(f"Cannot save window settings: {error}", RuntimeWarning)
 
     def resize_window(self, size):
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
@@ -105,6 +139,7 @@ class App:
                 if self.paused:
                     self.renderer.draw_pause_overlay()
                 pg.display.flip()
+            self.save_settings()
         finally:
             try:
                 self.spectrum.close()
