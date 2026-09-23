@@ -14,6 +14,8 @@ class SpectrumLayout:
 
 
 def _dimensions(cfg):
+    if cfg.spectrum_orientation not in ("frequency_horizontal", "frequency_vertical"):
+        raise ValueError("spectrum_orientation must be frequency_horizontal or frequency_vertical")
     if cfg.channel_layout not in ("vertical", "horizontal"):
         raise ValueError("channel_layout must be vertical or horizontal")
     if cfg.channels < 1 or cfg.bars < 1 or cfg.leds_per_bar < 1:
@@ -26,8 +28,17 @@ def _dimensions(cfg):
     left = max(40, cfg.margin_lr)
     header = max(44, cfg.header_reserved)
     scale = max(30, cfg.scale_reserved) if cfg.show_freq_scale else 0
+    if cfg.spectrum_orientation == "frequency_vertical":
+        left = max(72, cfg.margin_lr)
+        scale = max(30, cfg.scale_reserved) if cfg.show_db_scale else 0
     info = max(28, cfg.info_height) + 12 if cfg.info_enabled else 0
     return cols, rows, margin, left, header, scale, info
+
+
+def grid_counts(cfg):
+    if cfg.spectrum_orientation == "frequency_vertical":
+        return cfg.leds_per_bar, cfg.bars
+    return cfg.bars, cfg.leds_per_bar
 
 
 def minimum_window_size(cfg):
@@ -38,8 +49,9 @@ def minimum_window_size(cfg):
     h = max(3, cfg.min_led_height, math.ceil(3 / ratio))
     w = max(3, round(h * ratio))
     gap = max(1, round(h / 4))
-    plot_w = cfg.bars * w + (cfg.bars - 1) * gap
-    plot_h = cfg.leds_per_bar * h + (cfg.leds_per_bar - 1) * gap
+    nx, ny = grid_counts(cfg)
+    plot_w = nx * w + (nx - 1) * gap
+    plot_h = ny * h + (ny - 1) * gap
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
     height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return max(480, width), height
@@ -47,6 +59,19 @@ def minimum_window_size(cfg):
 
 def clamp_window_size(size, cfg):
     return tuple(max(int(value), limit) for value, limit in zip(size, minimum_window_size(cfg)))
+
+
+def fit_window_size(size, cfg):
+    """Limit transposed windows to the space their undistorted grid can use."""
+    size = clamp_window_size(size, cfg)
+    if cfg.spectrum_orientation != "frequency_vertical":
+        return size
+    layout = calculate_layout(size, cfg)
+    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    _, _, plot_w, plot_h = layout.plots[0]
+    width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
+    height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    return clamp_window_size((width, height), cfg)
 
 
 def calculate_layout(size, cfg):
@@ -70,19 +95,27 @@ def calculate_layout(size, cfg):
     available_h = cell_h - header - scale
     # Scale the complete dense grid, not LEDs independently inside stretched cells.
     ratio = cfg.led_aspect_ratio
-    led_h = int(min(available_w / (cfg.bars * ratio), available_h / cfg.leds_per_bar))
+    nx, ny = grid_counts(cfg)
+    led_h = int(min(available_w / (nx * ratio), available_h / ny))
     while True:
         bar_w = max(1, round(led_h * ratio))
         gap = max(1, round(led_h / 4))
-        plot_w = cfg.bars * bar_w + (cfg.bars - 1) * gap
-        plot_h = cfg.leds_per_bar * led_h + (cfg.leds_per_bar - 1) * gap
+        plot_w = nx * bar_w + (nx - 1) * gap
+        plot_h = ny * led_h + (ny - 1) * gap
         if plot_w <= available_w and plot_h <= available_h:
             break
         led_h -= 1
     plots = []
+    packed_w = left + plot_w + 16
+    packed_h = header + plot_h + scale
+    group_x = (width - (cols * packed_w + (cols-1)*cfg.channel_gap)) // 2
+    group_y = top + (bottom-top - (rows*packed_h + (rows-1)*cfg.channel_gap)) // 2
     for ch in range(cfg.channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
         x = col * (cell_w + cfg.channel_gap) + left + (available_w - plot_w) // 2
         y = top + row * (cell_h + cfg.channel_gap) + cell_h - scale - plot_h
+        if cfg.spectrum_orientation == "frequency_vertical":
+            x = group_x + col * (packed_w + cfg.channel_gap) + left
+            y = group_y + row * (packed_h + cfg.channel_gap) + header
         plots.append((x, y, plot_w, plot_h))
     return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)

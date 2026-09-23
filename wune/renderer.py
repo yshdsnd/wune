@@ -145,6 +145,9 @@ class LedBarRenderer:
         return label + ("Hz" if with_unit else "")
 
     def draw_freq_scale(self):
+        if self.cfg.spectrum_orientation == "frequency_vertical":
+            self.draw_vertical_frequency_scale()
+            return
         if not self.cfg.show_freq_scale:
             return
         for plot in self.plots:
@@ -172,6 +175,9 @@ class LedBarRenderer:
                 occupied.append(rect.inflate(8, 0))
 
     def draw_db_labels_ch(self, ch: int):
+        if self.cfg.spectrum_orientation == "frequency_vertical":
+            self.draw_horizontal_db_scale(ch)
+            return
         if not self.cfg.show_db_scale:
             return
         x_right = self.plots[ch].x - self.cfg.db_label_pad
@@ -226,8 +232,7 @@ class LedBarRenderer:
                 for j in range(self.cfg.leds_per_bar):
                     led_ratio = (j + 0.5) / self.cfg.leds_per_bar  # このLEDの高さ割合
                     on_color, off_color = self.cfg.theme.choose_color(led_ratio)
-                    y = y0 + ch_h - (j+1) * (self.led_h + self.led_gap) + self.led_gap
-                    rect = pg.Rect(x, y, self.bar_w, self.led_h)
+                    rect = self.cell_rect(ch, b, j)
                     on = (j < lit)
                     self.draw_led(rect, on_color if on else off_color, on)
 
@@ -235,6 +240,12 @@ class LedBarRenderer:
                 peak = float(self.peak_pos[ch, b])
                 if peak > 0:
                     top_index = min(self.cfg.leds_per_bar - 1, max(0, math.ceil(peak) - 1))
+
+                    if self.cfg.spectrum_orientation == "frequency_vertical":
+                        led_rect = self.cell_rect(ch, b, top_index)
+                        marker = pg.Rect(led_rect.right, led_rect.top, 1, led_rect.height)
+                        pg.draw.rect(self.surf, self.cfg.theme.peak, marker)
+                        continue
 
                     # トップLED矩形（外枠）
                     led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.led_gap) + self.led_gap
@@ -281,6 +292,65 @@ class LedBarRenderer:
             self.draw_db_labels_ch(ch)
 
         self.draw_freq_scale()
+
+    def cell_rect(self, ch, band, led):
+        """Map band/level indices to coordinates; never rotate LED artwork."""
+        plot = self.plots[ch]
+        if self.cfg.spectrum_orientation == "frequency_vertical":
+            col, row = led, self.cfg.bars - 1 - band
+        else:
+            col, row = band, self.cfg.leds_per_bar - 1 - led
+        return pg.Rect(plot.left + col * (self.bar_w + self.bar_gap),
+                       plot.top + row * (self.led_h + self.led_gap),
+                       self.bar_w, self.led_h)
+
+    def draw_vertical_frequency_scale(self):
+        if not self.cfg.show_freq_scale:
+            return
+        for ch, plot in enumerate(self.plots):
+            occupied = []
+            frequencies = []
+            if self.cfg.show_freq_edge_labels:
+                frequencies += [(self.cfg.min_freq_hz, 0), (self.cfg.max_freq_hz, self.cfg.bars-1)]
+            frequencies += [(f, self._freq_to_bar(f)) for f in self.cfg.scale_ticks_hz
+                            if self.cfg.min_freq_hz < f < self.cfg.max_freq_hz]
+            for freq, band in frequencies:
+                y = self.cell_rect(ch, band, 0).centery
+                pg.draw.line(self.surf, self.cfg.theme.scale_line,
+                             (plot.left-5, y), (plot.left-1, y))
+                text = self.font_scale.render(self._fmt_freq_label(freq, with_unit=True),
+                                              True, self.cfg.theme.scale_text)
+                rect = text.get_rect(midright=(plot.left-8, y))
+                if any(rect.colliderect(other) for other in occupied):
+                    continue
+                self.surf.blit(text, rect)
+                occupied.append(rect.inflate(0, 4))
+
+    def draw_horizontal_db_scale(self, ch):
+        plot = self.plots[ch]
+        name = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
+        label = self.font_channel.render(name, True, self.cfg.theme.edge_text)
+        self.surf.blit(label, (plot.left, plot.top - label.get_height() - 12))
+        if not self.cfg.show_db_scale:
+            return
+        # Endpoints take priority when horizontal space is limited.
+        values = [self.cfg.db_min, self.cfg.db_max]
+        values += [v for v in np.arange(self.cfg.db_max-self.cfg.db_step,
+                                       self.cfg.db_min, -self.cfg.db_step)]
+        occupied = []
+        span = self.cfg.db_max-self.cfg.db_min or 1.0
+        for db in values:
+            x = round(plot.left + (db-self.cfg.db_min)/span*(plot.width-1))
+            pg.draw.line(self.surf, self.cfg.theme.scale_line,
+                         (x, plot.bottom+3), (x, plot.bottom+7))
+            text = self.font_scale.render(f"{db:g}" + (" dB" if db == self.cfg.db_max else ""),
+                                          True, self.cfg.theme.db_text)
+            rect = text.get_rect(midtop=(x, plot.bottom+9))
+            rect.clamp_ip(pg.Rect(plot.left, rect.top, plot.width, rect.height))
+            if any(rect.colliderect(other) for other in occupied):
+                continue
+            self.surf.blit(text, rect)
+            occupied.append(rect.inflate(8, 0))
 
     def led_rect(self, cell: pg.Rect) -> pg.Rect:
         """Fit a style's proportions inside a layout cell (nearest pixel)."""
