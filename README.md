@@ -50,12 +50,29 @@ python -c "from wune.soundcard_compat import prepare_soundcard; prepare_soundcar
 
 ## 配色とゲージの見た目
 
-`wune/config.py`末尾の`CFG`で設定します。既定の`gauge_style="flat"`は
-従来の見た目です。`"box"`はLEDの上・左側にハイライト、下・右側に影を描きます。
-設定を変更した後はWuneを再起動してください。
+右上のプリセット名バッジを**左クリック**、または**Tキー**で、音声を再生したまま
+見た目を切り替えられます。配色とゲージ形式を一緒に切り替え、現在のレベルや
+ピーク保持・落下、一時停止状態、音声取得は維持します。
+
+| 順序 | 名前 | 配色・ゲージ |
+| --- | --- | --- |
+| 1 | CLASSIC | 従来の緑・黄・赤、flat（既定） |
+| 2 | BLUE | 青・紫・ピンク、box |
+| 3 | AMBER | アンバー系、flat |
+| 4 | CLASSIC BOX | CLASSICの配色、box |
+
+最後の次はCLASSICに戻ります。バッジを非表示にしてもTキーは使えます。
+起動時の選択は`wune/config.py`末尾で`CFG = Config(initial_preset="BLUE")`
+のように設定します。操作中の選択は保存せず、次回起動時はこの設定を使用します。
+プリセットの定義は`wune/presets.py`です。
+
+独自の配色を直接指定する場合は、次のように`initial_preset=None`を指定します。
+バッジにはCUSTOMと表示し、最初の切り替えでCLASSICになります。
+`"box"`はLEDの上・左側にハイライト、下・右側に影を描きます。
 
 ```python
 CFG = Config(
+    initial_preset=None,
     gauge_style="box",
     theme=Theme(
         background=(18, 24, 38),

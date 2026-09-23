@@ -6,6 +6,7 @@ import pygame as pg
 from wune.colors import Theme
 from wune.config import Config
 from wune.renderer import LedBarRenderer
+from wune.presets import PRESETS
 
 
 class ThemeRenderingTests(unittest.TestCase):
@@ -58,3 +59,38 @@ class ThemeRenderingTests(unittest.TestCase):
     def test_invalid_style_is_reported(self):
         with self.assertRaisesRegex(ValueError, "gauge_style"):
             self.renderer(gauge_style="unknown")
+
+    def test_cycle_preserves_peak_arrays_and_returns_to_classic(self):
+        r = self.renderer()
+        r.apply_preset("CLASSIC")
+        r.draw(np.full((2, 64), 0.8, dtype=np.float32))
+        positions, holds = r.peak_pos, r.peak_hold
+        previous_positions, previous_holds = positions.copy(), holds.copy()
+        for preset in (*PRESETS[1:], PRESETS[0]):
+            r.next_preset()
+            self.assertEqual(r.preset_name, preset.name)
+            self.assertEqual(r.cfg.theme, preset.theme)
+            self.assertEqual(r.cfg.gauge_style, preset.gauge_style)
+            self.assertIs(r.peak_pos, positions)
+            self.assertIs(r.peak_hold, holds)
+            np.testing.assert_array_equal(positions, previous_positions)
+            np.testing.assert_array_equal(holds, previous_holds)
+
+    def test_badge_hit_area_follows_name_and_visibility(self):
+        r = self.renderer()
+        for preset in PRESETS:
+            r.apply_preset(preset.name)
+            rect = r.badge_rect()
+            self.assertTrue(r.badge_contains(rect.center))
+            self.assertFalse(r.badge_contains((rect.right, rect.bottom)))
+            self.assertEqual(rect.width, r.font_badge.size(preset.name)[0] + 16)
+        r.cfg.show_badge = False
+        self.assertFalse(r.badge_contains(rect.center))
+
+    def test_unknown_preset_does_not_change_appearance(self):
+        r = self.renderer()
+        r.apply_preset("CLASSIC")
+        with self.assertRaises(ValueError):
+            r.apply_preset("missing")
+        self.assertEqual(r.preset_name, "CLASSIC")
+        self.assertEqual(r.cfg.theme, Theme())

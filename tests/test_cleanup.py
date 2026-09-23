@@ -191,7 +191,7 @@ class AudioCleanupTests(unittest.TestCase):
 class AppCleanupTests(unittest.TestCase):
     def setUp(self):
         self.pg = MagicMock()
-        for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i")):
+        for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i", "K_t", "MOUSEBUTTONDOWN")):
             setattr(self.pg, name, i + 1)
         self.backend = MagicMock()
         self.modules = patch.dict(sys.modules, {
@@ -259,6 +259,32 @@ class AppCleanupTests(unittest.TestCase):
         app = self.app_module.App(Config(sample_rate=48000))
         app.spectrum.set_range.assert_called_once_with(20.0, 40000.0)
         self.assertEqual(app.cfg.max_freq_hz, 40000)
+
+    def test_mouse_and_keyboard_share_switch_without_touching_audio(self):
+        self.app.renderer.badge_contains.return_value = True
+        self.app.spectrum.reset_mock()
+        levels = self.app.levels
+        self.app.paused = True
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.MOUSEBUTTONDOWN, button=1, pos=(100, 20)))
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_t))
+        self.assertEqual(self.app.renderer.next_preset.call_count, 2)
+        self.assertIs(self.app.levels, levels)
+        self.assertTrue(self.app.paused)
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+        self.backend.AudioSpectrum.assert_called_once()
+
+    def test_other_mouse_clicks_do_not_switch(self):
+        self.app.renderer.badge_contains.return_value = False
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+        self.app.renderer.badge_contains.return_value = True
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.MOUSEBUTTONDOWN, button=3, pos=(100, 20)))
+        self.app.renderer.next_preset.assert_not_called()
+
+    def test_initial_preset_is_applied(self):
+        self.app.renderer.apply_preset.assert_called_once_with("CLASSIC")
+        self.app.renderer.apply_preset.reset_mock()
+        self.app_module.App(Config(initial_preset="BLUE"))
+        self.app.renderer.apply_preset.assert_called_once_with("BLUE")
 
 
 if __name__ == "__main__":

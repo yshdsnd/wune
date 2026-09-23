@@ -7,6 +7,7 @@ import numpy as np
 import pygame as pg
 from typing import Tuple
 from .config import Config
+from .presets import PRESETS, get_preset
 
 # ==========================
 # 描画系
@@ -15,6 +16,7 @@ class LedBarRenderer:
     def __init__(self, surf: pg.Surface, cfg: Config):
         self.surf = surf
         self.cfg = cfg
+        self.preset_name = "CUSTOM"
         if cfg.gauge_style not in ("flat", "box"):
             raise ValueError("gauge_style must be flat or box")
         # バー配置の算出
@@ -87,6 +89,27 @@ class LedBarRenderer:
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
 
+    def apply_preset(self, name):
+        preset = get_preset(name)
+        self.cfg.theme = preset.theme
+        self.cfg.gauge_style = preset.gauge_style
+        self.preset_name = preset.name
+
+    def next_preset(self):
+        names = [preset.name for preset in PRESETS]
+        index = names.index(self.preset_name) if self.preset_name in names else -1
+        self.apply_preset(names[(index + 1) % len(names)])
+
+    def badge_rect(self):
+        if not self.cfg.show_badge:
+            return None
+        width, height = self.font_badge.size(self.preset_name)
+        return pg.Rect(self.cfg.width - width - 16 - 24, 14, width + 16, height + 8)
+
+    def badge_contains(self, pos):
+        rect = self.badge_rect()
+        return rect is not None and rect.collidepoint(pos)
+
 
 
     def draw_panel(self):
@@ -98,11 +121,10 @@ class LedBarRenderer:
         self.surf.blit(logo, (self.cfg.margin_lr, 16))
         # バッジ（GROOVEなど）
         if self.cfg.show_badge:
-            text = self.font_badge.render(self.cfg.badge_text, True, self.cfg.theme.badge_text)
+            text = self.font_badge.render(self.preset_name, True, self.cfg.theme.badge_text)
             tw, th = text.get_size()
             pad = 8
-            bx = self.cfg.width - tw - pad*2 - 24
-            by = 14
+            bx, by = self.badge_rect().topleft
             # グロー風
             pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
             pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)

@@ -8,6 +8,7 @@ from .colors import Theme
 class Config:
     theme: Theme = Theme()
     gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
+    initial_preset: str | None = "CLASSIC"  # None keeps custom theme/style.
     width: int = 1280
     height: int = 480
     fps: int = 60
@@ -33,7 +34,6 @@ class Config:
 
     # 90s風ラベルなど
     show_badge: bool = True
-    badge_text: str = "GROOVE"
     
     # 周波数スケール（表示用）
     show_freq_scale: bool = True

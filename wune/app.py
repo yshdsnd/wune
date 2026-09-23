@@ -16,6 +16,8 @@ class App:
         self.screen = pg.display.set_mode((cfg.width, cfg.height), pg.RESIZABLE)
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
+        if cfg.initial_preset is not None:
+            self.renderer.apply_preset(cfg.initial_preset)
         # Audio errors must remain visible rather than silently showing fake data.
         self.spectrum = AudioSpectrum(cfg, cfg.bars, cfg.channels)
         self.spectrum.set_range(cfg.min_freq_hz, cfg.spectrum_upper_hz(self.spectrum.sr))
@@ -35,6 +37,9 @@ class App:
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.QUIT:
             self.running = False
+        elif event.type == pg.MOUSEBUTTONDOWN:
+            if event.button == 1 and self.renderer.badge_contains(event.pos):
+                self.renderer.next_preset()
         elif event.type == pg.KEYDOWN:
             if event.key in (pg.K_ESCAPE, pg.K_q):
                 self.running = False
@@ -44,6 +49,8 @@ class App:
                 self.paused = not self.paused
             elif event.key == pg.K_i:
                 self.cfg.info_enabled = not self.cfg.info_enabled
+            elif event.key == pg.K_t:
+                self.renderer.next_preset()
 
     def update_info_text(self):
         # float32 describes the transferred samples, not the device's ADC bit depth.
