@@ -7,7 +7,6 @@ import numpy as np
 import pygame as pg
 from typing import Tuple
 from .config import Config
-from .colors import PANEL_BG, BORDER_DARK
 
 # ==========================
 # 描画系
@@ -16,6 +15,8 @@ class LedBarRenderer:
     def __init__(self, surf: pg.Surface, cfg: Config):
         self.surf = surf
         self.cfg = cfg
+        if cfg.gauge_style not in ("flat", "box"):
+            raise ValueError("gauge_style must be flat or box")
         # バー配置の算出
         inner_w = cfg.width - cfg.margin_lr * 2
         self.bar_w = (inner_w - (cfg.bars - 1) * cfg.bar_gap) // cfg.bars
@@ -89,22 +90,22 @@ class LedBarRenderer:
 
 
     def draw_panel(self):
-        self.surf.fill(PANEL_BG)
+        self.surf.fill(self.cfg.theme.background)
         # 枠線
-        pg.draw.rect(self.surf, BORDER_DARK, (8, 8, self.cfg.width-16, self.cfg.height-16), 2, border_radius=10)
+        pg.draw.rect(self.surf, self.cfg.theme.border, (8, 8, self.cfg.width-16, self.cfg.height-16), 2, border_radius=10)
         # ロゴ
-        logo = self.font_logo.render("SPECTRA-LED 90", True, (120, 120, 120))
+        logo = self.font_logo.render("SPECTRA-LED 90", True, self.cfg.theme.logo_text)
         self.surf.blit(logo, (self.cfg.margin_lr, 16))
         # バッジ（GROOVEなど）
         if self.cfg.show_badge:
-            text = self.font_badge.render(self.cfg.badge_text, True, (14, 230, 180))
+            text = self.font_badge.render(self.cfg.badge_text, True, self.cfg.theme.badge_text)
             tw, th = text.get_size()
             pad = 8
             bx = self.cfg.width - tw - pad*2 - 24
             by = 14
             # グロー風
-            pg.draw.rect(self.surf, (10, 40, 36), (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
-            pg.draw.rect(self.surf, (30, 90, 80), (bx, by, tw+pad*2, th+pad), border_radius=10)
+            pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
+            pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)
             self.surf.blit(text, (bx+pad, by+2))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
@@ -114,9 +115,9 @@ class LedBarRenderer:
             else:
                 y = self.cfg.height - self.cfg.margin_tb + 28
             bar_rect = pg.Rect(16, y, self.cfg.width-32, ih)
-            pg.draw.rect(self.surf, (12, 22, 26), bar_rect, border_radius=8)
-            pg.draw.rect(self.surf, (20, 40, 44), bar_rect, width=1, border_radius=8)
-            info_surf = self.font_small.render(self.info_text, True, (190, 220, 220))
+            pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=8)
+            pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
+            info_surf = self.font_small.render(self.info_text, True, self.cfg.theme.info_text)
             self.surf.blit(info_surf, (bar_rect.x + 10, bar_rect.y + (ih - info_surf.get_height())//2))
 
 
@@ -172,7 +173,7 @@ class LedBarRenderer:
             b = self._freq_to_bar(f)
             x = self.bar_x0 + b * (self.bar_w + self.cfg.bar_gap) + self.bar_w // 2
             # 目盛り
-            pg.draw.line(self.surf, (70, 90, 100), (x, base_y), (x, base_y + 6), 1)
+            pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + 6), 1)
 
             if f >= 1000:
                 # 1k, 2k, 4k, 16k, 32k, 48k 表記
@@ -184,7 +185,7 @@ class LedBarRenderer:
                 # 31.5, 63 など。整数ならそのまま、小数点ありは 1桁
                 label = f"{f:.1f}" if (f != int(f)) else f"{int(f)}"
 
-            ts = self.font_scale.render(label, True, (150, 180, 190))
+            ts = self.font_scale.render(label, True, self.cfg.theme.scale_text)
             self.surf.blit(ts, (x - ts.get_width()//2, base_y + 8))
 
         # 端ラベル（min/max）を明示
@@ -192,7 +193,7 @@ class LedBarRenderer:
             # 左端（min）: 単位なし（例: "20"）
             x_left = self.bar_x0
             min_label = self._fmt_freq_label(self.cfg.min_freq_hz, with_unit=False)
-            ts_min = self.font_scale.render(min_label, True, (180, 200, 210))
+            ts_min = self.font_scale.render(min_label, True, self.cfg.theme.edge_text)
             self.surf.blit(ts_min, (x_left, base_y + 8))
 
             # 右端（max）:
@@ -211,12 +212,12 @@ class LedBarRenderer:
             else:
                 numk = f"{int(fmax)}" if abs(fmax - int(fmax)) < 1e-6 else f"{fmax:.1f}".rstrip("0").rstrip(".")
 
-            ts_numk = self.font_scale.render(numk, True, (180, 200, 210))
+            ts_numk = self.font_scale.render(numk, True, self.cfg.theme.edge_text)
             # 「48k」をバー中心にセンタリング
             self.surf.blit(ts_numk, (right_bar_center - ts_numk.get_width() // 2, base_y + 8))
 
             # 単位は "Hz" だけ、数字の右に少し間を空けて配置（はみ出してOK）
-            ts_unit = self.font_scale.render("Hz", True, (150, 180, 190))
+            ts_unit = self.font_scale.render("Hz", True, self.cfg.theme.scale_text)
             gap_px = 2
             self.surf.blit(
                 ts_unit,
@@ -236,17 +237,17 @@ class LedBarRenderer:
             ratio = (db - self.cfg.db_min) / denom
             y = int(y0 + ch_h - ratio * ch_h)
             label = f"{int(db)}"
-            ts = self.font_scale.render(label, True, (160, 180, 190))
+            ts = self.font_scale.render(label, True, self.cfg.theme.db_text)
             self.surf.blit(ts, (x_right - ts.get_width(), y - ts.get_height() // 2))
 
         # dB の位置を先に決める（各段の上端から少し下げる）
-        unit = self.font_scale.render("dB", True, (190,210,210))
+        unit = self.font_scale.render("dB", True, self.cfg.theme.unit_text)
         unit_x = x_right - unit.get_width()
         unit_y = y0 - unit.get_height() - self.cfg.db_unit_offset  # ←ここはお好みのマージン
 
         # L/R は dB より“さらに上”に置く
         label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
-        ts_lr = self.font_channel.render(label, True, (180,200,210))
+        ts_lr = self.font_channel.render(label, True, self.cfg.theme.edge_text)
         lr_x  = x_right - ts_lr.get_width()
         lr_y  = unit_y - ts_lr.get_height() - 2  # ← dBの上に来る
 
@@ -259,7 +260,7 @@ class LedBarRenderer:
         self.draw_panel()
 
         # 残像を薄く塗る
-        self.trail.fill((0, 0, 0, self.cfg.afterglow_alpha))
+        self.trail.fill((*self.cfg.theme.overlay, self.cfg.afterglow_alpha))
         self.surf.blit(self.trail, (0, 0))
 
         # レベルをLED段数へ変換
@@ -318,15 +319,15 @@ class LedBarRenderer:
                         pm_rect = pg.Rect(x_line, y_gap, w_line, 1)
 
                         s = pg.Surface((pm_rect.w, pm_rect.h), pg.SRCALPHA)
-                        s.fill((255, 255, 255, 255))
-                        self.surf.blit(s, pm_rect, special_flags=pg.BLEND_RGBA_MAX)
+                        s.fill((*self.cfg.theme.peak, 255))
+                        self.surf.blit(s, pm_rect)
                     else:
                         # フォールバック：LED内側に“カットアウト→白”で視認性確保
                         if inner.w > 0 and inner.h > 0:
                             y_line = max(inner.top, min(inner.bottom - 1, inner.top))
                             cut = pg.Rect(inner.left, y_line, inner.width, 1)
-                            pg.draw.rect(self.surf, (8, 8, 10), cut)         # 暗線で下地を断つ
-                            pg.draw.rect(self.surf, (255, 255, 255), cut)    # その上に白
+                            pg.draw.rect(self.surf, self.cfg.theme.peak_cutout, cut)         # 暗線で下地を断つ
+                            pg.draw.rect(self.surf, self.cfg.theme.peak, cut)    # その上に白
 
             # dBラベル（段ごと）
             self.draw_db_labels_ch(ch)
@@ -334,8 +335,11 @@ class LedBarRenderer:
         self.draw_freq_scale()
 
     def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
+        if self.cfg.gauge_style == "box":
+            self.draw_box_led(rect, color, on)
+            return
         # ベース（枠）
-        pg.draw.rect(self.surf, (18, 18, 20), rect, border_radius=max(0, self.cfg.corner_radius))
+        pg.draw.rect(self.surf, self.cfg.theme.led_border, rect, border_radius=max(0, self.cfg.corner_radius))
 
         # 小さいLEDでも内側が消えないように、padを自動で絞る
         # 高さ2pxなら pad=0、3〜5pxなら pad=1、それ以上は2
@@ -349,12 +353,12 @@ class LedBarRenderer:
 
         # もし内側がゼロ/マイナスになったら、外枠のまま塗る簡易パス
         if inner.width <= 0 or inner.height <= 0:
-            pg.draw.rect(self.surf, color if on else (24, 24, 28), rect,
+            pg.draw.rect(self.surf, color, rect,
                         border_radius=max(0, self.cfg.corner_radius - 1))
             return
 
         # 内側の塗り
-        pg.draw.rect(self.surf, color if on else (24, 24, 28), inner,
+        pg.draw.rect(self.surf, color, inner,
                     border_radius=max(0, self.cfg.corner_radius - 1))
 
         if on:
@@ -363,18 +367,37 @@ class LedBarRenderer:
                 gloss_h = max(2, min(inner.height - 2, int(inner.height * 0.35)))
                 gloss = pg.Rect(inner.x + 1, inner.y + 1, inner.width - 2, gloss_h)
                 s = pg.Surface(gloss.size, pg.SRCALPHA)
-                s.fill((255, 255, 255, 45))
+                s.fill((*self.cfg.theme.highlight, 45))
                 self.surf.blit(s, gloss)
             # 立体用の縁（小型では逆に色を潰しがちなので inner.height>=4 のときだけ）
             if inner.height >= 4:
-                pg.draw.rect(self.surf, (0, 0, 0), inner, width=1,
+                pg.draw.rect(self.surf, self.cfg.theme.led_outline, inner, width=1,
                             border_radius=max(0, self.cfg.corner_radius - 1))
+
+    def draw_box_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
+        """Bevel inside the supplied geometry; no level or peak calculations."""
+        if rect.width <= 0 or rect.height <= 0:
+            return
+        pg.draw.rect(self.surf, color, rect)
+        if rect.width < 3 or rect.height < 3:
+            return  # Preserve the face color on LEDs too small for a bevel.
+        strength = 0.45 if on else 0.15
+        light = tuple(round(c + (h - c) * strength)
+                      for c, h in zip(color, self.cfg.theme.highlight))
+        dark = tuple(round(c + (h - c) * 0.55)
+                     for c, h in zip(color, self.cfg.theme.shadow))
+        pg.draw.line(self.surf, light, rect.topleft, (rect.right - 1, rect.top))
+        pg.draw.line(self.surf, light, rect.topleft, (rect.left, rect.bottom - 1))
+        pg.draw.line(self.surf, dark, (rect.left, rect.bottom - 1),
+                     (rect.right - 1, rect.bottom - 1))
+        pg.draw.line(self.surf, dark, (rect.right - 1, rect.top),
+                     (rect.right - 1, rect.bottom - 1))
 
     def draw_pause_overlay(self):
         # 画面中央に "PAUSED" を半透明で表示
         overlay = pg.Surface((self.cfg.width, self.cfg.height), pg.SRCALPHA)
-        overlay.fill((0, 0, 0, 100))
-        text = self.font_badge.render("PAUSED", True, (255, 255, 255))
+        overlay.fill((*self.cfg.theme.overlay, 100))
+        text = self.font_badge.render("PAUSED", True, self.cfg.theme.pause_text)
         tw, th = text.get_size()
         overlay.blit(text, ((self.cfg.width - tw)//2, (self.cfg.height - th)//2))
         self.surf.blit(overlay, (0, 0))

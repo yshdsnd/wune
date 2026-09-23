@@ -7,6 +7,7 @@ from .colors import Theme
 @dataclass
 class Config:
     theme: Theme = Theme()
+    gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
     width: int = 1280
     height: int = 480
     fps: int = 60

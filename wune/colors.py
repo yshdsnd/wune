@@ -7,9 +7,8 @@ GREEN_ON  = ( 80, 255, 110)
 YELLOW_ON = (255, 240,  90)
 RED_ON    = (255,  80,  80)
 
-GREEN_OFF  = ( 10,  28,  12)
-YELLOW_OFF = ( 30,  28,  10)
-RED_OFF    = ( 28,  10,  10)
+# Preserve the previously rendered inactive color (formerly hard-coded).
+GREEN_OFF = YELLOW_OFF = RED_OFF = (24, 24, 28)
 
 BORDER_DARK = (12, 12, 12)
 PANEL_BG    = (6, 6, 10)
@@ -24,6 +23,28 @@ class Theme:
     yellow_off: Tuple[int,int,int]= YELLOW_OFF
     red_on: Tuple[int,int,int]    = RED_ON
     red_off: Tuple[int,int,int]   = RED_OFF
+    background: Tuple[int,int,int] = PANEL_BG
+    border: Tuple[int,int,int] = BORDER_DARK
+    led_border: Tuple[int,int,int] = (18, 18, 20)
+    led_outline: Tuple[int,int,int] = (0, 0, 0)
+    highlight: Tuple[int,int,int] = (255, 255, 255)
+    shadow: Tuple[int,int,int] = (0, 0, 0)
+    peak: Tuple[int,int,int] = (255, 255, 255)
+    peak_cutout: Tuple[int,int,int] = (8, 8, 10)
+    scale_line: Tuple[int,int,int] = (70, 90, 100)
+    scale_text: Tuple[int,int,int] = (150, 180, 190)
+    edge_text: Tuple[int,int,int] = (180, 200, 210)
+    db_text: Tuple[int,int,int] = (160, 180, 190)
+    unit_text: Tuple[int,int,int] = (190, 210, 210)
+    logo_text: Tuple[int,int,int] = (120, 120, 120)
+    badge_text: Tuple[int,int,int] = (14, 230, 180)
+    badge_glow: Tuple[int,int,int] = (10, 40, 36)
+    badge_background: Tuple[int,int,int] = (30, 90, 80)
+    info_background: Tuple[int,int,int] = (12, 22, 26)
+    info_border: Tuple[int,int,int] = (20, 40, 44)
+    info_text: Tuple[int,int,int] = (190, 220, 220)
+    pause_text: Tuple[int,int,int] = (255, 255, 255)
+    overlay: Tuple[int,int,int] = (0, 0, 0)
 
     def choose_color(self, level_ratio: float):
         # レベル位置に応じてLEDカラー（オン/オフ）を返す
