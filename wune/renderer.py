@@ -73,7 +73,12 @@ class LedBarRenderer:
         self.trail = pg.Surface((cfg.width, cfg.height), pg.SRCALPHA)
 
         # フォント
-        self.font_small = pg.font.SysFont("Segoe UI", 15)
+        # SysFont picks one installed font; it does not fill missing glyphs
+        # from other fonts. Prefer Japanese-capable fonts for endpoint names.
+        self.font_small = pg.font.SysFont(
+            "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
+            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", 15
+        )
         self.font_badge = pg.font.SysFont("Bahnschrift", 18, bold=True)
         self.font_logo = pg.font.SysFont("OCR A Extended, OCR A, Consolas", 16)
         self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
