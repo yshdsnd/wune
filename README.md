@@ -69,7 +69,12 @@ Windowsや再生アプリ側の音量が取得信号に反映されれば、表�
 ## 配置とウインドウサイズ
 
 ウインドウをリサイズすると、各チャンネルのゲージ幅・高さと目盛りの配置が追従します。
-高さを広げるとLEDも縦に伸びます。バンド数・LED段数やピーク状態はリサイズでは変えません。
+LEDと間隔を含むゲージ全体を、同じ倍率で拡大縮小します。
+縦横の隙間はLEDの高さの約1/4に揃え、密集した配置を維持します。
+余った領域はゲージの外側の余白にし、高さだけを広げてもLED間を引き伸ばしません。
+目盛りは実際のゲージ位置に追従します。横長の画面ではゲージの左右に余白ができます。
+角丸・光沢・縁取りも共通の原画から拡大縮小します。
+バンド数・LED段数やピーク状態はリサイズでは変えません。
 表示を保てる最小サイズを下回る場合は、そのサイズまで戻します。
 F11で全画面から戻ると、直前のウインドウサイズを復元します。
 
@@ -77,7 +82,7 @@ F11で全画面から戻ると、直前のウインドウサイズを復元し�
 
 ```python
 # L/Rを上下に配置、各64バンド（既定）
-CFG = Config(channel_layout="vertical", bars=64, width=1280, height=480)
+CFG = Config(channel_layout="vertical", bars=64, width=1280, height=800)
 
 # L/Rを左右に配置、各32バンド
 CFG = Config(channel_layout="horizontal", bars=32, width=960, height=480)
@@ -88,6 +93,21 @@ CFG = Config(channel_layout="horizontal", bars=32, width=960, height=480)
 周波数範囲や音声処理は配置を変えても共通です。
 
 ## 配色とゲージの見た目
+
+LEDの形は `led_shape`（`"rectangle"` / `"rounded"` / `"ellipse"`）、
+幅÷高さは `led_aspect_ratio` で指定します。1.0なら正方形／円、2.0なら横長です。
+最小サイズ付近では整数ピクセルへの丸めによる差が生じます。
+最小ウインドウサイズもLEDの縦横比に合わせて計算します。
+従来の `bar_gap` / `led_gap` は配置に使用せず、LEDと一緒に間隔を決めます。
+CLASSIC・AMBERは角丸、BLUE・CLASSIC BOXは長方形で、いずれも縦横比2.0です。
+プリセット切替では形と縦横比も切り替わります。独自設定には `initial_preset=None` を指定します。
+
+```python
+CFG = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=2.0)
+```
+
+`gauge_style="box"` の立体的な縁は長方形に適用します。
+角丸の半径はLEDサイズに比例して決まるため、旧 `corner_radius` 設定は廃止しました。
 
 右上のプリセット名バッジを**左クリック**、または**Tキー**で、音声を再生したまま
 見た目を切り替えられます。配色とゲージ形式を一緒に切り替え、現在のレベルや
@@ -113,6 +133,7 @@ CFG = Config(channel_layout="horizontal", bars=32, width=960, height=480)
 CFG = Config(
     initial_preset=None,
     gauge_style="box",
+    led_shape="rectangle",
     theme=Theme(
         background=(18, 24, 38),
         green_on=(70, 190, 255),

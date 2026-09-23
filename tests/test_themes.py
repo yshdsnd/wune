@@ -38,15 +38,16 @@ class ThemeRenderingTests(unittest.TestCase):
             self.assertEqual(r.surf.get_at((0, 0))[:3], theme.background)
             rect = pg.Rect(100, 100, 16, 12)
             r.draw_led(rect, theme.green_off, False)
-            self.assertEqual(r.surf.get_at(rect.center)[:3], theme.green_off)
+            np.testing.assert_allclose(r.surf.get_at(rect.center)[:3], theme.green_off, atol=3)
 
     def test_box_has_light_face_and_shadow_inside_bounds(self):
-        r = self.renderer(gauge_style="box")
+        r = self.renderer(gauge_style="box", led_shape="rectangle")
         r.surf.fill((1, 2, 3))
         rect = pg.Rect(100, 100, 16, 12)
         r.draw_led(rect, (80, 160, 100), True)
-        self.assertGreater(r.surf.get_at((101, 100))[0], r.surf.get_at(rect.center)[0])
-        self.assertLess(r.surf.get_at((101, 111))[0], r.surf.get_at(rect.center)[0])
+        fitted = r.led_rect(rect)
+        self.assertGreater(r.surf.get_at((fitted.left + 1, fitted.top))[0], r.surf.get_at(rect.center)[0])
+        self.assertLess(r.surf.get_at((fitted.left + 1, fitted.bottom - 1))[0], r.surf.get_at(rect.center)[0])
         self.assertEqual(r.surf.get_at((99, 100))[:3], (1, 2, 3))
 
     def test_small_box_keeps_color(self):

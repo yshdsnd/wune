@@ -8,9 +8,11 @@ from .colors import Theme
 class Config:
     theme: Theme = Theme()
     gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
+    led_shape: str = "rounded"   # rectangle, rounded, ellipse
+    led_aspect_ratio: float = 2.0  # width / height, independent of cell size
     initial_preset: str | None = "CLASSIC"  # None keeps custom theme/style.
     width: int = 1280
-    height: int = 480
+    height: int = 800
     fps: int = 60
     bars: int = 64                # バー本数
     leds_per_bar: int = 20        # 縦のLED個数
@@ -18,7 +20,6 @@ class Config:
     margin_lr: int = 40           # 左右マージン
     margin_tb: int = 16           # 上下の外側余白
     bar_gap: int = 6              # バー同士の隙間
-    corner_radius: int = 4        # LED角の丸み
 
     # インフォバー（入力仕様）
     info_enabled: bool = True

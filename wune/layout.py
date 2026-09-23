@@ -1,5 +1,6 @@
 """Spectrum geometry only: resizing never changes band or LED counts."""
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -9,6 +10,7 @@ class SpectrumLayout:
     bar_gap: int
     led_height: int
     info_rect: tuple | None
+    led_gap: int
 
 
 def _dimensions(cfg):
@@ -30,9 +32,14 @@ def _dimensions(cfg):
 
 def minimum_window_size(cfg):
     cols, rows, margin, left, header, scale, info = _dimensions(cfg)
-    min_gap = min(1, cfg.bar_gap)
-    plot_w = cfg.bars * 3 + (cfg.bars - 1) * min_gap
-    plot_h = cfg.leds_per_bar * max(3, cfg.min_led_height) + (cfg.leds_per_bar - 1) * cfg.led_gap
+    ratio = cfg.led_aspect_ratio
+    if not math.isfinite(ratio) or ratio <= 0:
+        raise ValueError("led_aspect_ratio must be finite and positive")
+    h = max(3, cfg.min_led_height, math.ceil(3 / ratio))
+    w = max(3, round(h * ratio))
+    gap = max(1, round(h / 4))
+    plot_w = cfg.bars * w + (cfg.bars - 1) * gap
+    plot_h = cfg.leds_per_bar * h + (cfg.leds_per_bar - 1) * gap
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
     height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return max(480, width), height
@@ -60,15 +67,22 @@ def calculate_layout(size, cfg):
     cell_w = (width - (cols - 1) * cfg.channel_gap) // cols
     cell_h = (bottom - top - (rows - 1) * cfg.channel_gap) // rows
     available_w = cell_w - left - 16
-    gap = min(cfg.bar_gap, max(1, available_w // (cfg.bars * 5)))
-    bar_w = (available_w - (cfg.bars - 1) * gap) // cfg.bars
-    plot_w = cfg.bars * bar_w + (cfg.bars - 1) * gap
-    led_h = (cell_h - header - scale - (cfg.leds_per_bar - 1) * cfg.led_gap) // cfg.leds_per_bar
-    plot_h = cfg.leds_per_bar * led_h + (cfg.leds_per_bar - 1) * cfg.led_gap
+    available_h = cell_h - header - scale
+    # Scale the complete dense grid, not LEDs independently inside stretched cells.
+    ratio = cfg.led_aspect_ratio
+    led_h = int(min(available_w / (cfg.bars * ratio), available_h / cfg.leds_per_bar))
+    while True:
+        bar_w = max(1, round(led_h * ratio))
+        gap = max(1, round(led_h / 4))
+        plot_w = cfg.bars * bar_w + (cfg.bars - 1) * gap
+        plot_h = cfg.leds_per_bar * led_h + (cfg.leds_per_bar - 1) * gap
+        if plot_w <= available_w and plot_h <= available_h:
+            break
+        led_h -= 1
     plots = []
     for ch in range(cfg.channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
-        x = col * (cell_w + cfg.channel_gap) + left
+        x = col * (cell_w + cfg.channel_gap) + left + (available_w - plot_w) // 2
         y = top + row * (cell_h + cfg.channel_gap) + cell_h - scale - plot_h
         plots.append((x, y, plot_w, plot_h))
-    return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect)
+    return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)

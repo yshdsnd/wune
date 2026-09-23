@@ -22,6 +22,7 @@ class LedBarRenderer:
             raise ValueError("gauge_style must be flat or box")
         self.channels = cfg.channels
         self._layout = None
+        self._led_cache = {}
         # ピーク情報を (ch, bar) で持つ
         self.peak_pos = np.zeros((self.channels, self.cfg.bars), dtype=np.float32)
         self.peak_hold = np.zeros((self.channels, self.cfg.bars), dtype=np.int32)
@@ -56,9 +57,11 @@ class LedBarRenderer:
         if not size_changed and layout == self._layout:
             return
         self._layout = layout
+        self._led_cache.clear()
         self.plots = [pg.Rect(rect) for rect in layout.plots]
         self.bar_w, self.bar_gap = layout.bar_width, layout.bar_gap
         self.led_h = layout.led_height
+        self.led_gap = layout.led_gap
         self.ch_y0 = [rect.y for rect in self.plots]
         self.ch_h = self.plots[0].height
         self.trail = pg.Surface(surf.get_size(), pg.SRCALPHA)
@@ -67,6 +70,8 @@ class LedBarRenderer:
         preset = get_preset(name)
         self.cfg.theme = preset.theme
         self.cfg.gauge_style = preset.gauge_style
+        self.cfg.led_shape = preset.led_shape
+        self.cfg.led_aspect_ratio = preset.led_aspect_ratio
         self.preset_name = preset.name
 
     def next_preset(self):
@@ -230,7 +235,7 @@ class LedBarRenderer:
                 for j in range(self.cfg.leds_per_bar):
                     led_ratio = (j + 0.5) / self.cfg.leds_per_bar  # このLEDの高さ割合
                     on_color, off_color = self.cfg.theme.choose_color(led_ratio)
-                    y = y0 + ch_h - (j+1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
+                    y = y0 + ch_h - (j+1) * (self.led_h + self.led_gap) + self.led_gap
                     rect = pg.Rect(x, y, self.bar_w, self.led_h)
                     on = (j < lit)
                     self.draw_led(rect, on_color if on else off_color, on)
@@ -241,15 +246,15 @@ class LedBarRenderer:
                     top_index = min(self.cfg.leds_per_bar - 1, max(0, math.ceil(peak) - 1))
 
                     # トップLED矩形（外枠）
-                    led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
-                    led_rect = pg.Rect(x, led_y, self.bar_w, self.led_h)
+                    led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.led_gap) + self.led_gap
+                    led_rect = self.led_rect(pg.Rect(x, led_y, self.bar_w, self.led_h))
 
                     # トップLEDの"inner"を算出（draw_ledのパディングと揃える）
                     pad = 1 if (led_rect.w < 6 or led_rect.h < 6) else 2
                     inner = led_rect.inflate(-pad, -pad)
 
                     # まず“上のスリット”に描けるか判定（= gap >= 1）
-                    if self.cfg.led_gap >= 1:
+                    if self.led_gap >= 1:
                         # トップLEDの上端の1px上（= ギャップ内の最下段）に白線を置く
                         y_gap = led_rect.top - 1
 
@@ -259,8 +264,8 @@ class LedBarRenderer:
                         w_line = inner.width + overhang * 2
 
                         # バー外枠にクランプ（左右対称を崩さない）
-                        x_min = x
-                        x_max = x + self.bar_w - 1
+                        x_min = led_rect.left
+                        x_max = led_rect.right - 1
                         if x_line < x_min:
                             shift = x_min - x_line
                             x_line = x_min
@@ -286,12 +291,52 @@ class LedBarRenderer:
 
         self.draw_freq_scale()
 
+    def led_rect(self, cell: pg.Rect) -> pg.Rect:
+        """Fit a style's proportions inside a layout cell (nearest pixel)."""
+        ratio = self.cfg.led_aspect_ratio
+        if not math.isfinite(ratio) or ratio <= 0:
+            raise ValueError("led_aspect_ratio must be finite and positive")
+        if self.cfg.led_shape not in ("rectangle", "rounded", "ellipse"):
+            raise ValueError("led_shape must be rectangle, rounded or ellipse")
+        width = min(cell.width, cell.height * ratio)
+        height = width / ratio
+        rect = pg.Rect(0, 0, max(1, round(width)), max(1, round(height)))
+        rect.center = cell.center
+        return rect
+
     def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
-        if self.cfg.gauge_style == "box":
+        rect = self.led_rect(rect)
+        # Rasterize one reference design, then scale all its details together.
+        if min(rect.size) < 3:
+            pg.draw.rect(self.surf, color, rect)
+            return
+        key = (rect.size, tuple(color), on, self.cfg.gauge_style, self.cfg.led_shape,
+               self.cfg.led_aspect_ratio, repr(self.cfg.theme))
+        tile = self._led_cache.get(key)
+        if tile is None:
+            original = self.surf
+            reference = pg.Surface((max(3, round(20 * self.cfg.led_aspect_ratio)), 20), pg.SRCALPHA)
+            try:
+                self.surf = reference
+                self._draw_led_design(reference.get_rect(), color, on)
+            finally:
+                self.surf = original
+            tile = pg.transform.smoothscale(reference, rect.size)
+            if len(self._led_cache) >= 256:
+                self._led_cache.clear()
+            self._led_cache[key] = tile
+        self.surf.blit(tile, rect)
+
+    def _draw_led_design(self, rect, color, on):
+        if self.cfg.led_shape == "ellipse":
+            pg.draw.ellipse(self.surf, color, rect)
+            return
+        if self.cfg.gauge_style == "box" and self.cfg.led_shape == "rectangle":
             self.draw_box_led(rect, color, on)
             return
+        radius = round(min(rect.size) * 0.25) if self.cfg.led_shape == "rounded" else 0
         # ベース（枠）
-        pg.draw.rect(self.surf, self.cfg.theme.led_border, rect, border_radius=max(0, self.cfg.corner_radius))
+        pg.draw.rect(self.surf, self.cfg.theme.led_border, rect, border_radius=radius)
 
         # 小さいLEDでも内側が消えないように、padを自動で絞る
         # 高さ2pxなら pad=0、3〜5pxなら pad=1、それ以上は2
@@ -306,12 +351,12 @@ class LedBarRenderer:
         # もし内側がゼロ/マイナスになったら、外枠のまま塗る簡易パス
         if inner.width <= 0 or inner.height <= 0:
             pg.draw.rect(self.surf, color, rect,
-                        border_radius=max(0, self.cfg.corner_radius - 1))
+                        border_radius=max(0, radius - 1))
             return
 
         # 内側の塗り
         pg.draw.rect(self.surf, color, inner,
-                    border_radius=max(0, self.cfg.corner_radius - 1))
+                    border_radius=max(0, radius - 1))
 
         if on:
             # 小さいときはグロスを抑える/描かない
@@ -324,7 +369,7 @@ class LedBarRenderer:
             # Leave a colored face between the two outline edges.
             if inner.height >= 4 and inner.width > 2:
                 pg.draw.rect(self.surf, self.cfg.theme.led_outline, inner, width=1,
-                            border_radius=max(0, self.cfg.corner_radius - 1))
+                            border_radius=max(0, radius - 1))
 
     def draw_box_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
         """Bevel inside the supplied geometry; no level or peak calculations."""
