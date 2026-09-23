@@ -29,6 +29,9 @@ class AudioCleanupTests(unittest.TestCase):
         compat = patch("wune.soundcard_compat.prepare_soundcard")
         compat.start()
         self.addCleanup(compat.stop)
+        rate_patch = patch("wune.soundcard_compat.output_sample_rate", return_value=48000)
+        self.detect_rate = rate_patch.start()
+        self.addCleanup(rate_patch.stop)
         self.sc = types.ModuleType("soundcard")
         self.speaker = types.SimpleNamespace(id="render-id", name="HDMI Speakers", channels=2)
         self.sc.default_speaker = MagicMock(return_value=self.speaker)
@@ -121,6 +124,24 @@ class AudioCleanupTests(unittest.TestCase):
         self.addCleanup(spectrum.close)
         self.assertEqual(self.loopback.recorder.call_args.kwargs["samplerate"], 44100)
         self.assertEqual(self.loopback.recorder.call_args.kwargs["blocksize"], 2048)
+        self.detect_rate.assert_not_called()
+
+    def test_auto_rate_drives_capture_and_fft_for_selected_endpoint(self):
+        for rate in (44100, 48000, 96000):
+            with self.subTest(rate=rate):
+                self.detect_rate.return_value = rate
+                spectrum = self.audio.AudioSpectrum(Config(output_device="HDMI"), 64)
+                self.addCleanup(spectrum.close)
+                self.detect_rate.assert_called_with(self.speaker)
+                self.assertEqual(spectrum.sr, rate)
+                self.assertEqual(spectrum.freqs[-1], rate / 2)
+                self.assertEqual(self.loopback.recorder.call_args.kwargs["samplerate"], rate)
+
+    def test_mix_rate_failure_does_not_start_capture(self):
+        self.detect_rate.side_effect = RuntimeError("mix format unavailable")
+        with self.assertRaisesRegex(RuntimeError, "mix format unavailable"):
+            self.make_spectrum()
+        self.loopback.recorder.assert_not_called()
 
     def test_capture_start_failure_is_reported_without_input_fallback(self):
         self.recorder.__enter__.side_effect = RuntimeError("capture failed")

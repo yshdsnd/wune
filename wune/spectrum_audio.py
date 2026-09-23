@@ -37,7 +37,14 @@ class AudioSpectrum:
         self.cfg = cfg
         self.bars = int(bars)
         self.channels_req = int(channels)
-        self.sr = int(cfg.sample_rate if samplerate is None else samplerate)
+        self._speaker = self._select_output()
+        requested_rate = cfg.sample_rate if samplerate is None else samplerate
+        if requested_rate is None:
+            from .soundcard_compat import output_sample_rate
+            requested_rate = output_sample_rate(self._speaker)
+        self.sr = int(requested_rate)
+        if self.sr <= 0:
+            raise ValueError("Sample rate must be positive.")
         self.nfft = int(cfg.block_size if blocksize is None else blocksize)
         self.smoothing = float(np.clip(cfg.smoothing if smooth is None else smooth, 0.0, 0.99))
         self._agc_decay = float(np.clip(cfg.agc_decay if agc_decay is None else agc_decay, 0.5, 0.999))
@@ -193,8 +200,8 @@ class AudioSpectrum:
     def close(self) -> None:
         self._capture_context.close()
 
-    def _open_loopback(self):
-        """Capture the render endpoint, never a microphone or an output player."""
+    def _select_output(self):
+        """Resolve once so rate detection and recording use the same endpoint."""
         from .soundcard_compat import prepare_soundcard
         prepare_soundcard()
         speaker = (sc.default_speaker() if self.cfg.output_device is None
@@ -203,7 +210,11 @@ class AudioSpectrum:
             raise RuntimeError("No Windows playback device is available.")
         if speaker.channels < 2:
             raise RuntimeError("Select a stereo Windows playback device for loopback.")
+        return speaker
 
+    def _open_loopback(self):
+        """Capture the render endpoint, never a microphone or an output player."""
+        speaker = self._speaker
         # Resolve by endpoint ID: names can also match ordinary microphones.
         loopback = sc.get_microphone(id=speaker.id, include_loopback=True)
         if not loopback.isloopback:

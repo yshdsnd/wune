@@ -75,7 +75,7 @@ class Config:
 
     # Windows render endpoint: None follows the default at startup.
     output_device: str | None = None
-    sample_rate: int = 48_000
+    sample_rate: int | None = None  # None: selected output's mix rate at startup.
     block_size: int = 4096
     smoothing: float = 0.7
     output_floor: float = 0.05   # Final cutoff, distinct from post_floor.
