@@ -18,7 +18,7 @@ class App:
         self.renderer = LedBarRenderer(self.screen, cfg)
         # Audio errors must remain visible rather than silently showing fake data.
         self.spectrum = AudioSpectrum(cfg, cfg.bars, cfg.channels)
-        self.spectrum.set_range(cfg.min_freq_hz, cfg.max_freq_hz)
+        self.spectrum.set_range(cfg.min_freq_hz, cfg.spectrum_upper_hz(self.spectrum.sr))
         cfg.max_freq_hz = self.spectrum.fmax
 
         self.running = True

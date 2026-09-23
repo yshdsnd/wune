@@ -141,6 +141,31 @@ class AudioCleanupTests(unittest.TestCase):
         spectrum.step(1 / 60)
         self.stream.record.assert_called_once_with(numframes=4096)
 
+    def test_sample_rate_range_is_applied_to_fft_bands(self):
+        for rate, expected in ((44100, 20000), (48000, 20000), (96000, 40000)):
+            with self.subTest(rate=rate):
+                cfg = Config(sample_rate=rate)
+                spectrum = self.audio.AudioSpectrum(cfg, cfg.bars, cfg.channels)
+                self.addCleanup(spectrum.close)
+                spectrum.set_range(cfg.min_freq_hz, cfg.spectrum_upper_hz(spectrum.sr))
+                self.assertEqual(spectrum.fmax, expected)
+                used = np.concatenate(spectrum._bin_idx)
+                self.assertTrue(np.all(spectrum.freqs[used] < expected))
+                if rate == 96000:
+                    t = np.arange(cfg.block_size) / rate
+                    tone = (0.2 * np.sin(2 * np.pi * 30000 * t)).astype(np.float32)
+                    self.stream.record.return_value = np.column_stack((tone, tone))
+                    levels = spectrum.step(1 / 60)
+                    band = next(i for i, bins in enumerate(spectrum._bin_idx)
+                                if np.any(np.abs(spectrum.freqs[bins] - 30000) < rate / cfg.block_size))
+                    self.assertGreater(levels[0, band], 0)
+
+    def test_range_policy_honors_configured_and_nyquist_limits(self):
+        self.assertEqual(Config(max_freq_hz=16000).spectrum_upper_hz(48000), 16000)
+        self.assertEqual(Config(max_freq_hz=100000).spectrum_upper_hz(96000), 40000)
+        self.assertLess(Config().spectrum_upper_hz(32000), 16000)
+        self.assertLess(Config().spectrum_upper_hz(64000), 32000)
+
 
 class AppCleanupTests(unittest.TestCase):
     def setUp(self):
@@ -203,6 +228,16 @@ class AppCleanupTests(unittest.TestCase):
         self.assertIn("48.0 kHz", self.app.renderer.info_text)
         self.assertIn("float32", self.app.renderer.info_text)
         self.assertNotIn("24-bit", self.app.renderer.info_text)
+
+    def test_app_passes_policy_range_and_displays_effective_limit(self):
+        self.app.spectrum.set_range.assert_called_once_with(20.0, 20000.0)
+        self.assertEqual(self.app.cfg.max_freq_hz, self.app.spectrum.fmax)
+        self.app.spectrum.sr = 96000
+        self.app.spectrum.fmax = 40000
+        self.app.spectrum.set_range.reset_mock()
+        app = self.app_module.App(Config(sample_rate=48000))
+        app.spectrum.set_range.assert_called_once_with(20.0, 40000.0)
+        self.assertEqual(app.cfg.max_freq_hz, 40000)
 
 
 if __name__ == "__main__":

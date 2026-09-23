@@ -82,4 +82,9 @@ class Config:
     compression_knee: float = 0.25
     compression_gamma: float = 1.15
 
+    def spectrum_upper_hz(self, samplerate: float) -> float:
+        """Display policy, limited by the requested range and Nyquist safety."""
+        policy_max = 20_000.0 if samplerate <= 48_000 else 40_000.0
+        return min(self.max_freq_hz, policy_max, samplerate * 0.5 * 0.999)
+
 CFG = Config()
