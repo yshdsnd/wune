@@ -106,6 +106,27 @@ CFG = Config(channel_layout="horizontal", bars=32, width=960, height=480)
 狭い幅では重なる途中の周波数ラベルを間引き、情報欄の長い文字列を省略します。
 周波数範囲や音声処理は配置を変えても共通です。
 
+### 周波数とレベルの向き
+
+`spectrum_orientation="frequency_horizontal"` が従来の表示（横に周波数、縦にレベル）です。
+`"frequency_vertical"` にすると、周波数が下から上へ増え、各帯域のレベルが左から右へ伸びます。
+文字やLEDの形は回転しません。周波数目盛りは左側、dB目盛りは下側に表示します。
+これはL/Rの並べ方を指定する `channel_layout` とは独立した設定です。
+
+```python
+CFG = Config(
+    spectrum_orientation="frequency_vertical",
+    channel_layout="horizontal",
+    bars=32,
+    width=960,
+    height=800,
+)
+```
+
+保存して再起動すると反映されます。両方の向きで上下／左右のL/R配置とリサイズに対応し、
+バンド数・LED比率・向きに応じて最小サイズを確保します。縦に64バンドを上下2段で並べる場合は
+必要な高さが増えるため、32バンドやL/R左右配置も選べます。解析・レベル校正・動きは共通です。
+
 ## 配色とゲージの見た目
 
 LEDの形は `led_shape`（`"rectangle"` / `"rounded"` / `"ellipse"`）、

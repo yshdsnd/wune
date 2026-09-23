@@ -54,6 +54,7 @@ class Config:
     # ---- ステレオ分割 ----
     channels: int = 2           # 1=mono, 2=stereo
     channel_layout: str = "vertical"  # "vertical" or "horizontal"
+    spectrum_orientation: str = "frequency_horizontal"  # or "frequency_vertical"
     channel_gap: int = 24       # チャンネル間の余白(px)
 
     # 追加（目安値。画面の見え方に合わせて微調整OK）
