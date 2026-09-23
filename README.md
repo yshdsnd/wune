@@ -35,7 +35,7 @@ Wune自身は音声の再生や、Windowsの既定の出力先の変更を行い
 確実に同じデバイスを選ぶにはIDを使用してください。
 
 ```sh
-python -c "import soundcard as sc; [print(s.id, s.name) for s in sc.all_speakers()]"
+python -c "from wune.soundcard_compat import prepare_soundcard; prepare_soundcard(); import soundcard as sc; [print(s.id, s.name) for s in sc.all_speakers()]"
 ```
 
 音楽アプリも選択した出力先で再生する必要があります。起動中の出力先変更には
@@ -61,6 +61,12 @@ AGC係数0.98、正規化の10/95パーセンタイル、平滑化係数0.7な�
 96 kHz対応の拡張やxlevelの挙動の再現は、この整理には含めません。
 
 ## 検証
+
+WindowsではSoundCard 0.4.6に固定しています。同版の`PROPVARIANT`領域が
+WindowsのBLOB値に対して小さすぎるため、`wune/soundcard_compat.py`で
+デバイス情報を取得する前に確保サイズ・ゼロ初期化・解放を補正します。
+インストール済みライブラリのファイルは書き換えません。
+報告された`0xC0000374`の解消は実機で再確認が必要です。
 
 ```sh
 python -m unittest discover -s tests -v

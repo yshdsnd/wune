@@ -26,6 +26,9 @@ def input_frames(channels=2):
 
 class AudioCleanupTests(unittest.TestCase):
     def setUp(self):
+        compat = patch("wune.soundcard_compat.prepare_soundcard")
+        compat.start()
+        self.addCleanup(compat.stop)
         self.sc = types.ModuleType("soundcard")
         self.speaker = types.SimpleNamespace(id="render-id", name="HDMI Speakers", channels=2)
         self.sc.default_speaker = MagicMock(return_value=self.speaker)

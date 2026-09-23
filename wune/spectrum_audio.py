@@ -195,6 +195,8 @@ class AudioSpectrum:
 
     def _open_loopback(self):
         """Capture the render endpoint, never a microphone or an output player."""
+        from .soundcard_compat import prepare_soundcard
+        prepare_soundcard()
         speaker = (sc.default_speaker() if self.cfg.output_device is None
                    else sc.get_speaker(self.cfg.output_device))
         if speaker is None:
