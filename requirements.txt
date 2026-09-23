@@ -1,0 +1,3 @@
+numpy
+pygame
+SoundCard==0.4.6

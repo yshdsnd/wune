@@ -1,6 +1,8 @@
 # renderer.py
 # 描画ルーチン
 
+import math
+
 import numpy as np
 import pygame as pg
 from typing import Tuple
@@ -18,12 +20,6 @@ class LedBarRenderer:
         inner_w = cfg.width - cfg.margin_lr * 2
         self.bar_w = (inner_w - (cfg.bars - 1) * cfg.bar_gap) // cfg.bars
         self.bar_x0 = cfg.margin_lr
-        self.bar_y0 = cfg.margin_tb
-        self.bar_h = cfg.height - cfg.margin_tb * 2
-        # LEDサイズ（高さ方向に等分）
-        total_gap = (cfg.leds_per_bar - 1) * cfg.led_gap
-        self.led_h = (self.bar_h - total_gap) // cfg.leds_per_bar
-
         # チャンネルごとの縦レイアウト（上下2段）
         self.channels = self.cfg.channels
         top_reserve    = self.cfg.margin_tb + self.cfg.header_reserved
@@ -32,18 +28,17 @@ class LedBarRenderer:
         if self.cfg.info_enabled:
             bottom_reserve += self.cfg.info_height + 12
         # 周波数スケールぶんを確保（下段の直下に出す前提）
-        if getattr(self.cfg, "show_freq_scale", True):
+        if self.cfg.show_freq_scale:
             bottom_reserve += self.cfg.scale_reserved
 
         usable_h = self.cfg.height - top_reserve - bottom_reserve - (self.cfg.channels - 1) * self.cfg.channel_gap
-        #min_ch_h = max(32, (self.cfg.leds_per_bar * (self.cfg.led_gap + 4)))
 
         # 1) 暫定の段高さ（この高さにLEDを収められるかを先に判定）
         temp_ch_h = max(32, usable_h // self.cfg.channels)
 
-        # 2) 最小LED高さと最小段数（未設定でも動くようデフォルトを用意）
-        min_led_h   = getattr(self.cfg, "min_led_height", 3)     # 3px 以上に保つ
-        min_leds_nb = getattr(self.cfg, "min_leds_per_bar", 12)  # 12段までは下げてもよい
+        # 2) 設定された最小LED高さと最小段数
+        min_led_h   = self.cfg.min_led_height     # 3px 以上に保つ
+        min_leds_nb = self.cfg.min_leds_per_bar  # 12段までは下げてもよい
 
         # 3) 今の段数で何pxのLEDになるかを計算する関数
         gap = self.cfg.led_gap
@@ -63,7 +58,7 @@ class LedBarRenderer:
         self.ch_y0 = [top_reserve + i * (self.ch_h + self.cfg.channel_gap)
                     for i in range(self.cfg.channels)]
 
-        # ---- これを追加：LEDの高さを「段の高さ」で決定する ----
+        # LEDの高さは、実際に確保できたチャンネル段の高さから決定する。
         total_gap = (self.cfg.leds_per_bar - 1) * self.cfg.led_gap
         self.led_h = max(2, (self.ch_h - total_gap) // self.cfg.leds_per_bar)
 
@@ -84,7 +79,7 @@ class LedBarRenderer:
         self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
 
         # 表示用インフォテキスト（外部からセット）
-        self.info_text = "INPUT: N/A | 48.0 kHz | 24-bit | Stereo | API: N/A"
+        self.info_text = ""
 
 
 
@@ -139,7 +134,6 @@ class LedBarRenderer:
         """対数スケールで周波数→バー番号へ概算マッピング"""
         fmin = max(1.0, self.cfg.min_freq_hz)
         fmax = max(fmin * 1.01, self.cfg.max_freq_hz)
-        import math
         pos = (math.log10(f_hz) - math.log10(fmin)) / (math.log10(fmax) - math.log10(fmin))
         idx = int(round(pos * (self.cfg.bars - 1)))
         return max(0, min(self.cfg.bars - 1, idx))
@@ -160,14 +154,12 @@ class LedBarRenderer:
             return
         
         # 下段の直下
-        bottom_y0 = self.ch_y0[self.channels - 1]
         base_y = self.cfg.height - (self.cfg.margin_tb + (self.cfg.info_height + 12 if self.cfg.info_enabled else 0) + self.cfg.scale_reserved) + 8
         EPS = 1e-6
 
         ticks = [f for f in self.cfg.scale_ticks_hz
              if (self.cfg.min_freq_hz + EPS) < f < (self.cfg.max_freq_hz - EPS)]
 
-        last_b = None  # ★ 同じバーに落ちる tick はスキップ（重複防止）
         for f in ticks:
             # 端ラベルと重複するのを避ける
             if abs(f - self.cfg.min_freq_hz) < EPS or abs(f - self.cfg.max_freq_hz) < EPS:
@@ -245,7 +237,7 @@ class LedBarRenderer:
         # dB の位置を先に決める（各段の上端から少し下げる）
         unit = self.font_scale.render("dB", True, (190,210,210))
         unit_x = x_right - unit.get_width()
-        unit_y = y0 - unit.get_height() - 10  # ←ここはお好みのマージン
+        unit_y = y0 - unit.get_height() - self.cfg.db_unit_offset  # ←ここはお好みのマージン
 
         # L/R は dB より“さらに上”に置く
         label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
@@ -285,12 +277,10 @@ class LedBarRenderer:
                     on = (j < lit)
                     self.draw_led(rect, on_color if on else off_color, on)
 
-                # --- ここはLEDを全部描いた「後」 ---
                 # ピークマーカー（ホールド位置を使う）
-                peak = float(self.peak_pos[ch, b])  # ← ここを lit_count ではなく peak_pos に
+                peak = float(self.peak_pos[ch, b])
                 if peak > 0:
-                    from math import ceil
-                    top_index = min(self.cfg.leds_per_bar - 1, max(0, ceil(peak) - 1))
+                    top_index = min(self.cfg.leds_per_bar - 1, max(0, math.ceil(peak) - 1))
 
                     # トップLED矩形（外枠）
                     led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
@@ -327,8 +317,6 @@ class LedBarRenderer:
                         self.surf.blit(s, pm_rect, special_flags=pg.BLEND_RGBA_MAX)
                     else:
                         # フォールバック：LED内側に“カットアウト→白”で視認性確保
-                        pad = 1 if (led_rect.w < 6 or led_rect.h < 6) else 2
-                        inner = led_rect.inflate(-pad, -pad)
                         if inner.w > 0 and inner.h > 0:
                             y_line = max(inner.top, min(inner.bottom - 1, inner.top))
                             cut = pg.Rect(inner.left, y_line, inner.width, 1)
@@ -336,8 +324,7 @@ class LedBarRenderer:
                             pg.draw.rect(self.surf, (255, 255, 255), cut)    # その上に白
 
             # dBラベル（段ごと）
-            if hasattr(self, "draw_db_labels_ch"):
-                self.draw_db_labels_ch(ch)    
+            self.draw_db_labels_ch(ch)
 
         self.draw_freq_scale()
 
@@ -386,5 +373,3 @@ class LedBarRenderer:
         tw, th = text.get_size()
         overlay.blit(text, ((self.cfg.width - tw)//2, (self.cfg.height - th)//2))
         self.surf.blit(overlay, (0, 0))
-
-

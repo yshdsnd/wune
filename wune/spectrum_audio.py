@@ -1,21 +1,20 @@
 # wune/spectrum_audio.py
 from __future__ import annotations
-import numpy as np
-import sounddevice as sd
-from .config import Config
-from .utils import build_band_map
+from contextlib import ExitStack
+import math
 
-# 追加：視覚用エンベロープ（per-band）
+import numpy as np
+import soundcard as sc
+from .config import Config
+
+# 視覚用エンベロープ（per-band）
 class VisEnvelope:
-    def __init__(self, attack_ms=35, release_ms=180, fps=60, bars=90):
-        import math
+    def __init__(self, attack_ms=35, release_ms=180, fps=60):
         # フレーム独立係数
         self.k_att = math.exp(-1.0 / max(1, (attack_ms/1000.0) * fps))
         self.k_rel = math.exp(-1.0 / max(1, (release_ms/1000.0) * fps))
         self.y = None
-        self.n = bars
     def step(self, x):
-        import numpy as np
         if self.y is None or self.y.shape != x.shape:
             self.y = np.zeros_like(x, dtype=np.float32)
         up = x > self.y
@@ -24,72 +23,26 @@ class VisEnvelope:
         return self.y
 
 class AudioSpectrum:
-    """
-    マイク/ライン入力（デフォルトデバイス）→ FFT → (channels,bars) の 0..1 を返す最小実装。
-    ・cross-platform（PortAudio）
-    ・Hann窓 + rFFT
-    ・周波数はログ等間隔で bars 個にビニング
-    ・軽いAGC＋滑らかさ用のEMA
-    """
+    """Windows WASAPI loopback → Hann/rFFT → log-power bands → display levels."""
     def __init__(
         self,
         cfg: Config,
         bars: int,
         channels: int = 2,
-        samplerate: int = 48_000,
-        blocksize: int = 2048,
-        agc_decay: float = 0.98,          # 大きいほどゆっくり追従（0.9〜0.99）
-        smooth: float = 0.7               # 出力の表示滑らかさ（0..1, 大きいほどヌル）
+        samplerate: int | None = None,
+        blocksize: int | None = None,
+        agc_decay: float | None = None,          # 大きいほどゆっくり追従（0.9〜0.99）
+        smooth: float | None = None               # 出力の表示滑らかさ（0..1, 大きいほどヌル）
     ):
         self.cfg = cfg
         self.bars = int(bars)
         self.channels_req = int(channels)
-        self.sr = int(samplerate)
-        self.nfft = int(blocksize)
-        self.device = cfg.input_device
-        self.smooth = float(np.clip(smooth, 0.0, 0.99))
-        self._agc_decay = float(np.clip(agc_decay, 0.5, 0.999))
+        self.sr = int(cfg.sample_rate if samplerate is None else samplerate)
+        self.nfft = int(cfg.block_size if blocksize is None else blocksize)
+        self.smoothing = float(np.clip(cfg.smoothing if smooth is None else smooth, 0.0, 0.99))
+        self._agc_decay = float(np.clip(cfg.agc_decay if agc_decay is None else agc_decay, 0.5, 0.999))
         self.last_rms = 0.0
         self.gated = False
-
-        # ★ デバイス情報を見て「開ける入力チャンネル数」を決める
-        try:
-            if self.device is None:
-                in_index = sd.default.device[0]  # (input, output) の input
-                if in_index is None or in_index < 0:
-                    in_index = sd.query_hostapis(sd.default.hostapi)['default_input_device']
-                devinfo = sd.query_devices(in_index)
-            else:
-                devinfo = sd.query_devices(self.device)
-        except Exception:
-            # 取得に失敗したら最終的に1chで試す
-            devinfo = {"max_input_channels": 1}
-
-        open_channels = max(1, min(self.channels_req, int(devinfo.get("max_input_channels", 1))))
-
-        # ★ まず open_channels で開く。失敗したら 1ch でリトライ。
-        try:
-            self.stream = sd.InputStream(
-                device=self.device,
-                channels=open_channels,
-                samplerate=self.sr,
-                blocksize=self.nfft,
-                dtype="float32",
-            )
-            self.stream.start()
-        except sd.PortAudioError:
-            # samplerate不一致やドライバ事情もあるので最終手段で1ch
-            self.stream = sd.InputStream(
-                device=self.device,
-                channels=1,
-                samplerate=self.sr,
-                blocksize=self.nfft,
-                dtype="float32",
-            )
-            self.stream.start()
-            open_channels = 1
-
-        self.channels_eff = open_channels  # 実際に開けたch数（後段で使う）
 
         # FFT 前処理
         self.window = np.hanning(self.nfft).astype(np.float32)
@@ -98,7 +51,7 @@ class AudioSpectrum:
         # 周波数ごとの重み付け配列を作成
         weights = np.ones(len(self.freqs), dtype=np.float32)
         cutoff_freq = 20000
-        if samplerate > 48000:
+        if self.sr > 48000:
             cutoff_freq = 48000
 
         for i, f in enumerate(self.freqs):
@@ -120,9 +73,12 @@ class AudioSpectrum:
         self._agc = np.full((self.channels_req, self.bars), 1e-3, dtype=np.float32)
 
         # ビジュアルエンベロープの作成
-        self._vis_env = VisEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms, fps=self.cfg.fps, bars=self.bars)
+        self._vis_env = VisEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms, fps=self.cfg.fps)
 
-        #self.slices, self.band_mask, self.band_labels = build_band_map(self.sr, self.nfft, self.bars)
+        # Open last so initialization errors cannot leave capture running.
+        self._capture_context = ExitStack()
+        self.stream = self._open_loopback()
+
 
     # --- public API ----------------------------------------------------------
     def set_range(self, fmin: float, fmax: float) -> None:
@@ -130,7 +86,7 @@ class AudioSpectrum:
         fmin = max(1.0, float(fmin))
         nyq = self.sr * 0.5
         fmax = max(fmin * 1.01, float(fmax))
-        fmax = min(fmax, nyq - 1.0)   # ★ ここでクランプ
+        fmax = min(fmax, nyq - 1.0)   # ここでクランプ
         self.fmin, self.fmax = fmin, fmax
         self._rebuild_bins()
 
@@ -139,18 +95,18 @@ class AudioSpectrum:
         1フレームぶん処理して (channels,bars) の 0..1 を返す。
         無音〜小音量でも 0 に張り付かないよう軽いAGCを入れている。
         """
-        data, _ = self.stream.read(self.nfft)     # shape: (nfft, C)
+        data = self.stream.record(numframes=self.nfft)     # shape: (nfft, C)
         if data.ndim == 1:
             data = data[:, None]
 
-        # ★ サイレンス判定（しきい値は環境で微調整）
+        # サイレンス判定（しきい値は環境で微調整）
         frame_rms = float(np.sqrt(np.mean(np.square(data.astype(np.float32)))))
         self.last_rms = frame_rms
 
-        # ★追加：dBFSでの静寂ガード（ほぼ無音なら正規化をスキップ）
+        # dBFSでの静寂ガード（ほぼ無音なら正規化をスキップ）
         EPS = 1e-12
         frame_db = 20.0 * np.log10(max(frame_rms, EPS))
-        QUIET_DB = getattr(self.cfg, "quiet_dbfs_floor", -55.0)  # 設定から読み取れるように
+        QUIET_DB = self.cfg.quiet_dbfs_floor  # 設定から読み取れるように
 
         if frame_db < QUIET_DB:
             self.gated = True
@@ -161,7 +117,7 @@ class AudioSpectrum:
         self.gated = (frame_rms < self.cfg.silence_rms_threshold)
         if frame_rms < self.cfg.silence_rms_threshold:
             # ゼロに落とす or 穏やかに減衰
-            self._out *= self.cfg.silence_decay   # ←残像っぽく消えていく
+            self._out *= self.cfg.silence_decay   # 無音時は既存の減衰率を維持
             self._out[self._out < self.cfg.post_floor] = 0.0
             return self._out
 
@@ -196,11 +152,11 @@ class AudioSpectrum:
         self._agc = np.maximum(out, self._agc * self._agc_decay)
 
         # パーセンタイル正規化（極端値の影響を弱める）
-        lo = np.percentile(out, 10, axis=1, keepdims=True)
-        hi = np.percentile(self._agc, 95, axis=1, keepdims=True)  # 上側はAGC基準
+        lo = np.percentile(out, self.cfg.norm_lo_pct, axis=1, keepdims=True)
+        hi = np.percentile(self._agc, self.cfg.norm_hi_pct, axis=1, keepdims=True)  # 上側はAGC基準
 
         #    log10(パワー)スケールで 0.5 は約 +5 dB（十分“差”として認識できる量）
-        min_span = getattr(self.cfg, "min_norm_span_db10", 0.6)
+        min_span = self.cfg.min_norm_span_db10
         span = hi - lo
         use_abs = span < min_span   # (ch,1) ブール
 
@@ -218,8 +174,8 @@ class AudioSpectrum:
         #    use_abs は (ch,1) なので (ch,bins) に自動ブロードキャストされます
         norm = np.where(use_abs, abs_norm, pct_norm).astype(np.float32)
 
-        knee = 0.25
-        gamma = 1.15
+        knee = self.cfg.compression_knee
+        gamma = self.cfg.compression_gamma
         x = norm
         x = x / (x + knee)
         x = np.clip(x, 0.0, 1.0)
@@ -230,22 +186,41 @@ class AudioSpectrum:
         norm[norm < self.cfg.post_floor] = 0.0
 
         # 表示の滑らかさ
-        self._out = self.smooth * self._out + (1.0 - self.smooth) * norm
-        self._out[self._out < 0.05] = 0.0
+        self._out = self.smoothing * self._out + (1.0 - self.smoothing) * norm
+        self._out[self._out < self.cfg.output_floor] = 0.0
         return self._out
 
     def close(self) -> None:
-        try:
-            self.stream.stop()
-            self.stream.close()
-        except Exception:
-            pass
+        self._capture_context.close()
 
-    # --- internals -----------------------------------------------------------
+    def _open_loopback(self):
+        """Capture the render endpoint, never a microphone or an output player."""
+        from .soundcard_compat import prepare_soundcard
+        prepare_soundcard()
+        speaker = (sc.default_speaker() if self.cfg.output_device is None
+                   else sc.get_speaker(self.cfg.output_device))
+        if speaker is None:
+            raise RuntimeError("No Windows playback device is available.")
+        if speaker.channels < 2:
+            raise RuntimeError("Select a stereo Windows playback device for loopback.")
+
+        # Resolve by endpoint ID: names can also match ordinary microphones.
+        loopback = sc.get_microphone(id=speaker.id, include_loopback=True)
+        if not loopback.isloopback:
+            raise RuntimeError("The selected playback endpoint has no loopback capture.")
+        self.device = speaker.name
+        self.channels_eff = 2
+        # Shared mode leaves normal playback running. Avoid SoundCard's known
+        # single-channel WASAPI issue even when the display is configured mono.
+        recorder = loopback.recorder(
+            samplerate=self.sr, channels=[0, 1], blocksize=self.nfft,
+            exclusive_mode=False,
+        )
+        return self._capture_context.enter_context(recorder)
 
     def _rebuild_bins(self) -> None:
         """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
-        各バーに最低1ビン以上を必ず割り当て、最終帯域はNyquistビンを含める。
+        既存の境界計算を維持する（高域端の扱いの変更は別の調整作業）。
         """
         freqs = self.freqs                        # len = nfft//2+1, 0..Nyquist
         nyq = self.sr * 0.5
@@ -266,10 +241,10 @@ class AudioSpectrum:
                 edge_bins[i] = min(edge_bins[i-1] + 1, len(freqs) - 1)
 
         starts = edge_bins[:-1]
-        # ★ 最終帯域は Nyquist を必ず含めるため stop を len(freqs) に拡張
+        # Preserve the existing mapping: zip uses the first bars stops.
+        # The appended endpoint is currently unused; changing it would retune bands.
         stops  = np.append(edge_bins[1:], len(freqs))
 
         # 各バーのビン配列（hi は排他）
         self._bin_idx = [np.arange(int(lo), int(hi), dtype=np.int32)
                         for lo, hi in zip(starts, stops)]
-

@@ -1,15 +1,6 @@
-"""
-ウネウネLEDスペアナ v0.1
-- ステップ1〜3を実装：バー描画 / 色分け / ピークホールド
-- 90年代ミニコンポ風の見た目を意識したLEDセグメント描画
-- いまは『それっぽく動く』ための疑似スペクトラム（擬似ノイズ＋波）
+"""Wune: Windows WASAPI loopback with an LED spectrum display.
 
-終了: ESC / Q / 閉じるボタン
-フルスクリーン切替: F11
-一時停止: Space
-
-※ pygame の Python 3.13 サポートは環境により差異がある可能性があります。
-   もしインストールでコケる場合は 3.12 を一時的に利用してください。
+ESC/Q: quit, F11: fullscreen, Space: pause, I: input information.
 """
 # main.py
 import pygame as pg
