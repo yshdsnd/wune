@@ -22,6 +22,7 @@ class LedBarRenderer:
             raise ValueError("gauge_style must be flat or box")
         self.channels = cfg.channels
         self._layout = None
+        self._led_cache = {}
         # ピーク情報を (ch, bar) で持つ
         self.peak_pos = np.zeros((self.channels, self.cfg.bars), dtype=np.float32)
         self.peak_hold = np.zeros((self.channels, self.cfg.bars), dtype=np.int32)
@@ -56,9 +57,11 @@ class LedBarRenderer:
         if not size_changed and layout == self._layout:
             return
         self._layout = layout
+        self._led_cache.clear()
         self.plots = [pg.Rect(rect) for rect in layout.plots]
         self.bar_w, self.bar_gap = layout.bar_width, layout.bar_gap
         self.led_h = layout.led_height
+        self.led_gap = layout.led_gap
         self.ch_y0 = [rect.y for rect in self.plots]
         self.ch_h = self.plots[0].height
         self.trail = pg.Surface(surf.get_size(), pg.SRCALPHA)
@@ -232,7 +235,7 @@ class LedBarRenderer:
                 for j in range(self.cfg.leds_per_bar):
                     led_ratio = (j + 0.5) / self.cfg.leds_per_bar  # このLEDの高さ割合
                     on_color, off_color = self.cfg.theme.choose_color(led_ratio)
-                    y = y0 + ch_h - (j+1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
+                    y = y0 + ch_h - (j+1) * (self.led_h + self.led_gap) + self.led_gap
                     rect = pg.Rect(x, y, self.bar_w, self.led_h)
                     on = (j < lit)
                     self.draw_led(rect, on_color if on else off_color, on)
@@ -243,7 +246,7 @@ class LedBarRenderer:
                     top_index = min(self.cfg.leds_per_bar - 1, max(0, math.ceil(peak) - 1))
 
                     # トップLED矩形（外枠）
-                    led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.cfg.led_gap) + self.cfg.led_gap
+                    led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.led_gap) + self.led_gap
                     led_rect = self.led_rect(pg.Rect(x, led_y, self.bar_w, self.led_h))
 
                     # トップLEDの"inner"を算出（draw_ledのパディングと揃える）
@@ -251,7 +254,7 @@ class LedBarRenderer:
                     inner = led_rect.inflate(-pad, -pad)
 
                     # まず“上のスリット”に描けるか判定（= gap >= 1）
-                    if self.cfg.led_gap >= 1:
+                    if self.led_gap >= 1:
                         # トップLEDの上端の1px上（= ギャップ内の最下段）に白線を置く
                         y_gap = led_rect.top - 1
 
@@ -303,6 +306,28 @@ class LedBarRenderer:
 
     def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
         rect = self.led_rect(rect)
+        # Rasterize one reference design, then scale all its details together.
+        if min(rect.size) < 3:
+            pg.draw.rect(self.surf, color, rect)
+            return
+        key = (rect.size, tuple(color), on, self.cfg.gauge_style, self.cfg.led_shape,
+               self.cfg.led_aspect_ratio, repr(self.cfg.theme))
+        tile = self._led_cache.get(key)
+        if tile is None:
+            original = self.surf
+            reference = pg.Surface((max(3, round(20 * self.cfg.led_aspect_ratio)), 20), pg.SRCALPHA)
+            try:
+                self.surf = reference
+                self._draw_led_design(reference.get_rect(), color, on)
+            finally:
+                self.surf = original
+            tile = pg.transform.smoothscale(reference, rect.size)
+            if len(self._led_cache) >= 256:
+                self._led_cache.clear()
+            self._led_cache[key] = tile
+        self.surf.blit(tile, rect)
+
+    def _draw_led_design(self, rect, color, on):
         if self.cfg.led_shape == "ellipse":
             pg.draw.ellipse(self.surf, color, rect)
             return

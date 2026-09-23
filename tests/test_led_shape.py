@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pygame as pg
 from wune.config import Config
-from wune.layout import minimum_window_size
+from wune.layout import minimum_window_size, clamp_window_size, calculate_layout
 from wune.renderer import LedBarRenderer
 
 
@@ -17,10 +17,10 @@ class LedShapeTests(unittest.TestCase):
             for shape in ("rectangle", "rounded", "ellipse"):
                 for ratio in (1.0, 2.0, 0.5):
                     cfg = Config(channel_layout=direction, led_shape=shape, led_aspect_ratio=ratio)
-                    r = LedBarRenderer(pg.Surface((1280, 480)), cfg)
+                    r = LedBarRenderer(pg.Surface(clamp_window_size((1280, 480), cfg)), cfg)
                     for size in (minimum_window_size(cfg), (1280, 480), (800, 1200), (1920, 480)):
                         with self.subTest(direction=direction, shape=shape, ratio=ratio, size=size):
-                            r.resize(pg.Surface(size))
+                            r.resize(pg.Surface(clamp_window_size(size, cfg)))
                             cell = pg.Rect(0, 0, r.bar_w, r.led_h)
                             rect = r.led_rect(cell)
                             self.assertTrue(cell.contains(rect))
@@ -48,3 +48,14 @@ class LedShapeTests(unittest.TestCase):
             r.cfg.led_aspect_ratio = ratio
             with self.assertRaisesRegex(ValueError, "led_aspect_ratio"):
                 r.led_rect(pg.Rect(0, 0, 20, 20))
+
+    def test_dense_grid_scales_gaps_with_leds(self):
+        cfg = Config()
+        for size in ((1280, 480), (1280, 1000), (2400, 1500)):
+            layout = calculate_layout(size, cfg)
+            self.assertEqual(layout.bar_width, 2 * layout.led_height)
+            self.assertEqual(layout.bar_gap, layout.led_gap)
+            self.assertLessEqual(abs(layout.led_gap-layout.led_height/4), 0.5)
+            for x, y, w, h in layout.plots:
+                self.assertEqual(w, cfg.bars*layout.bar_width+(cfg.bars-1)*layout.bar_gap)
+                self.assertEqual(h, cfg.leds_per_bar*layout.led_height+(cfg.leds_per_bar-1)*layout.led_gap)

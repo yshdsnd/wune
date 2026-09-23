@@ -38,7 +38,7 @@ class ThemeRenderingTests(unittest.TestCase):
             self.assertEqual(r.surf.get_at((0, 0))[:3], theme.background)
             rect = pg.Rect(100, 100, 16, 12)
             r.draw_led(rect, theme.green_off, False)
-            self.assertEqual(r.surf.get_at(rect.center)[:3], theme.green_off)
+            np.testing.assert_allclose(r.surf.get_at(rect.center)[:3], theme.green_off, atol=3)
 
     def test_box_has_light_face_and_shadow_inside_bounds(self):
         r = self.renderer(gauge_style="box", led_shape="rectangle")

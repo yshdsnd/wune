@@ -12,7 +12,7 @@ class Config:
     led_aspect_ratio: float = 2.0  # width / height, independent of cell size
     initial_preset: str | None = "CLASSIC"  # None keeps custom theme/style.
     width: int = 1280
-    height: int = 480
+    height: int = 800
     fps: int = 60
     bars: int = 64                # バー本数
     leds_per_bar: int = 20        # 縦のLED個数
