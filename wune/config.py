@@ -63,12 +63,8 @@ class Config:
 
     silence_rms_threshold: float = 5e-3     # 無音判定
     silence_decay: float = 0.90             # 無音時の減衰率
-    agc_decay: float = 0.98                 # AGCの係数（大きい=ゆっくり）
-    norm_lo_pct: float = 10.0               # 下側パーセンタイル(%)
-    norm_hi_pct: float = 95.0               # 上側パーセンタイル(%)
     post_floor: float = 0.04                # 極小値カット閾値(0..1)
     quiet_dbfs_floor: float = -55.0         # これ未満は“静寂”扱いにする
-    min_norm_span_db10: float = 0.6         # パーセンタイル正規化の最小スパン（log10(power)単位、0.6 ≒ 6 dB）
 
     # ビジュアルエンベロープの調整
     vis_attack_ms: int = 15
@@ -80,8 +76,6 @@ class Config:
     block_size: int = 4096
     smoothing: float = 0.7
     output_floor: float = 0.05   # Final cutoff, distinct from post_floor.
-    compression_knee: float = 0.25
-    compression_gamma: float = 1.15
 
     def spectrum_upper_hz(self, samplerate: float) -> float:
         """Display policy, limited by the requested range and Nyquist safety."""
