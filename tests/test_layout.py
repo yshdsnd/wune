@@ -75,6 +75,17 @@ class LayoutTests(unittest.TestCase):
             np.testing.assert_array_equal(vertical.peak_pos, horizontal.peak_pos)
             np.testing.assert_array_equal(vertical.peak_hold, horizontal.peak_hold)
 
+    def test_tall_narrow_flat_leds_during_resize(self):
+        for bars in (32, 64):
+            cfg = Config(channel_layout="horizontal", bars=bars)
+            width, height = minimum_window_size(cfg)
+            r = LedBarRenderer(pg.Surface((1280, 480)), cfg)
+            r.apply_preset("CLASSIC")
+            for size in ((width, 900), (width + 128, 900), (width, height), (1280, 720)):
+                with self.subTest(bars=bars, size=size):
+                    r.resize(pg.Surface(size))
+                    r.draw(np.full((2, bars), 0.8, dtype=np.float32))
+
     def test_clamp_and_validation(self):
         cfg = Config(channel_layout="horizontal", bars=32)
         self.assertEqual(clamp_window_size((1, 1), cfg), minimum_window_size(cfg))

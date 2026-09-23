@@ -315,7 +315,7 @@ class LedBarRenderer:
 
         if on:
             # 小さいときはグロスを抑える/描かない
-            if inner.height >= 6:
+            if inner.height >= 6 and inner.width > 2:
                 gloss_h = max(2, min(inner.height - 2, int(inner.height * 0.35)))
                 gloss = pg.Rect(inner.x + 1, inner.y + 1, inner.width - 2, gloss_h)
                 s = pg.Surface(gloss.size, pg.SRCALPHA)
