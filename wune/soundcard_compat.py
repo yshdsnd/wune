@@ -47,3 +47,30 @@ def _install_propvariant(backend):
                     ole.CoTaskMemFree(ptr)
 
     backend._PropVariant = PropVariant
+
+
+def output_sample_rate(speaker):
+    """Read the selected endpoint's shared-mode mix rate before capture starts."""
+    from soundcard import mediafoundation
+    return _mix_sample_rate(speaker, mediafoundation)
+
+
+def _mix_sample_rate(speaker, backend):
+    ffi = backend._ffi
+    client = speaker._audio_client()
+    try:
+        fmt = ffi.new("WAVEFORMATEXTENSIBLE **")
+        try:
+            hr = client[0][0].lpVtbl.GetMixFormat(client[0], fmt)
+            backend._com.check_error(hr)
+            if fmt[0] == ffi.NULL:
+                raise RuntimeError("Windows returned no output mix format.")
+            rate = int(fmt[0].Format.nSamplesPerSec)
+            if rate <= 0:
+                raise RuntimeError("Windows returned an invalid output sample rate.")
+            return rate
+        finally:
+            if fmt[0] != ffi.NULL:
+                backend._ole32.CoTaskMemFree(fmt[0])
+    finally:
+        backend._com.release(client)
