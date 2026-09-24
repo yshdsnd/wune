@@ -63,6 +63,27 @@ class AudioCleanupTests(unittest.TestCase):
         self.loopback.recorder.assert_called_once_with(
             channels=[0, 1], samplerate=48000, blocksize=4096, exclusive_mode=False,
         )
+
+    def test_live_motion_uses_new_times_without_changing_fft_or_capture(self):
+        spectrum = self.make_spectrum()
+        cfg = spectrum.cfg
+        cfg.output_floor = 0
+        data = input_frames()[0]
+        mapped = spectrum._map_levels(data).copy()
+        bins = spectrum._bin_idx
+        spectrum._animate(np.ones((2, 64), dtype=np.float32), .01)
+        envelope = spectrum._vis_env
+        state = envelope.y
+        before = state.copy()
+        cfg.vis_attack_ms, cfg.vis_release_ms = 30, 500
+        actual = spectrum._animate(np.zeros_like(state), .1)
+        np.testing.assert_allclose(actual, before*np.exp(-.1/.5), atol=1e-6)
+        self.assertIs(spectrum._vis_env, envelope)
+        self.assertIs(envelope.y, state)
+        self.assertIs(spectrum._bin_idx, bins)
+        np.testing.assert_array_equal(spectrum._map_levels(data), mapped)
+        self.loopback.recorder.assert_called_once()
+        self.assertEqual((spectrum.sr, spectrum.nfft), (48000, 4096))
         self.assertEqual(spectrum.device, "HDMI Speakers")
         self.assertEqual(spectrum.fmax, 23999)
 
@@ -425,32 +446,41 @@ class AppCleanupTests(unittest.TestCase):
 
     def test_preview_cancel_restores_runtime_without_reopening_audio(self):
         draft = self.prepare_settings_session()
+        draft.edit_motion({"vis_attack_ms": 90, "vis_release_ms": 500,
+                           "peak_hold_ms": 900, "peak_fall_per_second": 4})
         levels = self.app.levels
         events = self.app.settings_dialog.events
         events.put(("preview", draft.snapshot()))
         self.app.poll_settings()
         self.assertEqual(self.app.renderer.preset_name, "BLUE")
         self.assertEqual(self.app.cfg.channel_layout, "horizontal")
+        self.assertEqual(self.app.cfg.vis_attack_ms, 90)
+        self.assertEqual(self.app.cfg.peak_fall_per_second, 4)
         events.put(("cancel", None))
         self.app.poll_settings()
         self.assertEqual(self.app.renderer.preset_name, "CLASSIC")
         self.assertEqual(self.app.cfg.channel_layout, "vertical")
+        self.assertEqual((self.app.cfg.vis_attack_ms, self.app.cfg.vis_release_ms,
+                          self.app.cfg.peak_hold_ms, self.app.cfg.peak_fall_per_second), (5, 120, 120, 2.5))
         self.assertIs(self.app.levels, levels)
         self.assertEqual(self.app.spectrum.mock_calls, [])
         self.backend.AudioSpectrum.assert_called_once()
 
     def test_apply_becomes_cancel_baseline_without_immediate_disk_write(self):
         draft = self.prepare_settings_session()
+        draft.edit_motion({"vis_release_ms": 500})
         self.app.save_settings = MagicMock()
         events = self.app.settings_dialog.events
         events.put(("apply", draft.snapshot()))
         self.app.poll_settings()
         self.app.save_settings.assert_not_called()
         draft.select("AMBER")
+        draft.edit_motion({"vis_release_ms": 900})
         events.put(("preview", draft.snapshot()))
         events.put(("cancel", None))
         self.app.poll_settings()
         self.assertEqual(self.app.renderer.preset_name, "BLUE")
+        self.assertEqual(self.app.cfg.vis_release_ms, 500)
 
     def test_failed_save_keeps_preview_cancellable_and_dialog_open(self):
         draft = self.prepare_settings_session()

@@ -62,3 +62,61 @@ class BallisticsTests(unittest.TestCase):
                 LevelEnvelope().step(np.zeros(1), dt)
             with self.assertRaises(ValueError):
                 PeakEnvelope((1,)).step(np.zeros(1), dt)
+
+    def test_live_attack_and_release_change_preserves_state_and_step_response(self):
+        envelope = LevelEnvelope()
+        one = np.ones((1,), dtype=np.float32)
+        envelope.step(one, .01)
+        state, before = envelope.y, float(envelope.y[0])
+        envelope.configure(100, 500)
+        self.assertIs(envelope.y, state)
+        self.assertEqual(float(state[0]), before)
+        self.assertAlmostEqual(float(envelope.step(one, .1)[0]), 1-(1-before)*math.exp(-1), places=6)
+        before = float(state[0])
+        self.assertAlmostEqual(float(envelope.step(one*0, .5)[0]), before*math.exp(-1), places=6)
+
+    def test_live_peak_settings_preserve_hold_timer_and_apply_to_next_peak(self):
+        peak = PeakEnvelope((1,), hold_ms=120, fall_per_second=2.5)
+        peak.step(np.array([1.0]), .01)
+        peak.step(np.array([0.0]), .02)
+        positions, remaining = peak.positions, peak.remaining
+        peak.configure(500, 1.0)
+        self.assertIs(peak.positions, positions)
+        self.assertIs(peak.remaining, remaining)
+        self.assertAlmostEqual(float(remaining[0]), .1)
+        self.assertEqual(float(positions[0]), 1)
+        peak.step(np.array([0.0]), .2)
+        self.assertAlmostEqual(float(positions[0]), .9, places=6)
+        peak.step(np.array([1.0]), .01)
+        self.assertAlmostEqual(float(remaining[0]), .5)
+
+    def test_invalid_reconfiguration_is_atomic(self):
+        envelope = LevelEnvelope()
+        peak = PeakEnvelope((1,))
+        for bad in (-1, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                envelope.configure(30, bad)
+            with self.assertRaises(ValueError):
+                peak.configure(30, bad)
+        self.assertEqual((envelope.attack, envelope.release), (.005, .12))
+        self.assertEqual((peak.hold_seconds, peak.fall), (.12, 2.5))
+
+    def test_renderer_live_speed_uses_full_scale_units_and_keeps_pause(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.renderer import LedBarRenderer
+        pg.font.init()
+        cfg = Config(peak_hold_ms=0)
+        renderer = LedBarRenderer(pg.Surface((1280, 800)), cfg)
+        high = np.full((2, 64), cfg.leds_per_bar, dtype=np.float32)
+        renderer.update_peaks(high, .01)
+        positions = renderer.peak_pos
+        cfg.peak_fall_per_second = 1
+        renderer.update_peaks(high*0, 0)
+        np.testing.assert_array_equal(positions, high)
+        renderer.update_peaks(high*0, .1)
+        self.assertIs(renderer.peak_pos, positions)
+        np.testing.assert_allclose(positions, high*.9, atol=1e-6)
+        cfg.peak_fall_per_second = 2
+        renderer.update_peaks(high*0, .1)
+        np.testing.assert_allclose(positions, high*.7, atol=1e-6)

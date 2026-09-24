@@ -6,6 +6,7 @@ import math
 from .colors import Theme
 from .config import Config
 from .presets import PRESETS, VisualPreset, get_preset
+from .ballistics import MOTION_LIMITS, valid_motion
 
 
 BUILTINS = {p.name: p for p in PRESETS}
@@ -61,12 +62,13 @@ class AppearanceState:
     layout: dict
     preset: VisualPreset
     user_presets: dict
+    motion: dict
 
     @classmethod
     def capture(cls, cfg, name, user_presets):
         return cls({key: getattr(cfg, key) for key in LAYOUT_FIELDS},
                    VisualPreset(name, cfg.theme, **{key: getattr(cfg, key) for key in STYLE_FIELDS}),
-                   deepcopy(user_presets))
+                   deepcopy(user_presets), {key: getattr(cfg, key) for key in MOTION_LIMITS})
 
     def apply(self, cfg):
         for key, value in self.layout.items():
@@ -75,6 +77,8 @@ class AppearanceState:
         for key in STYLE_FIELDS:
             setattr(cfg, key, getattr(self.preset, key))
         cfg.initial_preset = None if self.preset.name == "CUSTOM" else self.preset.name
+        for key, value in self.motion.items():
+            setattr(cfg, key, value)
 
 
 class AppearanceDraft:
@@ -135,4 +139,15 @@ class AppearanceDraft:
 
     def reset(self):
         # Reset visible preferences without deleting the user's theme library.
+        motion = self.state.motion
         self.state = AppearanceState.capture(Config(), "CLASSIC", self.state.user_presets)
+        self.state.motion = motion
+
+    def edit_motion(self, values):
+        if any(key not in MOTION_LIMITS or not valid_motion(key, value) for key, value in values.items()):
+            raise ValueError("動きの設定は指定範囲の数値で入力してください。")
+        self.state.motion.update(values)
+
+    def reset_motion(self):
+        defaults = Config()
+        self.state.motion = {key: getattr(defaults, key) for key in MOTION_LIMITS}

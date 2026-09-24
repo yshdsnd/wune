@@ -104,6 +104,7 @@ class AudioSpectrum:
         return self._animate(norm, dt)
 
     def _animate(self, target, dt):
+        self._vis_env.configure(self.cfg.vis_attack_ms, self.cfg.vis_release_ms)
         # Apply the display floor to a copy, never to the envelope state.
         self._out = self._vis_env.step(target, dt).copy()
         self._out[self._out < self.cfg.output_floor] = 0.0

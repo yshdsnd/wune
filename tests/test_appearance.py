@@ -74,6 +74,7 @@ class AppearanceTests(unittest.TestCase):
 
     def test_apply_does_not_change_audio_or_ballistics_or_band_count(self):
         cfg = Config(sample_rate=96000, bars=32, vis_attack_ms=12)
+        self.draft = AppearanceDraft(AppearanceState.capture(cfg, "CLASSIC", {}))
         self.draft.state.layout["spectrum_orientation"] = "frequency_vertical"
         self.draft.select("AMBER")
         self.draft.state.apply(cfg)
@@ -128,3 +129,23 @@ class UserThemePersistenceTests(unittest.TestCase):
         with patch("wune.settings.os.replace", side_effect=PermissionError("locked")), self.assertWarns(RuntimeWarning):
             self.assertFalse(store.save(Config(), (800, 600), (0, 0), "CLASSIC"))
         self.assertEqual(self.path.read_bytes(), before)
+
+    def test_motion_round_trip_and_legacy_defaults(self):
+        cfg = Config(vis_attack_ms=25, vis_release_ms=300, peak_hold_ms=0, peak_fall_per_second=7.5)
+        SettingsStore(self.path).save(cfg, (800, 600), (0, 0), "CLASSIC")
+        actual, _ = SettingsStore(self.path).load(Config())
+        self.assertEqual((actual.vis_attack_ms, actual.vis_release_ms, actual.peak_hold_ms,
+                          actual.peak_fall_per_second), (25, 300, 0, 7.5))
+        self.path.write_text('{"version": 1, "appearance": {"initial_preset": "BLUE"}}')
+        actual, _ = SettingsStore(self.path).load(Config())
+        self.assertEqual((actual.vis_attack_ms, actual.vis_release_ms, actual.peak_hold_ms,
+                          actual.peak_fall_per_second), (5, 120, 120, 2.5))
+
+    def test_invalid_persisted_motion_uses_defaults(self):
+        self.path.write_text(json.dumps({"version": 1, "appearance": {
+            "vis_attack_ms": 0, "vis_release_ms": float('nan'),
+            "peak_hold_ms": True, "peak_fall_per_second": 21}}))
+        with self.assertWarns(RuntimeWarning):
+            cfg, _ = SettingsStore(self.path).load(Config())
+        self.assertEqual((cfg.vis_attack_ms, cfg.vis_release_ms, cfg.peak_hold_ms,
+                          cfg.peak_fall_per_second), (5, 120, 120, 2.5))
