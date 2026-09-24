@@ -19,6 +19,7 @@ class LedBarRenderer:
         self.surf = surf
         self.cfg = cfg
         self.preset_name = "CUSTOM"
+        self.user_presets = {}
         if cfg.gauge_style not in ("flat", "box"):
             raise ValueError("gauge_style must be flat or box")
         self.channels = cfg.channels
@@ -44,6 +45,7 @@ class LedBarRenderer:
             "Noto Sans CJK JP,Noto Sans JP,Segoe UI", 15
         )
         self.font_badge = pg.font.SysFont("Bahnschrift", 18, bold=True)
+        self.font_badge_user = pg.font.SysFont("Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI", 18, bold=True)
         self.font_logo = pg.font.SysFont("OCR A Extended, OCR A, Consolas", 16)
         self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
 
@@ -70,7 +72,7 @@ class LedBarRenderer:
         self.trail = pg.Surface(surf.get_size(), pg.SRCALPHA)
 
     def apply_preset(self, name):
-        preset = get_preset(name)
+        preset = self.user_presets[name] if name in self.user_presets else get_preset(name)
         self.cfg.theme = preset.theme
         self.cfg.gauge_style = preset.gauge_style
         self.cfg.led_shape = preset.led_shape
@@ -78,15 +80,24 @@ class LedBarRenderer:
         self.preset_name = preset.name
 
     def next_preset(self):
-        names = [preset.name for preset in PRESETS]
+        names = [preset.name for preset in PRESETS] + list(self.user_presets)
         index = names.index(self.preset_name) if self.preset_name in names else -1
         self.apply_preset(names[(index + 1) % len(names)])
 
     def badge_rect(self):
         if not self.cfg.show_badge:
             return None
-        width, height = self.font_badge.size(self.preset_name)
+        width, height = self.badge_text().get_size()
         return pg.Rect(self.width - width - 16 - 24, 14, width + 16, height + 8)
+
+    def badge_text(self):
+        font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
+        name = self.preset_name
+        if font.size(name)[0] > self.width - 56:
+            while name and font.size(name + "…")[0] > self.width - 56:
+                name = name[:-1]
+            name += "…"
+        return font.render(name, True, self.cfg.theme.badge_text)
 
     def badge_contains(self, pos):
         rect = self.badge_rect()
@@ -103,7 +114,7 @@ class LedBarRenderer:
         self.surf.blit(logo, (self.cfg.margin_lr, 16))
         # バッジ（GROOVEなど）
         if self.cfg.show_badge:
-            text = self.font_badge.render(self.preset_name, True, self.cfg.theme.badge_text)
+            text = self.badge_text()
             tw, th = text.get_size()
             pad = 8
             bx, by = self.badge_rect().topleft

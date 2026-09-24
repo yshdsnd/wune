@@ -48,9 +48,12 @@ class SettingsStore:
         self.path = Path(path) if path is not None else settings_path()
         self.writable = True
         self._document = {}
+        self.user_presets = {}
 
     def load(self, defaults):
         self.writable = True
+        self._document = {}
+        self.user_presets = {}
         cfg = deepcopy(defaults)
         geometry = {}
         try:
@@ -66,9 +69,19 @@ class SettingsStore:
             warnings.warn(f"Cannot load {self.path}: {error}. Using defaults; file will not be overwritten.", RuntimeWarning)
             return cfg, geometry
         self._document = document
+        from .appearance import decode_preset
+        library = document.get("user_themes", {})
+        if not isinstance(library, dict):
+            warnings.warn("Ignoring invalid user_themes", RuntimeWarning)
+            library = {}
+        for name, data in library.items():
+            try:
+                self.user_presets[name] = decode_preset(name, data)
+            except ValueError as error:
+                warnings.warn(f"Ignoring user theme {name!r}: {error}", RuntimeWarning)
         for key, value in document.get("appearance", {}).items():
             if key in PREFERENCES:
-                if valid_preference(key, value):
+                if valid_preference(key, value) or (key == "initial_preset" and isinstance(value, str) and value in self.user_presets):
                     setattr(cfg, key, value)
                 else:
                     warnings.warn(f"Ignoring invalid setting: {key}", RuntimeWarning)
@@ -78,9 +91,14 @@ class SettingsStore:
                 geometry[key] = value
         # A named preset is authoritative; CUSTOM uses explicit style settings.
         if cfg.initial_preset is not None:
-            preset = get_preset(cfg.initial_preset)
+            preset = self.user_presets[cfg.initial_preset] if cfg.initial_preset in self.user_presets else get_preset(cfg.initial_preset)
             cfg.theme, cfg.gauge_style = preset.theme, preset.gauge_style
             cfg.led_shape, cfg.led_aspect_ratio = preset.led_shape, preset.led_aspect_ratio
+        elif "theme" in document.get("appearance", {}):
+            try:
+                cfg.theme = decode_preset("Custom colors", {"theme": document["appearance"]["theme"]}).theme
+            except ValueError as error:
+                warnings.warn(f"Ignoring custom colors: {error}", RuntimeWarning)
         return cfg, geometry
 
     def save(self, cfg, size, position, preset_name):
@@ -91,6 +109,10 @@ class SettingsStore:
         appearance = document.setdefault("appearance", {})
         appearance.update({key: getattr(cfg, key) for key in PREFERENCES})
         appearance["initial_preset"] = None if preset_name == "CUSTOM" else preset_name
+        from .appearance import encode_preset
+        from dataclasses import asdict
+        appearance["theme"] = asdict(cfg.theme)
+        document["user_themes"] = {name: encode_preset(preset) for name, preset in self.user_presets.items()}
         document.setdefault("window", {}).update(width=int(size[0]), height=int(size[1]),
                                                   x=int(position[0]), y=int(position[1]))
         temporary = None
@@ -120,4 +142,5 @@ class SettingsStore:
         self.path.unlink(missing_ok=True)
         self.writable = True
         self._document = {}
+        self.user_presets = {}
         return Config(), {}

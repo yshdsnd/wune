@@ -407,6 +407,93 @@ class AppCleanupTests(unittest.TestCase):
         self.app.settings_store.save.assert_not_called()
         self.pg.quit.assert_called_once()
 
+    def prepare_settings_session(self):
+        from queue import Queue
+        from wune.appearance import AppearanceState, AppearanceDraft
+        self.app.renderer.preset_name = "CLASSIC"
+        self.app.renderer.user_presets = {}
+        self.app.screen.get_size.return_value = (1280, 800)
+        self.app._appearance_baseline = AppearanceState.capture(self.app.cfg, "CLASSIC", {})
+        self.app._appearance_size = (1280, 800)
+        self.app.settings_dialog = MagicMock()
+        self.app.settings_dialog.events = Queue()
+        draft = AppearanceDraft(self.app._appearance_baseline)
+        draft.select("BLUE")
+        draft.state.layout["channel_layout"] = "horizontal"
+        self.app.spectrum.reset_mock()
+        return draft
+
+    def test_preview_cancel_restores_runtime_without_reopening_audio(self):
+        draft = self.prepare_settings_session()
+        levels = self.app.levels
+        events = self.app.settings_dialog.events
+        events.put(("preview", draft.snapshot()))
+        self.app.poll_settings()
+        self.assertEqual(self.app.renderer.preset_name, "BLUE")
+        self.assertEqual(self.app.cfg.channel_layout, "horizontal")
+        events.put(("cancel", None))
+        self.app.poll_settings()
+        self.assertEqual(self.app.renderer.preset_name, "CLASSIC")
+        self.assertEqual(self.app.cfg.channel_layout, "vertical")
+        self.assertIs(self.app.levels, levels)
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+        self.backend.AudioSpectrum.assert_called_once()
+
+    def test_apply_becomes_cancel_baseline_without_immediate_disk_write(self):
+        draft = self.prepare_settings_session()
+        self.app.save_settings = MagicMock()
+        events = self.app.settings_dialog.events
+        events.put(("apply", draft.snapshot()))
+        self.app.poll_settings()
+        self.app.save_settings.assert_not_called()
+        draft.select("AMBER")
+        events.put(("preview", draft.snapshot()))
+        events.put(("cancel", None))
+        self.app.poll_settings()
+        self.assertEqual(self.app.renderer.preset_name, "BLUE")
+
+    def test_failed_save_keeps_preview_cancellable_and_dialog_open(self):
+        draft = self.prepare_settings_session()
+        self.app.save_settings = MagicMock(return_value=False)
+        dialog = self.app.settings_dialog
+        dialog.events.put(("save", draft.snapshot()))
+        self.app.poll_settings()
+        self.assertFalse(dialog.reply.call_args.args[0])
+        self.assertFalse(self.app._settings_closing)
+        dialog.events.put(("cancel", None))
+        self.app.poll_settings()
+        self.assertEqual(self.app.renderer.preset_name, "CLASSIC")
+
+    def test_save_commits_preview_and_closes_dialog(self):
+        draft = self.prepare_settings_session()
+        self.app.save_settings = MagicMock(return_value=True)
+        dialog = self.app.settings_dialog
+        dialog.events.put(("save", draft.snapshot()))
+        self.app.poll_settings()
+        self.app.save_settings.assert_called_once()
+        self.assertTrue(dialog.reply.call_args.kwargs["close"])
+        dialog.events.put(("closed", None))
+        self.app.poll_settings()
+        self.assertIsNone(self.app.settings_dialog)
+        self.assertEqual(self.app.renderer.preset_name, "BLUE")
+
+    def test_quitting_main_window_rolls_back_unapplied_preview_before_save(self):
+        draft = self.prepare_settings_session()
+        dialog = self.app.settings_dialog
+        dialog.events.put(("preview", draft.snapshot()))
+        self.app.poll_settings()
+        self.app.save_settings = MagicMock()
+        self.pg.event.get.return_value = [types.SimpleNamespace(type=self.pg.QUIT)]
+        self.app.run()
+        self.assertEqual(self.app.renderer.preset_name, "CLASSIC")
+        self.app.save_settings.assert_called_once()
+        dialog.close.assert_called_once()
+
+    def test_duplicate_open_focuses_existing_settings_window(self):
+        self.prepare_settings_session()
+        self.app.open_settings()
+        self.app.settings_dialog.focus.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
