@@ -153,8 +153,13 @@ class _Dialog:
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(row=5, column=0, sticky="w", pady=8)
         choice(general, 6, "info_position", "情報欄の位置", {"下": "bottom", "上": "top"},
             lambda value: self.layout("info_position", value))
+        self.limit_to_20khz = tk.BooleanVar(root)
+        ttk.Checkbutton(general, text="表示上限を20 kHzに制限（取得レートは変更しない）",
+                        variable=self.limit_to_20khz,
+                        command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
+                            row=7, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Label(general, text="形・比率・配色はテーマに保存します。\n組み込みテーマの編集時はユーザー用コピーを作ります。\n表示方向やLED比率に応じてメインウィンドウの寸法も調整します。",
-                  wraplength=500).grid(row=7, column=0, columnspan=2, sticky="w", pady=16)
+                  wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=16)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -220,6 +225,7 @@ class _Dialog:
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.preset.led_aspect_ratio))
         self.info.set(state.layout["info_enabled"])
+        self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")
             self.motion_scales[key].set(value)

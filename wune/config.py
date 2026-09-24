@@ -40,6 +40,7 @@ class Config:
     show_freq_scale: bool = True
     min_freq_hz: float = 20.0
     max_freq_hz: float = 48000.0
+    limit_to_20khz: bool = False  # Display/analysis range only; capture rate is unchanged.
     scale_ticks_hz: tuple = (31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 48000)
     show_freq_edge_labels: bool = True  # 左端/右端に最小・最大の周波数ラベルを描く
 
@@ -76,9 +77,11 @@ class Config:
     block_size: int = 4096
     output_floor: float = 0.05   # Display-only cutoff; envelope state is retained.
 
-    def spectrum_upper_hz(self, samplerate: float) -> float:
+    def spectrum_upper_hz(self, samplerate: float, *, requested_max_hz=None) -> float:
         """Display policy, limited by the requested range and Nyquist safety."""
         policy_max = 20_000.0 if samplerate <= 48_000 else 40_000.0
-        return min(self.max_freq_hz, policy_max, samplerate * 0.5 * 0.999)
+        maximum = self.max_freq_hz if requested_max_hz is None else requested_max_hz
+        cap = 20_000.0 if self.limit_to_20khz else policy_max
+        return min(maximum, policy_max, cap, samplerate * 0.5 * 0.999)
 
 CFG = Config()

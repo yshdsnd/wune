@@ -17,6 +17,7 @@ class App:
         pg.init()
         pg.display.set_caption("WuneWune LED Speana v0.1 — F2: 設定")
         self.cfg = cfg
+        self._requested_max_freq_hz = cfg.max_freq_hz
         self.settings_store = settings_store
         self.settings_dialog = None
         self._appearance_baseline = None
@@ -116,7 +117,17 @@ class App:
         self.settings_dialog = SettingsDialog(state, path)
 
     def preview_appearance(self, state, size=None):
+        previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
+        if self.cfg.limit_to_20khz != previous_cap:
+            maximum = self.cfg.spectrum_upper_hz(self.spectrum.sr,
+                                                requested_max_hz=self._requested_max_freq_hz)
+            if maximum != self.spectrum.fmax:
+                self.spectrum.set_range(self.cfg.min_freq_hz, maximum)
+                self.cfg.max_freq_hz = self.spectrum.fmax
+                # Bars now describe different frequencies; discard old trails.
+                self.levels.fill(0)
+                self.renderer.reset_peaks()
         self.renderer.user_presets = deepcopy(state.user_presets)
         self.renderer.preset_name = state.preset.name
         self.renderer._led_cache.clear()

@@ -249,6 +249,44 @@ class AudioCleanupTests(unittest.TestCase):
         self.assertLess(Config().spectrum_upper_hz(32000), 16000)
         self.assertLess(Config().spectrum_upper_hz(64000), 32000)
 
+    def test_20khz_cap_changes_bands_without_reopening_capture(self):
+        cfg = Config(sample_rate=96000)
+        spectrum = self.audio.AudioSpectrum(cfg, cfg.bars, cfg.channels)
+        self.addCleanup(spectrum.close)
+        spectrum.set_range(20, cfg.spectrum_upper_hz(96000))
+        t = np.arange(cfg.block_size)/96000
+        tone = np.sin(2*np.pi*30000*t).astype(np.float32)
+        data = np.column_stack((tone, tone))
+        self.assertGreater(spectrum._map_levels(data).max(), .5)
+        spectrum._animate(np.ones((2, 64), dtype=np.float32), .1)
+        cfg.limit_to_20khz = True
+        spectrum.set_range(20, cfg.spectrum_upper_hz(96000))
+        used = np.concatenate(spectrum._bin_idx)
+        self.assertTrue(np.all(spectrum.freqs[used] < 20000))
+        self.assertEqual(float(spectrum._map_levels(data).max()), 0)
+        self.assertIsNone(spectrum._vis_env.y)
+        self.assertFalse(spectrum._out.any())
+        cfg.limit_to_20khz = False
+        spectrum.set_range(20, cfg.spectrum_upper_hz(96000))
+        self.assertEqual(spectrum.fmax, 40000)
+        self.assertGreater(spectrum._map_levels(data).max(), .5)
+        self.loopback.recorder.assert_called_once()
+        self.assertEqual((spectrum.sr, spectrum.nfft), (96000, 4096))
+
+    def test_dense_bands_never_extend_beyond_cap(self):
+        cfg = Config(sample_rate=384000, bars=256, limit_to_20khz=True)
+        spectrum = self.audio.AudioSpectrum(cfg, cfg.bars, cfg.channels)
+        self.addCleanup(spectrum.close)
+        spectrum.set_range(20, cfg.spectrum_upper_hz(spectrum.sr))
+        used = np.concatenate(spectrum._bin_idx)
+        self.assertTrue(np.all(spectrum.freqs[used] < 20000))
+
+    def test_cap_keeps_device_and_custom_range_limits(self):
+        for rate in (44100, 48000, 96000, 192000):
+            self.assertEqual(Config(limit_to_20khz=True).spectrum_upper_hz(rate), 20000)
+        self.assertEqual(Config(limit_to_20khz=True, max_freq_hz=16000).spectrum_upper_hz(96000), 16000)
+        self.assertLess(Config(limit_to_20khz=True).spectrum_upper_hz(32000), 16000)
+
 
 class AppCleanupTests(unittest.TestCase):
     def setUp(self):
@@ -523,6 +561,38 @@ class AppCleanupTests(unittest.TestCase):
         self.prepare_settings_session()
         self.app.open_settings()
         self.app.settings_dialog.focus.assert_called_once()
+
+    def test_cap_preview_cancel_restores_original_hires_range(self):
+        draft = self.prepare_settings_session()
+        self.app.spectrum.sr = 96000
+        self.app.spectrum.fmax = self.app.cfg.max_freq_hz = 40000
+        self.app.spectrum.set_range.side_effect = lambda low, high: setattr(self.app.spectrum, 'fmax', high)
+        self.app.paused = True
+        self.app.levels.fill(.8)
+        draft.state.layout["limit_to_20khz"] = True
+        events = self.app.settings_dialog.events
+        events.put(("preview", draft.snapshot()))
+        self.app.poll_settings()
+        self.assertEqual(self.app.cfg.max_freq_hz, 20000)
+        self.assertFalse(self.app.levels.any())
+        events.put(("cancel", None))
+        self.app.poll_settings()
+        self.assertEqual(self.app.cfg.max_freq_hz, 40000)
+        self.assertFalse(self.app.cfg.limit_to_20khz)
+        self.assertEqual(self.app.renderer.reset_peaks.call_count, 2)
+        self.backend.AudioSpectrum.assert_called_once()
+        self.app.spectrum.close.assert_not_called()
+
+    def test_starting_with_cap_does_not_lose_uncapped_ceiling(self):
+        from wune.appearance import AppearanceState
+        self.app.spectrum.sr = 96000
+        self.app.spectrum.set_range.side_effect = lambda low, high: setattr(self.app.spectrum, 'fmax', high)
+        app = self.app_module.App(Config(limit_to_20khz=True))
+        self.assertEqual(app.cfg.max_freq_hz, 20000)
+        state = AppearanceState.capture(app.cfg, "CLASSIC", {})
+        state.layout["limit_to_20khz"] = False
+        app.preview_appearance(state)
+        self.assertEqual(app.cfg.max_freq_hz, 40000)
 
     def test_geometry_wrapper_is_retained_and_rebound_after_mode_change(self):
         window_class = MagicMock()

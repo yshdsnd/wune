@@ -10,7 +10,7 @@ from .ballistics import MOTION_LIMITS, valid_motion
 
 
 BUILTINS = {p.name: p for p in PRESETS}
-LAYOUT_FIELDS = ("spectrum_orientation", "channel_layout", "info_enabled", "info_position")
+LAYOUT_FIELDS = ("spectrum_orientation", "channel_layout", "info_enabled", "info_position", "limit_to_20khz")
 STYLE_FIELDS = ("gauge_style", "led_shape", "led_aspect_ratio")
 COLOR_FIELDS = tuple(f.name for f in fields(Theme) if not f.name.startswith("th_"))
 
