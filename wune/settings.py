@@ -9,6 +9,7 @@ import warnings
 
 from .config import Config
 from .presets import PRESETS, get_preset
+from .ballistics import MOTION_LIMITS, valid_motion
 
 
 CHOICES = {
@@ -19,7 +20,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "led_aspect_ratio", "bars", "channels", "info_enabled")
+PREFERENCES = (*CHOICES, "led_aspect_ratio", "bars", "channels", "info_enabled", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -32,6 +33,8 @@ def integer(value, low, high):
 
 
 def valid_preference(key, value):
+    if key in MOTION_LIMITS:
+        return valid_motion(key, value)
     if key in CHOICES:
         return value in CHOICES[key]
     if key == "led_aspect_ratio":

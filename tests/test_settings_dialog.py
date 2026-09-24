@@ -72,3 +72,38 @@ class DialogTests(unittest.TestCase):
         with patch("tkinter.simpledialog.askstring", return_value="夜空"):
             self.dialog.manage_theme("rename")
         self.assertEqual(self.events.get_nowait()[1].preset.name, "夜空")
+
+    def test_motion_slider_previews_without_creating_theme_copy(self):
+        self.dialog.slide_motion("vis_attack_ms", "40")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.motion["vis_attack_ms"], 40)
+        self.assertEqual(state.preset.name, "CLASSIC")
+        self.assertEqual(state.user_presets, {})
+        self.assertEqual(self.dialog.motion_variables["vis_attack_ms"].get(), "40")
+
+    def test_motion_numeric_save_commits_input_without_enter(self):
+        self.dialog.motion_variables["vis_release_ms"].set("250.5")
+        self.dialog.submit("save")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "save")
+        self.assertEqual(state.motion["vis_release_ms"], 250.5)
+
+    def test_invalid_motion_blocks_save_but_not_cancel(self):
+        self.dialog.motion_variables["peak_hold_ms"].set("nan")
+        self.dialog.submit("save")
+        self.assertFalse(self.dialog.pending)
+        self.assertTrue(self.events.empty())
+        self.dialog.submit("cancel")
+        self.assertEqual(self.events.get_nowait()[0], "cancel")
+
+    def test_reset_motion_keeps_theme_and_layout(self):
+        self.dialog.theme_name.set("BLUE")
+        self.dialog.select_theme()
+        self.events.get_nowait()
+        self.dialog.slide_motion("peak_fall_per_second", "8")
+        self.events.get_nowait()
+        self.dialog.reset_motion()
+        state = self.events.get_nowait()[1]
+        self.assertEqual(state.preset.name, "BLUE")
+        self.assertEqual(state.motion["peak_fall_per_second"], 2.5)

@@ -8,6 +8,14 @@ from queue import Empty, Queue
 from threading import Thread
 
 from .appearance import AppearanceDraft, COLOR_FIELDS
+from .ballistics import MOTION_LIMITS
+
+MOTION_LABELS = {
+    "vis_attack_ms": ("立ち上がり時間 (ms)", "小さいほどビートに素早く反応", 1),
+    "vis_release_ms": ("下降時間 (ms)", "大きいほどバーの余韻が長い", 1),
+    "peak_hold_ms": ("ピーク保持時間 (ms)", "ピーク線を留める時間。次のピークから反映", 1),
+    "peak_fall_per_second": ("ピーク落下速度 (表示全幅/秒)", "大きいほど速く落下。0は落下停止", 0.1),
+}
 
 
 COLOR_LABELS = {
@@ -87,6 +95,30 @@ class _Dialog:
         colors = ttk.Frame(notebook, padding=12)
         notebook.add(general, text="配置・LED")
         notebook.add(colors, text="テーマ・配色")
+        motion = ttk.Frame(notebook, padding=12)
+        notebook.add(motion, text="動作")
+        motion.columnconfigure(0, weight=1)
+        self.motion_variables = {}
+        self.motion_scales = {}
+        for row, (key, (label, hint, increment)) in enumerate(MOTION_LABELS.items()):
+            low, high = MOTION_LIMITS[key]
+            ttk.Label(motion, text=label).grid(row=row*3, column=0, sticky="w", pady=(8, 0))
+            variable = tk.StringVar(root)
+            self.motion_variables[key] = variable
+            entry = ttk.Spinbox(motion, from_=low, to=high, increment=increment, width=10,
+                                textvariable=variable, command=self.set_motion)
+            entry.grid(row=row*3, column=1, padx=(12, 0))
+            entry.bind("<Return>", lambda event: self.set_motion())
+            entry.bind("<FocusOut>", lambda event: self.set_motion())
+            slider = ttk.Scale(motion, from_=low, to=high,
+                               command=lambda value, k=key: self.slide_motion(k, value))
+            slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=4)
+            self.motion_scales[key] = slider
+            ttk.Label(motion, text=f"{hint}（{low:g}～{high:g}）").grid(row=row*3+2, column=0, columnspan=2, sticky="w")
+        ttk.Button(motion, text="動きだけ既定に戻す", command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=12)
+        ttk.Label(motion, text="数値はEnterまたは入力欄から移動して反映。スライダーは即反映。\n"
+                  "取得間隔にも制約があります（4096サンプル / 48 kHz：約85 ms）。\n"
+                  "時間設定を短くしても、取得間隔自体は短くなりません。", wraplength=500).grid(row=13, column=0, columnspan=2, sticky="w")
         self.variables = {}
         self.combos = {}
 
@@ -188,6 +220,9 @@ class _Dialog:
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.preset.led_aspect_ratio))
         self.info.set(state.layout["info_enabled"])
+        for key, value in state.motion.items():
+            self.motion_variables[key].set(f"{value:g}")
+            self.motion_scales[key].set(value)
         for key in COLOR_FIELDS:
             self.colors.item(key, values=(self.color_hex(key),))
         self.refresh_color()
@@ -281,9 +316,53 @@ class _Dialog:
         self.preview()
         self.status.set("表示を既定値に戻しました。ユーザーテーマは保持します。キャンセルで取り消せます。")
 
+    def read_motion(self):
+        from .ballistics import valid_motion
+        values = {}
+        for key, variable in self.motion_variables.items():
+            low, high = MOTION_LIMITS[key]
+            try:
+                value = float(variable.get())
+                if not valid_motion(key, value):
+                    raise ValueError()
+            except ValueError:
+                raise ValueError(f"{MOTION_LABELS[key][0]}は{low:g}～{high:g}で入力してください。") from None
+            values[key] = value
+        return values
+
+    def set_motion(self):
+        if self.loading or self.pending:
+            return
+        try:
+            values = self.read_motion()
+            if values != self.draft.state.motion:
+                self.draft.edit_motion(values)
+                self.preview()
+        except ValueError as error:
+            self.status.set(str(error))
+
+    def slide_motion(self, key, value):
+        if self.loading or self.pending:
+            return
+        increment = MOTION_LABELS[key][2]
+        value = round(round(float(value) / increment) * increment, 1)
+        if value != self.draft.state.motion[key]:
+            self.draft.edit_motion({key: value})
+            self.preview()
+
+    def reset_motion(self):
+        self.draft.reset_motion()
+        self.preview()
+        self.status.set("動きを既定値に戻しました。保存・適用で確定、キャンセルで取り消せます。")
+
     def submit(self, action):
         if not self.pending:
             if action != "cancel":
+                try:
+                    motion = self.read_motion()
+                except ValueError as error:
+                    self.status.set(str(error))
+                    return
                 from .settings import valid_preference
                 try:
                     ratio = float(self.ratio.get())
@@ -292,6 +371,7 @@ class _Dialog:
                 except ValueError:
                     self.status.set("LEDの幅 / 高さは0.25～8の数値で入力してください。")
                     return
+                self.draft.edit_motion(motion)
                 self.style("led_aspect_ratio", ratio)
             self.pending = True
             for tab in self.notebook.tabs():

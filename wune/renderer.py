@@ -133,6 +133,8 @@ class LedBarRenderer:
 
 
     def update_peaks(self, level_leds, dt=None):
+        self._peaks.configure(self.cfg.peak_hold_ms,
+                              self.cfg.peak_fall_per_second * self.cfg.leds_per_bar)
         self._peaks.step(level_leds, 1 / self.cfg.fps if dt is None else dt)
 
     def _freq_to_bar(self, f_hz: float) -> int:
