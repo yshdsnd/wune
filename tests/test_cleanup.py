@@ -494,6 +494,57 @@ class AppCleanupTests(unittest.TestCase):
         self.app.open_settings()
         self.app.settings_dialog.focus.assert_called_once()
 
+    def test_geometry_wrapper_is_retained_and_rebound_after_mode_change(self):
+        window_class = MagicMock()
+        first, second = MagicMock(), MagicMock()
+        first.position = (120, 140)
+        window_class.from_display_module.side_effect = [first, second]
+        module = types.SimpleNamespace(Window=window_class)
+        self.app.settings_store = MagicMock()
+        with patch.dict(sys.modules, {"pygame._sdl2.video": module}):
+            self.app._remember_position()
+            self.app._restore_position()
+            self.assertIs(self.app._display_window, first)
+            window_class.from_display_module.assert_called_once()
+            self.app._set_mode((900, 600), self.pg.RESIZABLE)
+            self.app._restore_position()
+        self.assertIs(self.app._display_window, second)
+        self.assertEqual(second.position, (120, 140))
+
+    def test_repeated_fullscreen_preserves_position_audio_and_levels(self):
+        self.app.screen.get_size.return_value = (960, 600)
+        full, normal = MagicMock(), MagicMock()
+        full.get_size.return_value = (1920, 1080)
+        normal.get_size.return_value = (960, 600)
+        self.pg.display.set_mode.side_effect = [full, normal] * 5
+        self.app._remember_position = MagicMock()
+        self.app._restore_position = MagicMock()
+        levels = self.app.levels
+        self.app.spectrum.reset_mock()
+        for _ in range(5):
+            self.app.toggle_fullscreen()
+            self.app.toggle_fullscreen()
+            self.assertEqual(self.app._windowed_size, (960, 600))
+            self.assertFalse(self.app._fullscreen)
+            self.assertTrue(self.app.running)
+        self.assertEqual(self.app._restore_position.call_count, 5)
+        self.assertIs(self.app.levels, levels)
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+        self.backend.AudioSpectrum.assert_called_once()
+
+    def test_close_escape_and_q_remain_effective_after_toggle(self):
+        self.app.screen.get_size.return_value = (960, 600)
+        self.pg.display.set_mode.return_value.get_size.return_value = (960, 600)
+        for event in (types.SimpleNamespace(type=self.pg.QUIT),
+                      types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_ESCAPE),
+                      types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_q)):
+            self.app.running = True
+            self.app.toggle_fullscreen()
+            self.app.toggle_fullscreen()
+            self.app.handle_event(event)
+            self.assertFalse(self.app.running)
+        self.pg.event.clear.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
