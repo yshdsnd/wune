@@ -66,8 +66,13 @@ class AudioSpectrum:
         nyq = self.sr * 0.5
         fmax = max(fmin * 1.01, float(fmax))
         fmax = min(fmax, nyq - 1.0)   # ここでクランプ
+        changed = (self.fmin, self.fmax) != (fmin, fmax)
         self.fmin, self.fmax = fmin, fmax
         self._rebuild_bins()
+        if changed and hasattr(self, "_vis_env"):
+            # Historical levels belong to the previous band allocation.
+            self._vis_env.y = None
+            self._out.fill(0)
 
     def step(self, dt: float) -> np.ndarray:
         """
@@ -166,7 +171,7 @@ class AudioSpectrum:
 
     def _rebuild_bins(self) -> None:
         """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
-        既存の境界計算を維持する（高域端の扱いの変更は別の調整作業）。
+        狭い範囲に多数のバーを割り当てても表示上限を越えない。
         """
         freqs = self.freqs                        # len = nfft//2+1, 0..Nyquist
         nyq = self.sr * 0.5
@@ -179,12 +184,13 @@ class AudioSpectrum:
 
         # 各境界を「左側に最も近いビン」へ（整数化）
         edge_bins = np.searchsorted(freqs, edges, side="left")
-        edge_bins = np.clip(edge_bins, 1, len(freqs) - 1)  # DC(0)は避ける
+        upper_bin = min(len(freqs) - 1, int(np.searchsorted(freqs, fmax, side="left")))
+        edge_bins = np.clip(edge_bins, 1, upper_bin)  # Exclude DC and bins outside the requested range.
 
-        # 単調増加と最小幅=1を強制
+        # Prefer at least one bin, but keep exhausted bands empty at the upper limit.
         for i in range(1, len(edge_bins)):
             if edge_bins[i] <= edge_bins[i-1]:
-                edge_bins[i] = min(edge_bins[i-1] + 1, len(freqs) - 1)
+                edge_bins[i] = min(edge_bins[i-1] + 1, upper_bin)
 
         starts = edge_bins[:-1]
         # Preserve the existing mapping: zip uses the first bars stops.

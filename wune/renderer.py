@@ -137,6 +137,10 @@ class LedBarRenderer:
                               self.cfg.peak_fall_per_second * self.cfg.leds_per_bar)
         self._peaks.step(level_leds, 1 / self.cfg.fps if dt is None else dt)
 
+    def reset_peaks(self):
+        self.peak_pos.fill(0)
+        self.peak_hold.fill(0)
+
     def _freq_to_bar(self, f_hz: float) -> int:
         """対数スケールで周波数→バー番号へ概算マッピング"""
         fmin = max(1.0, self.cfg.min_freq_hz)
@@ -166,16 +170,31 @@ class LedBarRenderer:
         for plot in self.plots:
             base_y = plot.bottom + 4
             occupied = []
+            reference = self.cfg.min_freq_hz <= 20000 <= self.cfg.max_freq_hz
+            if reference:
+                x = plot.x + self._freq_to_bar(20000) * (self.bar_w + self.bar_gap) + self.bar_w // 2
+                pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + 5))
+                image = self.font_scale.render("20kHz", True, self.cfg.theme.scale_text)
+                rect = image.get_rect(midtop=(x, base_y + 8))
+                rect.left = max(plot.left, min(rect.left, plot.right - rect.width))
+                self.surf.blit(image, rect)
+                occupied.append(rect.inflate(8, 0))
             if self.cfg.show_freq_edge_labels:
                 for freq, right in ((self.cfg.min_freq_hz, False), (self.cfg.max_freq_hz, True)):
+                    if reference and freq == 20000:
+                        continue
                     label = self._fmt_freq_label(freq, with_unit=right)
                     image = self.font_scale.render(label, True, self.cfg.theme.edge_text)
                     rect = image.get_rect(topleft=(plot.x, base_y + 8))
                     if right:
                         rect.right = plot.right
+                    if any(rect.colliderect(other) for other in occupied):
+                        continue
                     self.surf.blit(image, rect)
                     occupied.append(rect.inflate(8, 0))
             for freq in self.cfg.scale_ticks_hz:
+                if reference and freq == 20000:
+                    continue
                 if not self.cfg.min_freq_hz < freq < self.cfg.max_freq_hz:
                     continue
                 x = plot.x + self._freq_to_bar(freq) * (self.bar_w + self.bar_gap) + self.bar_w // 2
@@ -323,11 +342,17 @@ class LedBarRenderer:
         for ch, plot in enumerate(self.plots):
             occupied = []
             frequencies = []
+            if self.cfg.min_freq_hz <= 20000 <= self.cfg.max_freq_hz:
+                frequencies.append((20000, self._freq_to_bar(20000)))
             if self.cfg.show_freq_edge_labels:
                 frequencies += [(self.cfg.min_freq_hz, 0), (self.cfg.max_freq_hz, self.cfg.bars-1)]
             frequencies += [(f, self._freq_to_bar(f)) for f in self.cfg.scale_ticks_hz
                             if self.cfg.min_freq_hz < f < self.cfg.max_freq_hz]
+            seen = set()
             for freq, band in frequencies:
+                if freq in seen:
+                    continue
+                seen.add(freq)
                 y = self.cell_rect(ch, band, 0).centery
                 pg.draw.line(self.surf, self.cfg.theme.scale_line,
                              (plot.left-5, y), (plot.left-1, y))

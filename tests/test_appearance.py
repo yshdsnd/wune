@@ -149,3 +149,17 @@ class UserThemePersistenceTests(unittest.TestCase):
             cfg, _ = SettingsStore(self.path).load(Config())
         self.assertEqual((cfg.vis_attack_ms, cfg.vis_release_ms, cfg.peak_hold_ms,
                           cfg.peak_fall_per_second), (5, 120, 120, 2.5))
+
+    def test_frequency_cap_round_trip_and_old_settings(self):
+        cfg = Config(limit_to_20khz=True)
+        SettingsStore(self.path).save(cfg, (800, 600), (0, 0), "CLASSIC")
+        actual, _ = SettingsStore(self.path).load(Config())
+        self.assertTrue(actual.limit_to_20khz)
+        self.assertEqual(actual.spectrum_upper_hz(96000), 20000)
+        self.path.write_text('{"version": 1}')
+        actual, _ = SettingsStore(self.path).load(Config())
+        self.assertFalse(actual.limit_to_20khz)
+        self.path.write_text('{"version": 1, "appearance": {"limit_to_20khz": "false"}}')
+        with self.assertWarns(RuntimeWarning):
+            actual, _ = SettingsStore(self.path).load(Config())
+        self.assertFalse(actual.limit_to_20khz)
