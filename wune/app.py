@@ -21,13 +21,14 @@ class App:
         self.settings_dialog = None
         self._appearance_baseline = None
         self._settings_closing = False
+        self._display_window = None
         self._windowed_position = None
         self._fullscreen = False
         self._windowed_size = fit_window_size((cfg.width, cfg.height), cfg)
         if settings_store is not None:
             from .window_geometry import restore_geometry, work_areas
             self._windowed_size, self._windowed_position = restore_geometry(cfg, saved_geometry or {}, work_areas())
-        self.screen = pg.display.set_mode(self._windowed_size, pg.RESIZABLE)
+        self._set_mode(self._windowed_size, pg.RESIZABLE)
         self._restore_position()
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
@@ -44,31 +45,45 @@ class App:
         self.levels = np.zeros((cfg.channels, cfg.bars), dtype=np.float32)
         self.update_info_text()
 
+    def _set_mode(self, size, flags):
+        self.screen = pg.display.set_mode(size, flags)
+        if self._display_window is not None:
+            # set_mode may replace the SDL window. Bind the new wrapper before
+            # releasing the old one; queued events may still reference it.
+            from pygame._sdl2.video import Window
+            self._display_window = Window.from_display_module()
+
+    def _geometry_window(self):
+        if self._display_window is None:
+            from pygame._sdl2.video import Window
+            # pygame 2.6.1 stores a borrowed PyObject pointer in SDL window data.
+            # A temporary wrapper leaves event.get() dereferencing freed memory.
+            self._display_window = Window.from_display_module()
+        return self._display_window
+
     def toggle_fullscreen(self):
         if self._fullscreen:
-            self.screen = pg.display.set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+            self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
             self._fullscreen = False
             self._restore_position()
         else:
             self._windowed_size = self.screen.get_size()
             self._remember_position()
-            self.screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
+            self._set_mode((0, 0), pg.FULLSCREEN)
             self._fullscreen = True
             if self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
-                self.screen = pg.display.set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+                self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
                 self._fullscreen = False
                 self._restore_position()
         self.renderer.resize(self.screen)
 
     def _remember_position(self):
         if self.settings_store is not None:
-            from pygame._sdl2.video import Window
-            self._windowed_position = tuple(Window.from_display_module().position)
+            self._windowed_position = tuple(self._geometry_window().position)
 
     def _restore_position(self):
         if self._windowed_position is not None:
-            from pygame._sdl2.video import Window
-            Window.from_display_module().position = self._windowed_position
+            self._geometry_window().position = self._windowed_position
 
     def save_settings(self):
         if self.settings_store is None:
@@ -156,7 +171,7 @@ class App:
         if not self._fullscreen:
             size = fit_window_size(size, self.cfg)
             if self.screen.get_size() != size:
-                self.screen = pg.display.set_mode(size, pg.RESIZABLE)
+                self._set_mode(size, pg.RESIZABLE)
             self._windowed_size = size
         self.renderer.resize(self.screen)
 
