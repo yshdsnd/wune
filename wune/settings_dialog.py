@@ -96,7 +96,7 @@ class _Dialog:
         notebook.add(general, text="配置・LED")
         notebook.add(colors, text="テーマ・配色")
         motion = ttk.Frame(notebook, padding=12)
-        notebook.add(motion, text="動き")
+        notebook.add(motion, text="動作")
         motion.columnconfigure(0, weight=1)
         self.motion_variables = {}
         self.motion_scales = {}
