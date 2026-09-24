@@ -94,12 +94,12 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(list(self.path.parent.glob("*.tmp")), [])
 
     def test_unknown_fields_survive_save_for_future_ui(self):
-        self.write({"version": 1, "user_themes": {"mine": {}}, "appearance": {"future": 123}})
+        self.write({"version": 1, "future_section": {"mine": {}}, "appearance": {"future": 123}})
         cfg, _ = self.store.load(Config())
         self.store.save(cfg, (800, 600), (30, 40), "CLASSIC")
         document = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(document["appearance"]["future"], 123)
-        self.assertEqual(document["user_themes"], {"mine": {}})
+        self.assertEqual(document["future_section"], {"mine": {}})
 
 
 class GeometryTests(unittest.TestCase):

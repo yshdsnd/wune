@@ -15,9 +15,12 @@ class App:
     def __init__(self, cfg: Config, settings_store=None, saved_geometry=None):
         cfg = deepcopy(cfg)
         pg.init()
-        pg.display.set_caption("WuneWune LED Speana v0.1")
+        pg.display.set_caption("WuneWune LED Speana v0.1 — F2: 設定")
         self.cfg = cfg
         self.settings_store = settings_store
+        self.settings_dialog = None
+        self._appearance_baseline = None
+        self._settings_closing = False
         self._windowed_position = None
         self._fullscreen = False
         self._windowed_size = fit_window_size((cfg.width, cfg.height), cfg)
@@ -28,6 +31,7 @@ class App:
         self._restore_position()
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
+        self.renderer.user_presets = deepcopy(settings_store.user_presets) if settings_store is not None else {}
         if cfg.initial_preset is not None:
             self.renderer.apply_preset(cfg.initial_preset)
         # Audio errors must remain visible rather than silently showing fake data.
@@ -68,15 +72,82 @@ class App:
 
     def save_settings(self):
         if self.settings_store is None:
-            return
+            return False
         try:
             if not self._fullscreen:
                 self._windowed_size = self.screen.get_size()
                 self._remember_position()
-            self.settings_store.save(self.cfg, self._windowed_size, self._windowed_position,
-                                     self.renderer.preset_name)
+            self.settings_store.user_presets = deepcopy(self.renderer.user_presets)
+            return self.settings_store.save(self.cfg, self._windowed_size, self._windowed_position,
+                                            self.renderer.preset_name)
         except (OSError, pg.error) as error:
             warnings.warn(f"Cannot save window settings: {error}", RuntimeWarning)
+            return False
+
+    def open_settings(self):
+        if self.settings_dialog is not None:
+            self.settings_dialog.focus()
+            return
+        from .appearance import AppearanceState
+        from .settings_dialog import SettingsDialog
+        from .settings import settings_path
+        if self._fullscreen:
+            self.toggle_fullscreen()
+        state = AppearanceState.capture(self.cfg, self.renderer.preset_name, self.renderer.user_presets)
+        self._appearance_baseline = state
+        self._appearance_size = self.screen.get_size()
+        self._settings_closing = False
+        path = self.settings_store.path if self.settings_store is not None else settings_path()
+        self.settings_dialog = SettingsDialog(state, path)
+
+    def preview_appearance(self, state, size=None):
+        state.apply(self.cfg)
+        self.renderer.user_presets = deepcopy(state.user_presets)
+        self.renderer.preset_name = state.preset.name
+        self.renderer._led_cache.clear()
+        self.resize_window(size or self.screen.get_size())
+
+    def cancel_settings(self):
+        if self._appearance_baseline is not None:
+            self.preview_appearance(self._appearance_baseline, self._appearance_size)
+            self._appearance_baseline = None
+
+    def poll_settings(self):
+        from queue import Empty
+        dialog = self.settings_dialog
+        if dialog is None:
+            return
+        try:
+            while True:
+                action, state = dialog.events.get_nowait()
+                if action == "closed":
+                    self.cancel_settings()
+                    self.settings_dialog = None
+                    return
+                if action == "error":
+                    warnings.warn(f"Cannot open settings: {state}", RuntimeWarning)
+                    continue
+                if self._settings_closing:
+                    continue
+                if action == "cancel":
+                    self.cancel_settings()
+                    self._settings_closing = True
+                    dialog.reply(True, close=True)
+                elif action in ("preview", "apply", "save"):
+                    self.preview_appearance(state)
+                    if action == "preview":
+                        continue
+                    if action == "save" and not self.save_settings():
+                        dialog.reply(False, "保存できませんでした。保存先の権限やJSON形式を確認してください。変更はまだプレビュー中です。")
+                        continue
+                    self._appearance_baseline = deepcopy(state)
+                    self._appearance_size = self.screen.get_size()
+                    if action == "save":
+                        self._appearance_baseline = None
+                        self._settings_closing = True
+                    dialog.reply(True, "適用しました。正常終了時にも保存します。", close=action == "save")
+        except Empty:
+            pass
 
     def resize_window(self, size):
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
@@ -98,8 +169,9 @@ class App:
             # pygame 2 updates the display Surface when the native window resizes.
             self.resize_window(self.screen.get_size())
         elif event.type == pg.MOUSEBUTTONDOWN:
-            if event.button == 1 and self.renderer.badge_contains(event.pos):
+            if self.settings_dialog is None and event.button == 1 and self.renderer.badge_contains(event.pos):
                 self.renderer.next_preset()
+                self.resize_window(self.screen.get_size())
         elif event.type == pg.KEYDOWN:
             if event.key in (pg.K_ESCAPE, pg.K_q):
                 self.running = False
@@ -108,10 +180,15 @@ class App:
             elif event.key == pg.K_SPACE:
                 self.paused = not self.paused
             elif event.key == pg.K_i:
-                self.cfg.info_enabled = not self.cfg.info_enabled
-                self.resize_window(self.screen.get_size())
+                if self.settings_dialog is None:
+                    self.cfg.info_enabled = not self.cfg.info_enabled
+                    self.resize_window(self.screen.get_size())
             elif event.key == pg.K_t:
-                self.renderer.next_preset()
+                if self.settings_dialog is None:
+                    self.renderer.next_preset()
+                    self.resize_window(self.screen.get_size())
+            elif event.key == pg.K_F2:
+                self.open_settings()
 
     def update_info_text(self):
         # float32 describes the transferred samples, not the device's ADC bit depth.
@@ -130,6 +207,7 @@ class App:
                     self.handle_event(event)
                 if not self.running:
                     break
+                self.poll_settings()
 
                 if not self.paused:
                     self.levels = self.spectrum.step(dt)
@@ -139,8 +217,11 @@ class App:
                 if self.paused:
                     self.renderer.draw_pause_overlay()
                 pg.display.flip()
+            self.cancel_settings()
             self.save_settings()
         finally:
+            if self.settings_dialog is not None:
+                self.settings_dialog.close()
             try:
                 self.spectrum.close()
             finally:

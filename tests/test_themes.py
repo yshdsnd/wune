@@ -95,3 +95,19 @@ class ThemeRenderingTests(unittest.TestCase):
             r.apply_preset("missing")
         self.assertEqual(r.preset_name, "CLASSIC")
         self.assertEqual(r.cfg.theme, Theme())
+
+    def test_user_theme_cycles_after_builtins_and_badge_stays_in_window(self):
+        from wune.appearance import decode_preset, encode_preset
+        name = "夜空" * 20
+        r = self.renderer(width=800, height=600)
+        r.user_presets = {name: decode_preset(name, encode_preset(PRESETS[1]))}
+        r.apply_preset("CLASSIC BOX")
+        r.next_preset()
+        self.assertEqual(r.preset_name, name)
+        self.assertEqual(r.cfg.theme, PRESETS[1].theme)
+        r.draw(np.full((2, 64), .8, dtype=np.float32))
+        rect = r.badge_rect()
+        self.assertGreaterEqual(rect.left, 0)
+        self.assertLessEqual(rect.right, r.width)
+        r.next_preset()
+        self.assertEqual(r.preset_name, "CLASSIC")
