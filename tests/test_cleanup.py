@@ -376,6 +376,37 @@ class AppCleanupTests(unittest.TestCase):
         self.assertEqual(self.app._windowed_size, expected)
         self.assertEqual(self.app.spectrum.mock_calls, [])
 
+    def test_normal_exit_saves_geometry_before_display_closes(self):
+        self.app.settings_store = MagicMock()
+        self.app.screen.get_size.return_value = (900, 600)
+        self.app._remember_position = MagicMock()
+        self.app._windowed_position = (-1000, 100)
+        self.app.renderer.preset_name = "BLUE"
+        self.pg.event.get.return_value = [types.SimpleNamespace(type=self.pg.QUIT)]
+        self.app.run()
+        self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (-1000, 100), "BLUE")
+        self.app.spectrum.close.assert_called_once()
+        self.pg.quit.assert_called_once()
+
+    def test_fullscreen_exit_saves_remembered_window_geometry(self):
+        self.app.settings_store = MagicMock()
+        self.app._fullscreen = True
+        self.app._windowed_size = (900, 600)
+        self.app._windowed_position = (40, 80)
+        self.app.screen.get_size.return_value = (3840, 2160)
+        self.app.renderer.preset_name = "AMBER"
+        self.app.save_settings()
+        self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (40, 80), "AMBER")
+
+    def test_audio_failure_does_not_overwrite_saved_preferences(self):
+        self.app.settings_store = MagicMock()
+        self.pg.event.get.return_value = []
+        self.app.spectrum.step.side_effect = RuntimeError("lost device")
+        with self.assertRaises(RuntimeError):
+            self.app.run()
+        self.app.settings_store.save.assert_not_called()
+        self.pg.quit.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
