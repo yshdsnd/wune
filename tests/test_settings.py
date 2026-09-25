@@ -107,7 +107,7 @@ class GeometryTests(unittest.TestCase):
         cfg = Config()
         size, position = restore_geometry(cfg, dict(width=800, height=600, x=-1500, y=100),
                                           [(0, 0, 1920, 1040), (-1920, 0, 1920, 1080)])
-        self.assertEqual(size, (800, 600))
+        self.assertEqual(size, (759, 522))
         self.assertEqual(position, (-1500, 100))
 
     def test_removed_monitor_and_oversized_window_are_recovered(self):

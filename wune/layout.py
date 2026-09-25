@@ -62,10 +62,12 @@ def clamp_window_size(size, cfg):
 
 
 def fit_window_size(size, cfg):
-    """Limit transposed windows to the space their undistorted grid can use."""
+    """Fit every orientation to its grid; resizing the window controls scale.
+
+    One common integer LED height determines widths and gaps, so the grid
+    grows in pixel steps without changing its design or band count.
+    """
     size = clamp_window_size(size, cfg)
-    if cfg.spectrum_orientation != "frequency_vertical":
-        return size
     layout = calculate_layout(size, cfg)
     cols, rows, margin, left, header, scale, info = _dimensions(cfg)
     _, _, plot_w, plot_h = layout.plots[0]
@@ -112,10 +114,7 @@ def calculate_layout(size, cfg):
     group_y = top + (bottom-top - (rows*packed_h + (rows-1)*cfg.channel_gap)) // 2
     for ch in range(cfg.channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
-        x = col * (cell_w + cfg.channel_gap) + left + (available_w - plot_w) // 2
-        y = top + row * (cell_h + cfg.channel_gap) + cell_h - scale - plot_h
-        if cfg.spectrum_orientation == "frequency_vertical":
-            x = group_x + col * (packed_w + cfg.channel_gap) + left
-            y = group_y + row * (packed_h + cfg.channel_gap) + header
+        x = group_x + col * (packed_w + cfg.channel_gap) + left
+        y = group_y + row * (packed_h + cfg.channel_gap) + header
         plots.append((x, y, plot_w, plot_h))
     return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)
