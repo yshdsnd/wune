@@ -8,11 +8,13 @@ import tempfile
 import warnings
 
 from .config import Config
+from .i18n import languages
 from .presets import PRESETS, get_preset
 from .ballistics import MOTION_LIMITS, valid_motion
 
 
 CHOICES = {
+    "language": languages(),
     "initial_preset": (None, *(p.name for p in PRESETS)),
     "gauge_style": ("flat", "box"),
     "led_shape": ("rectangle", "rounded", "ellipse"),

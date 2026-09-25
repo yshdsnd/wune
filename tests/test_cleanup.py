@@ -298,6 +298,31 @@ class AudioCleanupTests(unittest.TestCase):
 
 
 class AppCleanupTests(unittest.TestCase):
+    def test_language_preview_and_cancel_preserve_audio_and_levels(self):
+        from wune.appearance import AppearanceState, AppearanceDraft
+        self.app.renderer.preset_name = "CLASSIC"
+        self.app.renderer.user_presets = {}
+        baseline = AppearanceState.capture(self.app.cfg, "CLASSIC", {})
+        draft = AppearanceDraft(baseline)
+        draft.state.layout["language"] = "ja"
+        levels = self.app.levels
+        before = levels.copy()
+        self.app.spectrum.reset_mock()
+        self.app.renderer.reset_mock()
+        self.app.preview_appearance(draft.snapshot())
+        self.assertTrue(self.app.renderer.info_text.startswith("出力:"))
+        self.pg.display.set_caption.assert_called_with("WuneWune LED Speana v0.1 — F2: 設定")
+        self.app.renderer.reset_peaks.assert_not_called()
+        self.app.renderer.resize.assert_not_called()
+        self.app._appearance_baseline = baseline
+        self.app._appearance_size = (1280, 800)
+        self.app.cancel_settings()
+        self.assertEqual(self.app.cfg.language, "en")
+        self.assertTrue(self.app.renderer.info_text.startswith("OUTPUT:"))
+        self.assertIs(self.app.levels, levels)
+        np.testing.assert_array_equal(levels, before)
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+
     def setUp(self):
         self.pg = MagicMock()
         self.pg.display.set_mode.return_value.get_size.return_value = (1280, 800)
@@ -320,7 +345,7 @@ class AppCleanupTests(unittest.TestCase):
         self.backend.AudioSpectrum.return_value.fmax = 23999
         self.backend.AudioSpectrum.return_value.gated = False
         self.backend.AudioSpectrum.return_value.last_rms = 0.0
-        self.app = self.app_module.App(Config())
+        self.app = self.app_module.App(Config(language="en"))
 
     def tearDown(self):
         self.renderer_patch.stop()

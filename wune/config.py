@@ -6,6 +6,7 @@ from .colors import Theme
 # ==========================
 @dataclass
 class Config:
+    language: str = "auto"  # auto or a catalog language code.
     theme: Theme = Theme()
     gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
     led_shape: str = "rounded"   # rectangle, rounded, ellipse

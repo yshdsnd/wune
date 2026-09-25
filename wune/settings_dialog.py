@@ -9,28 +9,25 @@ from threading import Thread
 
 from .appearance import AppearanceDraft, COLOR_FIELDS
 from .ballistics import MOTION_LIMITS
+from .i18n import Translator, languages, catalog
 
 MOTION_LABELS = {
-    "vis_attack_ms": ("立ち上がり時間 (ms)", "小さいほどビートに素早く反応", 1),
-    "vis_release_ms": ("下降時間 (ms)", "大きいほどバーの余韻が長い", 1),
-    "peak_hold_ms": ("ピーク保持時間 (ms)", "ピーク線を留める時間。次のピークから反映", 1),
-    "peak_fall_per_second": ("ピーク落下速度 (表示全幅/秒)", "大きいほど速く落下。0は落下停止", 0.1),
+    'vis_attack_ms': (
+        'settings.attack_time_ms',
+        'settings.lower_values_respond_faster_to_beats', 1),
+    'vis_release_ms': (
+        'settings.release_time_ms',
+        'settings.higher_values_make_bars_decay_more_slowly', 1),
+    'peak_hold_ms': (
+        'settings.peak_hold_time_ms',
+        'settings.time_to_hold_a_peak_applies_to_the_next_peak', 1),
+    'peak_fall_per_second': (
+        'settings.peak_fall_speed_full_scale_s',
+        'settings.higher_values_fall_faster_zero_stops_falling', 0.1),
 }
 
 
-COLOR_LABELS = {
-    "green_on": "下部LED・点灯", "green_off": "下部LED・消灯",
-    "yellow_on": "中部LED・点灯", "yellow_off": "中部LED・消灯",
-    "red_on": "上部LED・点灯", "red_off": "上部LED・消灯",
-    "background": "背景", "border": "外枠", "led_border": "LED枠",
-    "led_outline": "LED輪郭", "highlight": "LED光沢", "shadow": "LED影",
-    "peak": "ピーク", "peak_cutout": "ピークの縁", "scale_line": "目盛り線",
-    "scale_text": "目盛り文字", "edge_text": "端の目盛り", "db_text": "dB文字",
-    "unit_text": "単位", "logo_text": "ロゴ", "badge_text": "テーマ名",
-    "badge_glow": "バッジの縁", "badge_background": "バッジ背景",
-    "info_background": "情報欄背景", "info_border": "情報欄枠", "info_text": "情報欄文字",
-    "pause_text": "一時停止文字", "overlay": "残像オーバーレイ",
-}
+COLOR_LABELS = {key: "color." + key for key in COLOR_FIELDS}
 
 
 class SettingsDialog:
@@ -78,31 +75,32 @@ class _Dialog:
         from tkinter import ttk
         self.root, self.draft = root, draft
         self.events, self.commands = events, commands
+        self.t = Translator(draft.state.layout["language"])
         self.loading = False
         self.pending = False
-        root.title("Wune — 表示設定")
+        root.title(self.t('settings.wune_display_settings'))
         root.resizable(True, True)
         root.minsize(570, 560)
         root.protocol("WM_DELETE_WINDOW", lambda: self.submit("cancel"))
         root.bind("<Escape>", lambda event: self.submit("cancel"))
         frame = ttk.Frame(root, padding=12)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="再生中のスペクトラムで見た目を確認できます。", font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
+        ttk.Label(frame, text=self.t('settings.preview_changes_on_the_playing_spectrum'), font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
         notebook = ttk.Notebook(frame)
         self.notebook = notebook
         notebook.pack(fill="both", expand=True, pady=10)
         general = ttk.Frame(notebook, padding=12)
         colors = ttk.Frame(notebook, padding=12)
-        notebook.add(general, text="配置・LED")
-        notebook.add(colors, text="テーマ・配色")
+        notebook.add(general, text=self.t('settings.layout_and_leds'))
+        notebook.add(colors, text=self.t('settings.themes_and_colors'))
         motion = ttk.Frame(notebook, padding=12)
-        notebook.add(motion, text="動作")
+        notebook.add(motion, text=self.t('settings.motion'))
         motion.columnconfigure(0, weight=1)
         self.motion_variables = {}
         self.motion_scales = {}
         for row, (key, (label, hint, increment)) in enumerate(MOTION_LABELS.items()):
             low, high = MOTION_LIMITS[key]
-            ttk.Label(motion, text=label).grid(row=row*3, column=0, sticky="w", pady=(8, 0))
+            ttk.Label(motion, text=self.t(label)).grid(row=row*3, column=0, sticky="w", pady=(8, 0))
             variable = tk.StringVar(root)
             self.motion_variables[key] = variable
             entry = ttk.Spinbox(motion, from_=low, to=high, increment=increment, width=10,
@@ -114,11 +112,9 @@ class _Dialog:
                                command=lambda value, k=key: self.slide_motion(k, value))
             slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=4)
             self.motion_scales[key] = slider
-            ttk.Label(motion, text=f"{hint}（{low:g}～{high:g}）").grid(row=row*3+2, column=0, columnspan=2, sticky="w")
-        ttk.Button(motion, text="動きだけ既定に戻す", command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=12)
-        ttk.Label(motion, text="数値はEnterまたは入力欄から移動して反映。スライダーは即反映。\n"
-                  "取得間隔にも制約があります（4096サンプル / 48 kHz：約85 ms）。\n"
-                  "時間設定を短くしても、取得間隔自体は短くなりません。", wraplength=500).grid(row=13, column=0, columnspan=2, sticky="w")
+            ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high), wraplength=500).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
+        ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=12)
+        ttk.Label(motion, text=self.t('motion.help'), wraplength=500).grid(row=13, column=0, columnspan=2, sticky="w")
         self.variables = {}
         self.combos = {}
 
@@ -126,22 +122,28 @@ class _Dialog:
             ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=8)
             variable = tk.StringVar(root)
             self.variables[key] = variable
-            combo = ttk.Combobox(parent, textvariable=variable, values=list(options), state="readonly", width=32)
+            combo = ttk.Combobox(parent, textvariable=variable, values=list(options), state="readonly", width=max(32, max(map(len, options))))
             combo.grid(row=row, column=1, sticky="ew", padx=(14, 0))
             combo.bind("<<ComboboxSelected>>", lambda event: callback(options[variable.get()]))
             self.combos[key] = (combo, options)
 
+        language_options = {self.t("language.auto"): "auto"}
+        language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
+        choice(general, 9, "language", self.t("settings.language"), language_options,
+               lambda value: self.layout("language", value))
+        ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
+            row=10, column=0, columnspan=2, sticky="w", pady=8)
         general.columnconfigure(1, weight=1)
-        choice(general, 0, "spectrum_orientation", "表示方向", {
-            "周波数：横 / レベル：縦": "frequency_horizontal", "周波数：縦 / レベル：横": "frequency_vertical"},
+        choice(general, 0, "spectrum_orientation", self.t('settings.spectrum_direction'), {
+            self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal", self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
             lambda value: self.layout("spectrum_orientation", value))
-        choice(general, 1, "channel_layout", "L / R の配置", {"上下": "vertical", "左右": "horizontal"},
+        choice(general, 1, "channel_layout", self.t('settings.l_r_arrangement'), {self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
             lambda value: self.layout("channel_layout", value))
-        choice(general, 2, "gauge_style", "LEDの表現", {"フラット": "flat", "立体（長方形）": "box"},
+        choice(general, 2, "gauge_style", self.t('settings.led_rendering'), {self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
             lambda value: self.style("gauge_style", value))
-        choice(general, 3, "led_shape", "LEDの形", {"長方形": "rectangle", "角丸": "rounded", "楕円": "ellipse"},
+        choice(general, 3, "led_shape", self.t('settings.led_shape'), {self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
             lambda value: self.style("led_shape", value))
-        ttk.Label(general, text="LEDの縦横比（幅÷高さ）").grid(row=4, column=0, sticky="w", pady=8)
+        ttk.Label(general, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=4, column=0, sticky="w", pady=8)
         self.ratio = tk.StringVar(root)
         ratio = ttk.Spinbox(general, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
                             command=self.set_ratio, width=10)
@@ -149,33 +151,33 @@ class _Dialog:
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
         self.info = tk.BooleanVar(root)
-        ttk.Checkbutton(general, text="入力情報を表示", variable=self.info,
+        ttk.Checkbutton(general, text=self.t('settings.show_output_information'), variable=self.info,
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(row=5, column=0, sticky="w", pady=8)
-        choice(general, 6, "info_position", "情報欄の位置", {"下": "bottom", "上": "top"},
+        choice(general, 6, "info_position", self.t('settings.information_position'), {self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
         self.limit_to_20khz = tk.BooleanVar(root)
-        ttk.Checkbutton(general, text="表示上限を20 kHzに制限（取得レートは変更しない）",
+        ttk.Checkbutton(general, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
                             row=7, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Label(general, text="配置・LED設定はテーマと独立して保存します。\nテーマの切り替えは配色だけを変更します。\n縦横比は形の指定です（1：正方形、2：横長）。\n全体の拡大縮小はメインウィンドウの角をドラッグします。",
+        ttk.Label(general, text=self.t('settings.layout_help'),
                   wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=16)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
-        ttk.Label(theme_row, text="テーマ").pack(side="left", padx=(0, 12))
+        ttk.Label(theme_row, text=self.t('settings.theme')).pack(side="left", padx=(0, 12))
         self.theme_name = tk.StringVar(root)
         self.theme_combo = ttk.Combobox(theme_row, textvariable=self.theme_name, state="readonly")
         self.theme_combo.pack(side="left", fill="x", expand=True)
         self.theme_combo.bind("<<ComboboxSelected>>", lambda event: self.select_theme())
         buttons = ttk.Frame(colors)
         buttons.pack(fill="x", pady=8)
-        for label, action in (("新規", "new"), ("複製", "copy"), ("名前変更", "rename"), ("削除", "delete")):
+        for label, action in ((self.t('settings.new'), "new"), (self.t('settings.duplicate'), "copy"), (self.t('settings.rename'), "rename"), (self.t('settings.delete'), "delete")):
             ttk.Button(buttons, text=label, command=lambda a=action: self.manage_theme(a)).pack(side="left", padx=(0, 5))
         table = ttk.Frame(colors)
         table.pack(fill="both", expand=True)
         self.colors = ttk.Treeview(table, columns=("color",), show="tree headings", height=9, selectmode="browse")
-        self.colors.heading("#0", text="色の用途")
+        self.colors.heading("#0", text=self.t('settings.color_role'))
         self.colors.heading("color", text="RGB")
         self.colors.column("#0", width=220)
         self.colors.column("color", width=100, stretch=False)
@@ -184,7 +186,7 @@ class _Dialog:
         scroll.pack(side="right", fill="y")
         self.colors.configure(yscrollcommand=scroll.set)
         for key in COLOR_FIELDS:
-            self.colors.insert("", "end", iid=key, text=COLOR_LABELS[key])
+            self.colors.insert("", "end", iid=key, text=self.t(COLOR_LABELS[key]))
         self.colors.selection_set("green_on")
         self.colors.bind("<<TreeviewSelect>>", lambda event: self.refresh_color())
         self.colors.bind("<Double-1>", lambda event: self.pick_color())
@@ -196,23 +198,25 @@ class _Dialog:
         self.hex_entry = ttk.Entry(edit, width=10, textvariable=self.hex_color)
         self.hex_entry.pack(side="left")
         self.hex_entry.bind("<Return>", lambda event: self.set_hex())
-        ttk.Button(edit, text="色を反映", command=self.set_hex).pack(side="left", padx=6)
-        ttk.Button(edit, text="カラーピッカー…", command=self.pick_color).pack(side="left")
-        ttk.Label(colors, text="テーマは配色のみを保存します。組み込み色の編集時はユーザー用コピーを作ります。\n色選択の確定・「色を反映」で即プレビュー。変更後は保存してください。", wraplength=500).pack(anchor="w")
+        ttk.Button(edit, text=self.t('settings.apply_color'), command=self.set_hex).pack(side="left", padx=6)
+        ttk.Button(edit, text=self.t('settings.color_picker'), command=self.pick_color).pack(side="left")
+        ttk.Label(colors, text=self.t('colors.help'), wraplength=500).pack(anchor="w")
 
-        self.status = tk.StringVar(root, "変更はプレビュー中です。「保存」で次回の起動にも使用します。")
+        self.status = tk.StringVar(root, self.t('settings.previewing_changes_save_to_keep_them_for_the_next_launch'))
         ttk.Label(frame, textvariable=self.status, wraplength=540).pack(anchor="w", pady=(0, 8))
         row = ttk.Frame(frame)
         row.pack(fill="x")
-        ttk.Button(row, text="表示を既定に戻す", command=self.reset).pack(side="left")
+        ttk.Button(row, text=self.t('settings.reset_display'), command=self.reset).pack(side="left")
         self.action_buttons = []
-        for label, action in (("キャンセル", "cancel"), ("適用", "apply"), ("保存", "save")):
+        for label, action in ((self.t('settings.cancel'), "cancel"), (self.t('settings.apply'), "apply"), (self.t('settings.save'), "save")):
             button = ttk.Button(row, text=label, command=lambda a=action: self.submit(a))
             button.pack(side="right", padx=(6, 0))
             self.action_buttons.append(button)
-        ttk.Label(frame, text="適用：現在の変更を確定（正常終了時に保存）\nキャンセル：最後に適用した状態へ戻す。未適用なら開く前へ戻す。", wraplength=540).pack(anchor="w", pady=(8, 0))
-        ttk.Label(frame, text=f"保存先: {path}", wraplength=540).pack(anchor="w", pady=(6, 0))
+        ttk.Label(frame, text=self.t('settings.actions_help'), wraplength=540).pack(anchor="w", pady=(8, 0))
+        ttk.Label(frame, text=self.t("settings.path", path=path), wraplength=540).pack(anchor="w", pady=(6, 0))
         self.refresh()
+        root.update_idletasks()
+        root.minsize(max(570, root.winfo_reqwidth()), max(560, root.winfo_reqheight()))
         root.after(30, self.poll)
 
     def refresh(self):
@@ -247,7 +251,7 @@ class _Dialog:
     def preview(self):
         self.refresh()
         self.events.put(("preview", self.draft.snapshot()))
-        self.status.set("プレビュー中 — 保存または適用で確定します。")
+        self.status.set(self.t('settings.previewing_save_or_apply_to_confirm'))
 
     def layout(self, key, value):
         self.draft.state.layout[key] = value
@@ -260,33 +264,33 @@ class _Dialog:
             self.draft.edit_style(**{key: value})
             self.preview()
         except ValueError as error:
-            self.status.set(str(error))
+            self.status.set(self.t.error(error))
 
     def set_ratio(self):
         try:
             self.style("led_aspect_ratio", float(self.ratio.get()))
         except ValueError:
-            self.status.set("LEDの縦横比（幅÷高さ）は0.25～8の数値で入力してください。")
+            self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
 
     def select_theme(self):
         self.draft.select(self.theme_name.get())
         self.preview()
 
     def manage_theme(self, action):
-        from tkinter import messagebox, simpledialog
+        from .localized_dialogs import confirm, ask_name
         try:
             if action == "delete":
                 if self.draft.state.preset.name not in self.draft.state.user_presets:
-                    raise ValueError("組み込みテーマは削除できません。")
-                if not messagebox.askyesno("テーマを削除", "選択中のユーザーテーマを削除しますか？", parent=self.root):
+                    raise ValueError(self.t('settings.built_in_themes_cannot_be_deleted'))
+                if not confirm(self.root, self.t, self.t('settings.delete_theme'), self.t('settings.delete_the_selected_user_theme')):
                     return
                 self.draft.delete()
             else:
                 source = self.draft.state.preset
                 if action == "rename" and source.name not in self.draft.state.user_presets:
-                    raise ValueError("組み込みテーマは名前を変更できません。複製してください。")
+                    raise ValueError(self.t('settings.duplicate_a_built_in_theme_before_renaming_it'))
                 initial = source.name if action == "rename" else self.draft.available_name("My theme" if action == "new" else source.name + " copy")
-                name = simpledialog.askstring("テーマ名", "名前（1～40文字）", initialvalue=initial, parent=self.root)
+                name = ask_name(self.root, self.t, self.t('settings.theme_name'), self.t('settings.name_1_40_characters'), initial=initial)
                 if name is None:
                     return
                 if action == "rename":
@@ -295,7 +299,7 @@ class _Dialog:
                     self.draft.create(name, source if action == "copy" else None)
             self.preview()
         except ValueError as error:
-            self.status.set(str(error))
+            self.status.set(self.t.error(error))
 
     def set_hex(self):
         text = self.hex_color.get().strip().lstrip("#")
@@ -308,11 +312,11 @@ class _Dialog:
             self.draft.edit(theme=theme)
             self.preview()
         except (ValueError, IndexError):
-            self.status.set("色は #RRGGBB 形式の6桁の16進数で入力してください。")
+            self.status.set(self.t('settings.enter_six_hexadecimal_digits_in_rrggbb_format'))
 
     def pick_color(self):
         from tkinter import colorchooser
-        _, color = colorchooser.askcolor(self.hex_color.get(), parent=self.root, title="色を選択")
+        _, color = colorchooser.askcolor(self.hex_color.get(), parent=self.root, title=self.t('settings.select_color'))
         if color:
             self.hex_color.set(color)
             self.set_hex()
@@ -320,7 +324,7 @@ class _Dialog:
     def reset(self):
         self.draft.reset()
         self.preview()
-        self.status.set("表示を既定値に戻しました。ユーザーテーマは保持します。キャンセルで取り消せます。")
+        self.status.set(self.t('settings.display_defaults_restored_user_themes_are_kept_cancel_to_undo'))
 
     def read_motion(self):
         from .ballistics import valid_motion
@@ -332,7 +336,7 @@ class _Dialog:
                 if not valid_motion(key, value):
                     raise ValueError()
             except ValueError:
-                raise ValueError(f"{MOTION_LABELS[key][0]}は{low:g}～{high:g}で入力してください。") from None
+                raise ValueError(self.t("error.motion_range", label=self.t(MOTION_LABELS[key][0]), low=low, high=high)) from None
             values[key] = value
         return values
 
@@ -345,7 +349,7 @@ class _Dialog:
                 self.draft.edit_motion(values)
                 self.preview()
         except ValueError as error:
-            self.status.set(str(error))
+            self.status.set(self.t.error(error))
 
     def slide_motion(self, key, value):
         if self.loading or self.pending:
@@ -359,7 +363,7 @@ class _Dialog:
     def reset_motion(self):
         self.draft.reset_motion()
         self.preview()
-        self.status.set("動きを既定値に戻しました。保存・適用で確定、キャンセルで取り消せます。")
+        self.status.set(self.t('settings.motion_defaults_restored_save_or_apply_to_confirm_cancel_to_undo'))
 
     def submit(self, action):
         if not self.pending:
@@ -367,7 +371,7 @@ class _Dialog:
                 try:
                     motion = self.read_motion()
                 except ValueError as error:
-                    self.status.set(str(error))
+                    self.status.set(self.t.error(error))
                     return
                 from .settings import valid_preference
                 try:
@@ -375,7 +379,7 @@ class _Dialog:
                     if not valid_preference("led_aspect_ratio", ratio):
                         raise ValueError()
                 except ValueError:
-                    self.status.set("LEDの縦横比（幅÷高さ）は0.25～8の数値で入力してください。")
+                    self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
                     return
                 self.draft.edit_motion(motion)
                 self.style("led_aspect_ratio", ratio)
@@ -406,7 +410,7 @@ class _Dialog:
                         self.notebook.tab(tab, state="normal")
                     for button in self.action_buttons:
                         button.configure(state="normal")
-                    self.status.set(message)
+                    self.status.set(self.t(message))
         except Empty:
             pass
         self.root.after(30, self.poll)

@@ -79,10 +79,10 @@ class DialogTests(unittest.TestCase):
         self.assertTrue(self.events.empty())
 
     def test_create_and_rename_via_dialog(self):
-        with patch("tkinter.simpledialog.askstring", return_value="夜"):
+        with patch("wune.localized_dialogs.ask_name", return_value="夜"):
             self.dialog.manage_theme("new")
         self.assertEqual(self.events.get_nowait()[1].preset.name, "夜")
-        with patch("tkinter.simpledialog.askstring", return_value="夜空"):
+        with patch("wune.localized_dialogs.ask_name", return_value="夜空"):
             self.dialog.manage_theme("rename")
         self.assertEqual(self.events.get_nowait()[1].preset.name, "夜空")
 

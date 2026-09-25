@@ -7,6 +7,7 @@ import numpy as np
 import pygame as pg
 from typing import Tuple
 from .config import Config
+from .i18n import Translator
 from .layout import calculate_layout
 from .ballistics import PeakEnvelope
 from .presets import PRESETS, get_preset
@@ -490,7 +491,7 @@ class LedBarRenderer:
         # 画面中央に "PAUSED" を半透明で表示
         overlay = pg.Surface((self.width, self.height), pg.SRCALPHA)
         overlay.fill((*self.cfg.theme.overlay, 100))
-        text = self.font_badge.render("PAUSED", True, self.cfg.theme.pause_text)
+        text = self.font_badge_user.render(Translator(self.cfg.language)("app.paused"), True, self.cfg.theme.pause_text)
         tw, th = text.get_size()
         overlay.blit(text, ((self.width - tw)//2, (self.height - th)//2))
         self.surf.blit(overlay, (0, 0))
