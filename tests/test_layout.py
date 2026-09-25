@@ -4,11 +4,67 @@ from dataclasses import replace
 import numpy as np
 import pygame as pg
 from wune.config import Config
-from wune.layout import calculate_layout, clamp_window_size, minimum_window_size
+from wune.layout import calculate_layout, clamp_window_size, minimum_window_size, fit_window_size
 from wune.renderer import LedBarRenderer
 
 
 class LayoutTests(unittest.TestCase):
+    def test_fit_is_stable_for_all_shapes_and_layouts(self):
+        for orientation in ("frequency_horizontal", "frequency_vertical"):
+            for channels in ("horizontal", "vertical"):
+                for ratio in (0.25, 1.0, 2.0, 2.8, 8.0):
+                    cfg = Config(spectrum_orientation=orientation, channel_layout=channels,
+                                 led_aspect_ratio=ratio, bars=32)
+                    for size in ((1, 1), (960, 2000), (2400, 400), (1800, 1400)):
+                        with self.subTest(orientation=orientation, channels=channels, ratio=ratio, size=size):
+                            fitted = fit_window_size(size, cfg)
+                            self.assertEqual(fit_window_size(fitted, cfg), fitted)
+                            self.assertTrue(all(a <= b for a, b in zip(fitted, clamp_window_size(size, cfg))))
+                            grid = calculate_layout(fitted, cfg)
+                            self.assertLessEqual(abs(grid.bar_width - ratio * grid.led_height), 0.5)
+                            self.assertLessEqual(abs(grid.led_gap - grid.led_height / 4), 0.5)
+
+    def test_fullscreen_packs_channels_in_both_orientations(self):
+        for orientation in ("frequency_horizontal", "frequency_vertical"):
+            for channels in ("horizontal", "vertical"):
+                cfg = Config(spectrum_orientation=orientation, channel_layout=channels, bars=32)
+                gaps = []
+                for size in ((2000, 1400), (3000, 2200)):
+                    a, b = calculate_layout(size, cfg).plots
+                    gaps.append(b[0] - a[0] - a[2] if channels == "horizontal" else b[1] - a[1] - a[3])
+                self.assertEqual(gaps[0], gaps[1])
+                self.assertLess(gaps[0], 200)
+
+    def test_height_grows_grid_when_usable_and_stops_at_width_limit(self):
+        for orientation in ("frequency_horizontal", "frequency_vertical"):
+            for channels in ("horizontal", "vertical"):
+                cfg = Config(spectrum_orientation=orientation, channel_layout=channels, bars=32)
+                _, minimum_h = minimum_window_size(cfg)
+                small = fit_window_size((2200, minimum_h), cfg)
+                tall = fit_window_size((2200, minimum_h + 200), cfg)
+                self.assertGreater(calculate_layout(tall, cfg).led_height,
+                                   calculate_layout(small, cfg).led_height)
+                limited = fit_window_size((2200, 10000), cfg)
+                self.assertEqual(fit_window_size((limited[0], 20000), cfg), limited)
+                self.assertLess(limited[1], 10000)
+
+    def test_corner_resize_is_monotonic_and_scales_gaps(self):
+        for orientation in ("frequency_horizontal", "frequency_vertical"):
+            for channels in ("horizontal", "vertical"):
+                cfg = Config(spectrum_orientation=orientation, channel_layout=channels, bars=32)
+                width, height = minimum_window_size(cfg)
+                previous = calculate_layout((width, height), cfg)
+                first = previous
+                for extra in range(0, 1001, 10):
+                    grid = calculate_layout(fit_window_size((width + extra, height + extra), cfg), cfg)
+                    self.assertGreaterEqual(grid.led_height, previous.led_height)
+                    self.assertGreaterEqual(grid.bar_width, previous.bar_width)
+                    self.assertGreaterEqual(grid.led_gap, previous.led_gap)
+                    self.assertLessEqual(grid.led_height - previous.led_height, 1)
+                    previous = grid
+                self.assertGreater(grid.led_height, first.led_height)
+                self.assertGreater(grid.led_gap, first.led_gap)
+
     @classmethod
     def setUpClass(cls):
         pg.font.init()

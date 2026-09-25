@@ -291,6 +291,7 @@ class AudioCleanupTests(unittest.TestCase):
 class AppCleanupTests(unittest.TestCase):
     def setUp(self):
         self.pg = MagicMock()
+        self.pg.display.set_mode.return_value.get_size.return_value = (1280, 800)
         for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i", "K_t", "MOUSEBUTTONDOWN", "VIDEORESIZE", "WINDOWSIZECHANGED")):
             setattr(self.pg, name, i + 1)
         self.backend = MagicMock()
@@ -397,7 +398,7 @@ class AppCleanupTests(unittest.TestCase):
         self.assertTrue(self.app._fullscreen)
         self.app.toggle_fullscreen()
         self.assertFalse(self.app._fullscreen)
-        self.pg.display.set_mode.assert_called_with((960, 600), self.pg.RESIZABLE)
+        self.pg.display.set_mode.assert_called_with((950, 600), self.pg.RESIZABLE)
         self.assertEqual(self.app.renderer.resize.call_count, 2)
 
     def test_info_toggle_exits_fullscreen_if_it_no_longer_fits(self):

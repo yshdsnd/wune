@@ -141,7 +141,7 @@ class _Dialog:
             lambda value: self.style("gauge_style", value))
         choice(general, 3, "led_shape", "LEDの形", {"長方形": "rectangle", "角丸": "rounded", "楕円": "ellipse"},
             lambda value: self.style("led_shape", value))
-        ttk.Label(general, text="LEDの幅 / 高さ").grid(row=4, column=0, sticky="w", pady=8)
+        ttk.Label(general, text="LEDの縦横比（幅÷高さ）").grid(row=4, column=0, sticky="w", pady=8)
         self.ratio = tk.StringVar(root)
         ratio = ttk.Spinbox(general, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
                             command=self.set_ratio, width=10)
@@ -158,7 +158,7 @@ class _Dialog:
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
                             row=7, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Label(general, text="形・比率・配色はテーマに保存します。\n組み込みテーマの編集時はユーザー用コピーを作ります。\n表示方向やLED比率に応じてメインウィンドウの寸法も調整します。",
+        ttk.Label(general, text="形・比率・配色はテーマに保存します。\n組み込みテーマの編集時はユーザー用コピーを作ります。\n縦横比は形の指定です（1：正方形、2：横長）。\n全体の拡大縮小はメインウィンドウの角をドラッグします。",
                   wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=16)
 
         theme_row = ttk.Frame(colors)
@@ -266,7 +266,7 @@ class _Dialog:
         try:
             self.style("led_aspect_ratio", float(self.ratio.get()))
         except ValueError:
-            self.status.set("LEDの幅 / 高さは0.25～8の数値で入力してください。")
+            self.status.set("LEDの縦横比（幅÷高さ）は0.25～8の数値で入力してください。")
 
     def select_theme(self):
         self.draft.select(self.theme_name.get())
@@ -375,7 +375,7 @@ class _Dialog:
                     if not valid_preference("led_aspect_ratio", ratio):
                         raise ValueError()
                 except ValueError:
-                    self.status.set("LEDの幅 / 高さは0.25～8の数値で入力してください。")
+                    self.status.set("LEDの縦横比（幅÷高さ）は0.25～8の数値で入力してください。")
                     return
                 self.draft.edit_motion(motion)
                 self.style("led_aspect_ratio", ratio)
