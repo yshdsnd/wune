@@ -25,8 +25,7 @@ def validate_name(name):
 
 
 def decode_preset(name, data):
-    """Validate persisted colors/styles before they can reach pygame."""
-    from .settings import valid_preference
+    """Validate persisted colors before they can reach pygame."""
     validate_name(name)
     if not isinstance(data, dict) or not isinstance(data.get("theme", {}), dict):
         raise ValueError("Invalid user theme")
@@ -42,13 +41,7 @@ def decode_preset(name, data):
             values[key] = value
     if not 0 <= values["th_yellow"] <= values["th_red"] <= 1:
         raise ValueError("Invalid color thresholds")
-    style = dict(gauge_style="flat", led_shape="rounded", led_aspect_ratio=2.0)
-    for key in STYLE_FIELDS:
-        if key in data:
-            if not valid_preference(key, data[key]):
-                raise ValueError(f"Invalid style: {key}")
-            style[key] = data[key]
-    return VisualPreset(name, Theme(**values), **style)
+    return VisualPreset(name, Theme(**values))
 
 
 def encode_preset(preset):
@@ -63,19 +56,21 @@ class AppearanceState:
     preset: VisualPreset
     user_presets: dict
     motion: dict
+    style: dict
 
     @classmethod
     def capture(cls, cfg, name, user_presets):
         return cls({key: getattr(cfg, key) for key in LAYOUT_FIELDS},
-                   VisualPreset(name, cfg.theme, **{key: getattr(cfg, key) for key in STYLE_FIELDS}),
-                   deepcopy(user_presets), {key: getattr(cfg, key) for key in MOTION_LIMITS})
+                   VisualPreset(name, cfg.theme),
+                   deepcopy(user_presets), {key: getattr(cfg, key) for key in MOTION_LIMITS},
+                   {key: getattr(cfg, key) for key in STYLE_FIELDS})
 
     def apply(self, cfg):
         for key, value in self.layout.items():
             setattr(cfg, key, value)
         cfg.theme = self.preset.theme
         for key in STYLE_FIELDS:
-            setattr(cfg, key, getattr(self.preset, key))
+            setattr(cfg, key, self.style[key])
         cfg.initial_preset = None if self.preset.name == "CUSTOM" else self.preset.name
         for key, value in self.motion.items():
             setattr(cfg, key, value)
@@ -130,12 +125,20 @@ class AppearanceDraft:
 
     def edit(self, **changes):
         preset = replace(self.state.preset, **changes)
+        if preset == self.state.preset:
+            return
         if preset.name not in self.state.user_presets:
             preset = replace(preset, name=self.available_name(preset.name + " copy"))
         # Reuse file validation for input from spinboxes and the color picker.
         preset = decode_preset(preset.name, encode_preset(preset))
         self.state.preset = preset
         self.state.user_presets[preset.name] = preset
+
+    def edit_style(self, **changes):
+        from .settings import valid_preference
+        if any(key not in STYLE_FIELDS or not valid_preference(key, value) for key, value in changes.items()):
+            raise ValueError("LED設定は指定範囲の値で入力してください。")
+        self.state.style.update(changes)
 
     def reset(self):
         # Reset visible preferences without deleting the user's theme library.

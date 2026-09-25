@@ -506,6 +506,7 @@ class AppCleanupTests(unittest.TestCase):
 
     def test_preview_cancel_restores_runtime_without_reopening_audio(self):
         draft = self.prepare_settings_session()
+        draft.edit_style(led_shape="ellipse", led_aspect_ratio=1.5)
         draft.edit_motion({"vis_attack_ms": 90, "vis_release_ms": 500,
                            "peak_hold_ms": 900, "peak_fall_per_second": 4})
         levels = self.app.levels
@@ -516,10 +517,12 @@ class AppCleanupTests(unittest.TestCase):
         self.assertEqual(self.app.cfg.channel_layout, "horizontal")
         self.assertEqual(self.app.cfg.vis_attack_ms, 90)
         self.assertEqual(self.app.cfg.peak_fall_per_second, 4)
+        self.assertEqual((self.app.cfg.led_shape, self.app.cfg.led_aspect_ratio), ("ellipse", 1.5))
         events.put(("cancel", None))
         self.app.poll_settings()
         self.assertEqual(self.app.renderer.preset_name, "CLASSIC")
         self.assertEqual(self.app.cfg.channel_layout, "vertical")
+        self.assertEqual((self.app.cfg.led_shape, self.app.cfg.led_aspect_ratio), ("rounded", 2.0))
         self.assertEqual((self.app.cfg.vis_attack_ms, self.app.cfg.vis_release_ms,
                           self.app.cfg.peak_hold_ms, self.app.cfg.peak_fall_per_second), (5, 120, 120, 2.5))
         self.assertIs(self.app.levels, levels)
@@ -528,6 +531,7 @@ class AppCleanupTests(unittest.TestCase):
 
     def test_apply_becomes_cancel_baseline_without_immediate_disk_write(self):
         draft = self.prepare_settings_session()
+        draft.edit_style(led_aspect_ratio=1.5)
         draft.edit_motion({"vis_release_ms": 500})
         self.app.save_settings = MagicMock()
         events = self.app.settings_dialog.events
@@ -535,12 +539,14 @@ class AppCleanupTests(unittest.TestCase):
         self.app.poll_settings()
         self.app.save_settings.assert_not_called()
         draft.select("AMBER")
+        draft.edit_style(led_aspect_ratio=3.0)
         draft.edit_motion({"vis_release_ms": 900})
         events.put(("preview", draft.snapshot()))
         events.put(("cancel", None))
         self.app.poll_settings()
         self.assertEqual(self.app.renderer.preset_name, "BLUE")
         self.assertEqual(self.app.cfg.vis_release_ms, 500)
+        self.assertEqual(self.app.cfg.led_aspect_ratio, 1.5)
 
     def test_failed_save_keeps_preview_cancellable_and_dialog_open(self):
         draft = self.prepare_settings_session()

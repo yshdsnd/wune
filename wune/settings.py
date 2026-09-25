@@ -61,7 +61,7 @@ class SettingsStore:
         geometry = {}
         try:
             document = json.loads(self.path.read_text(encoding="utf-8"))
-            if not isinstance(document, dict) or type(document.get("version")) is not int or document["version"] != 1:
+            if not isinstance(document, dict) or type(document.get("version")) is not int or document["version"] not in (1, 2):
                 raise ValueError("Unsupported settings format/version")
             if not isinstance(document.get("window", {}), dict) or not isinstance(document.get("appearance", {}), dict):
                 raise ValueError("Invalid settings sections")
@@ -92,11 +92,21 @@ class SettingsStore:
             bounds = (64, 16384) if key in ("width", "height") else (-131072, 131072)
             if key in ("width", "height", "x", "y") and integer(value, *bounds):
                 geometry[key] = value
-        # A named preset is authoritative; CUSTOM uses explicit style settings.
+        # A named theme supplies colors only; v1 bundled style is migrated once.
         if cfg.initial_preset is not None:
             preset = self.user_presets[cfg.initial_preset] if cfg.initial_preset in self.user_presets else get_preset(cfg.initial_preset)
-            cfg.theme, cfg.gauge_style = preset.theme, preset.gauge_style
-            cfg.led_shape, cfg.led_aspect_ratio = preset.led_shape, preset.led_aspect_ratio
+            cfg.theme = preset.theme
+            if document["version"] == 1:
+                # v1 named presets overrode explicit appearance fields at startup.
+                # Reproduce that visible style, then save it independently in v2.
+                legacy = dict(gauge_style="flat", led_shape="rounded", led_aspect_ratio=2.0)
+                if cfg.initial_preset in self.user_presets:
+                    legacy.update({key: value for key, value in library[cfg.initial_preset].items()
+                                   if key in legacy and valid_preference(key, value)})
+                elif cfg.initial_preset in ("BLUE", "CLASSIC BOX"):
+                    legacy.update(gauge_style="box", led_shape="rectangle")
+                for key, value in legacy.items():
+                    setattr(cfg, key, value)
         elif "theme" in document.get("appearance", {}):
             try:
                 cfg.theme = decode_preset("Custom colors", {"theme": document["appearance"]["theme"]}).theme
@@ -108,7 +118,7 @@ class SettingsStore:
         if not self.writable:
             return False
         document = deepcopy(self._document)
-        document["version"] = 1
+        document["version"] = 2
         appearance = document.setdefault("appearance", {})
         appearance.update({key: getattr(cfg, key) for key in PREFERENCES})
         appearance["initial_preset"] = None if preset_name == "CUSTOM" else preset_name

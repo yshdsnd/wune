@@ -14,6 +14,35 @@ from wune.settings import SettingsStore
 
 
 class AppearanceTests(unittest.TestCase):
+    def test_style_and_layout_edits_never_grow_theme_library(self):
+        draft = AppearanceDraft(AppearanceState.capture(Config(), "CLASSIC", {}))
+        for name in ("CLASSIC", "BLUE", "AMBER", "CLASSIC BOX"):
+            draft.select(name)
+            for ratio in (1.0, 2.8, 1.5):
+                draft.edit_style(gauge_style="box", led_shape="ellipse", led_aspect_ratio=ratio)
+                draft.state.layout["channel_layout"] = "horizontal"
+                self.assertEqual(draft.state.preset.name, name)
+                self.assertEqual(draft.state.user_presets, {})
+            draft.select("BLUE")
+            self.assertEqual(draft.state.style, dict(gauge_style="box", led_shape="ellipse", led_aspect_ratio=1.5))
+        before = draft.snapshot()
+        draft.create("mine")
+        draft.create("duplicate", draft.state.preset)
+        draft.rename("renamed")
+        draft.delete()
+        self.assertEqual(draft.state.style, before.style)
+        self.assertEqual(draft.state.layout, before.layout)
+
+    def test_same_color_is_noop_and_repeated_colors_reuse_one_copy(self):
+        draft = AppearanceDraft(AppearanceState.capture(Config(), "CLASSIC", {}))
+        draft.edit(theme=draft.state.preset.theme)
+        self.assertEqual(draft.state.user_presets, {})
+        for color in ((1, 2, 3), (4, 5, 6)):
+            draft.edit(theme=replace(draft.state.preset.theme, peak=color))
+            draft.edit_style(led_shape="ellipse")
+        self.assertEqual(list(draft.state.user_presets), ["CLASSIC copy"])
+        self.assertEqual(set(encode_preset(draft.state.preset)), {"theme"})
+
     def setUp(self):
         self.original = AppearanceState.capture(Config(), "CLASSIC", {})
         self.draft = AppearanceDraft(self.original)
@@ -21,7 +50,7 @@ class AppearanceTests(unittest.TestCase):
     def test_builtin_edit_creates_one_copy_without_modifying_defaults(self):
         theme = replace(Theme(), green_on=(10, 20, 30))
         self.draft.edit(theme=theme)
-        self.draft.edit(led_shape="ellipse", led_aspect_ratio=1.5)
+        self.draft.edit_style(led_shape="ellipse", led_aspect_ratio=1.5)
         self.assertEqual(list(self.draft.state.user_presets), ["CLASSIC copy"])
         self.assertEqual(get_preset("CLASSIC").theme, Theme())
         self.assertEqual(self.original.user_presets, {})
@@ -36,7 +65,7 @@ class AppearanceTests(unittest.TestCase):
         self.draft.delete()
         self.assertEqual(self.draft.state.preset.name, "CLASSIC")
         self.draft.select("青")
-        self.assertEqual(self.draft.state.preset.gauge_style, "box")
+        self.assertEqual(self.draft.state.style["gauge_style"], "flat")
 
     def test_reserved_duplicate_blank_and_control_names_are_rejected(self):
         self.draft.create("mine")
@@ -53,7 +82,7 @@ class AppearanceTests(unittest.TestCase):
     def test_invalid_edit_does_not_create_copy_or_change_state(self):
         for value in (float("nan"), 0, 100, True):
             with self.assertRaises(ValueError):
-                self.draft.edit(led_aspect_ratio=value)
+                self.draft.edit_style(led_aspect_ratio=value)
         self.assertEqual(self.draft.snapshot(), self.original)
 
     def test_colors_and_thresholds_are_validated_before_rendering(self):
@@ -83,6 +112,25 @@ class AppearanceTests(unittest.TestCase):
 
 
 class UserThemePersistenceTests(unittest.TestCase):
+    def test_v1_selected_style_migrates_once_then_stays_independent(self):
+        for name, legacy in (("BLUE", dict(gauge_style="box", led_shape="rectangle", led_aspect_ratio=2.0)),
+                             ("mine", dict(gauge_style="flat", led_shape="ellipse", led_aspect_ratio=1.75))):
+            with self.subTest(name=name):
+                self.path.write_text(json.dumps({"version": 1,
+                    "appearance": {"initial_preset": name, "led_aspect_ratio": 7},
+                    "user_themes": {"mine": {"theme": {"peak": [1, 2, 3]}, **legacy}}}), encoding="utf-8")
+                store = SettingsStore(self.path)
+                cfg, _ = store.load(Config())
+                self.assertEqual({key: getattr(cfg, key) for key in legacy}, legacy)
+                cfg.led_aspect_ratio = 3.0
+                self.assertTrue(store.save(cfg, (1000, 700), (0, 0), name))
+                document = json.loads(self.path.read_text(encoding="utf-8"))
+                self.assertEqual(document["version"], 2)
+                self.assertEqual(set(document["user_themes"]["mine"]), {"theme"})
+                actual, _ = SettingsStore(self.path).load(Config())
+                self.assertEqual(actual.led_aspect_ratio, 3.0)
+                self.assertEqual(actual.led_shape, legacy["led_shape"])
+
     def setUp(self):
         directory = (Path.cwd()/f"test-settings-{uuid.uuid4().hex}").resolve()
         self.assertEqual(directory.parent, Path.cwd().resolve())
@@ -94,7 +142,8 @@ class UserThemePersistenceTests(unittest.TestCase):
         store = SettingsStore(self.path)
         draft = AppearanceDraft(AppearanceState.capture(Config(), "CLASSIC", {}))
         draft.create("夜の青", get_preset("BLUE"))
-        draft.edit(theme=replace(draft.state.preset.theme, peak=(123, 45, 67)), led_aspect_ratio=1.75)
+        draft.edit(theme=replace(draft.state.preset.theme, peak=(123, 45, 67)))
+        draft.edit_style(led_aspect_ratio=1.75)
         cfg = Config()
         draft.state.apply(cfg)
         store.user_presets = draft.state.user_presets
