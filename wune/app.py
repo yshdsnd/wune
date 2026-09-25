@@ -217,12 +217,11 @@ class App:
                 self.open_settings()
 
     def update_info_text(self):
-        # float32 describes the transferred samples, not the device's ADC bit depth.
+        # Report actual capture channels, not endpoint capacity or display rows.
         spectrum = self.spectrum
         device = spectrum.device if spectrum.device is not None else "Default output"
         self.renderer.info_text = (
-            f"LOOPBACK:{device} | {spectrum.sr / 1000:.1f} kHz | float32 | "
-            f"{'GATED' if spectrum.gated else 'LIVE'} RMS={spectrum.last_rms:.1e}"
+            f"OUTPUT: {device} | {spectrum.sr / 1000:.1f} kHz | {spectrum.channels_eff} ch"
         )
 
     def run(self):

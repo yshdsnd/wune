@@ -123,6 +123,15 @@ class AudioCleanupTests(unittest.TestCase):
         spectrum = self.audio.AudioSpectrum(Config(channels=1), 64, 1)
         self.addCleanup(spectrum.close)
         self.assertEqual(self.loopback.recorder.call_args.kwargs["channels"], [0, 1])
+        self.assertEqual(spectrum.channels_eff, 2)
+
+    def test_multichannel_endpoint_reports_only_captured_channels(self):
+        for channels in (6, 8):
+            with self.subTest(endpoint_channels=channels):
+                self.speaker.channels = channels
+                spectrum = self.make_spectrum()
+                self.assertEqual(self.loopback.recorder.call_args.kwargs["channels"], [0, 1])
+                self.assertEqual(spectrum.channels_eff, 2)
 
     def test_calibrated_sine_levels_and_input_history(self):
         for rate in (44100, 48000, 96000):
@@ -306,6 +315,7 @@ class AppCleanupTests(unittest.TestCase):
         self.renderer_patch = patch.object(self.app_module, "LedBarRenderer")
         self.renderer_patch.start()
         self.backend.AudioSpectrum.return_value.device = "HDMI Speakers"
+        self.backend.AudioSpectrum.return_value.channels_eff = 2
         self.backend.AudioSpectrum.return_value.sr = 48000
         self.backend.AudioSpectrum.return_value.fmax = 23999
         self.backend.AudioSpectrum.return_value.gated = False
@@ -345,11 +355,22 @@ class AppCleanupTests(unittest.TestCase):
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
 
-    def test_info_uses_configured_input_instead_of_placeholder(self):
-        self.assertIn("LOOPBACK:HDMI Speakers", self.app.renderer.info_text)
-        self.assertIn("48.0 kHz", self.app.renderer.info_text)
-        self.assertIn("float32", self.app.renderer.info_text)
-        self.assertNotIn("24-bit", self.app.renderer.info_text)
+    def test_info_reports_capture_without_debug_values(self):
+        self.app.cfg.channels = 1  # Display rows must not determine capture count.
+        for gated, rms in ((False, 0.25), (True, 0.0)):
+            self.app.spectrum.gated = gated
+            self.app.spectrum.last_rms = rms
+            self.app.update_info_text()
+            self.assertEqual(self.app.renderer.info_text, "OUTPUT: HDMI Speakers | 48.0 kHz | 2 ch")
+            self.assertEqual(self.app.spectrum.gated, gated)
+            self.assertEqual(self.app.spectrum.last_rms, rms)
+
+    def test_info_uses_effective_rate_channels_and_device_fallback(self):
+        self.app.spectrum.sr = 44100
+        self.app.spectrum.device = None
+        self.app.spectrum.channels_eff = 1
+        self.app.update_info_text()
+        self.assertEqual(self.app.renderer.info_text, "OUTPUT: Default output | 44.1 kHz | 1 ch")
 
     def test_app_passes_policy_range_and_displays_effective_limit(self):
         self.app.spectrum.set_range.assert_called_once_with(20.0, 20000.0)
