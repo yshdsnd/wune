@@ -165,4 +165,5 @@ WuneはNumPy、pygame／SDL、SoundCard／CFFI、Python／Tcl・Tkを利用し�
 配布ZIPのlicensesフォルダーに依存ソフトウェアのライセンス・通知を同梱します。
 独自アイコンの出典と制作記録は[アイコンの説明](https://github.com/yshdsnd/wune/blob/main/wune/assets/README.md)にあります。
 
-Wune本体のライセンスは現在未設定です。公開前に利用・再配布条件を確定する予定です。
+Wune本体は **[BSD 2-Clause License](LICENSE)** で提供します。
+同梱する第三者ソフトウェアにはそれぞれ独自のライセンスが適用され、Wuneのライセンスで置き換わるものではありません。

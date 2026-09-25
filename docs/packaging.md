@@ -1,7 +1,7 @@
 # Windowsパッケージの作成
 
 配布形式はPyInstallerのonedirをZIP化したWindows x64版です。
-`Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、README、依存物のライセンス、
+`Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、README、Wune本体のLICENSE、依存物のライセンス、
 `build-info.json` を含みます。Pythonを含むランタイムを同梱し、通常利用時の管理者権限は要求しません。
 設定とログはユーザーの `%LOCALAPPDATA%/Wune` に保存します。
 
@@ -29,8 +29,9 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 
 ## v1.0公開まで
 
-- [ ] Wune本体のライセンス・利用／再配布条件を決め、LICENSE等と同梱方法を整える。依存物の通知も確認する。
-- [ ] READMEの「公開準備中」「ライセンス未設定」を公開時の確定情報へ更新する。動作確認環境の記載を確認する。
+- [x] Wune本体をBSD 2-Clauseとし、リポジトリ直下のLICENSEを毎回ZIPへ同梱する。
+- [ ] Issue #58：実際のZIPに含まれる第三者コンポーネント・DLLを列挙し、各ライセンス・通知・追加の再配布条件を照合する。既存のlicenses/自動収集だけで監査済みとはしない。
+- [ ] READMEの「公開準備中」を公開時の確定情報へ更新する。動作確認環境の記載を確認する。
 - [ ] README更新後のコミットから候補ZIPを再ビルドする（README.md、docs/内の画像とガイドを同梱）。
 - [ ] Pythonや開発用パッケージのないWindows環境で、展開・ダブルクリック起動・実際のWASAPI入力を確認する。
 - [ ] F2、テーマ変更、保存と再起動、F11、英日表示、初期化、EXE・タイトルバー・タスクバーのアイコンを確認する。
