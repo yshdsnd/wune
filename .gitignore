@@ -1,3 +1,8 @@
 # バイトコードキャッシュ
 __pycache__/
 *.pyc
+
+# Packaging outputs and isolated build environment
+.venv-package/
+build/
+dist/
