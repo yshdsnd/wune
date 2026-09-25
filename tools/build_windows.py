@@ -57,14 +57,17 @@ def smoke_test(bundle):
     home = probe / "user-data"
     home.mkdir()
     report = probe / "smoke.json"
-    env = os.environ.copy()
+    env = {key.upper(): value for key, value in os.environ.items()}
     for key in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
         env.pop(key, None)
     env["LOCALAPPDATA"] = str(home)
-    env["PATH"] = str(Path(env["SystemRoot"]) / "System32")
+    env["PATH"] = str(Path(env["SYSTEMROOT"]) / "System32")
     result = subprocess.run([str(relocated / "Wune.exe"), "--package-smoke-test", str(report)],
                             cwd=probe, env=env, timeout=90)
     if result.returncode or not report.exists() or not json.loads(report.read_text(encoding="utf-8")).get("ok"):
+        log = home / "Wune" / "Wune.log"
+        if log.exists():
+            print(log.read_text(encoding="utf-8", errors="replace"))
         raise RuntimeError(f"Packaged smoke test failed; inspect {home / 'Wune' / 'Wune.log'}")
     print(f"Packaged smoke test passed: {report}")
 
