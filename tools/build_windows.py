@@ -93,7 +93,9 @@ def main(argv=None):
                     str(ROOT / "Wune.spec")], cwd=ROOT, check=True)
     bundle = work / "output" / "Wune"
     shutil.copy2(ROOT / "packaging" / "README.txt", bundle / "README.txt")
-    shutil.copy2(ROOT / "README.md", bundle / "README.md")  # #39 updates flow into every build.
+    shutil.copy2(ROOT / "README.md", bundle / "README.md")
+    shutil.copytree(ROOT / "docs", bundle / "docs")  # Keep README links/images usable offline.
+    shutil.copy2(ROOT / "LICENSE", bundle / "LICENSE")
     collect_notices(bundle)
     info = {"version": args.version, "python": sys.version,
             "packages": {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}}
