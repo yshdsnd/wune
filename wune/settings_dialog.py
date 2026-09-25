@@ -10,6 +10,7 @@ from threading import Thread
 from .appearance import AppearanceDraft, COLOR_FIELDS
 from .ballistics import MOTION_LIMITS
 from .i18n import Translator, languages, catalog
+from .icons import set_tk_icon
 
 MOTION_LABELS = {
     'vis_attack_ms': (
@@ -79,6 +80,7 @@ class _Dialog:
         self.loading = False
         self.pending = False
         root.title(self.t('settings.wune_display_settings'))
+        set_tk_icon(root)
         root.resizable(True, True)
         root.minsize(570, 560)
         root.protocol("WM_DELETE_WINDOW", lambda: self.submit("cancel"))

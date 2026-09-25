@@ -366,6 +366,13 @@ class AppCleanupTests(unittest.TestCase):
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
 
+    def test_icon_is_reapplied_when_display_is_recreated(self):
+        icon = self.app._icon
+        self.pg.display.set_icon.assert_called_with(icon)
+        self.pg.display.set_icon.reset_mock()
+        self.app._set_mode((1000, 700), self.pg.RESIZABLE)
+        self.pg.display.set_icon.assert_called_once_with(icon)
+
     def test_pause_before_first_read_draws_zero_array(self):
         self.pg.event.get.side_effect = [[types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_SPACE)], [types.SimpleNamespace(type=self.pg.QUIT)]]
         self.app.run()

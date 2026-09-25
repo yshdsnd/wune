@@ -20,6 +20,7 @@ def run(report):
     from .appearance import AppearanceDraft, AppearanceState
     from .settings_dialog import _Dialog
     from .renderer import LedBarRenderer
+    from .icons import ASSETS, set_app_id, pygame_icon
     prepare_soundcard()  # Includes metadata, CFFI, WASAPI headers and COM loading.
     import soundcard
     bundle = Path(sys._MEIPASS).resolve()
@@ -29,6 +30,12 @@ def run(report):
     if settings_path().resolve().is_relative_to(Path(sys.executable).parent.resolve()):
         raise RuntimeError("Settings must live outside the application directory")
     np.fft.rfft(np.zeros(4096))
+    if not ASSETS.resolve().is_relative_to(bundle) or not (ASSETS / "Wune.ico").is_file():
+        raise RuntimeError("Missing bundled icon resources")
+    set_app_id()
+    pg.display.init()
+    pg.display.set_icon(pygame_icon())
+    pg.display.set_mode((320, 200), pg.HIDDEN)
     pg.font.init()
     for language in ("en", "ja"):
         cfg = Config(language=language)

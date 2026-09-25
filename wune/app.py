@@ -7,6 +7,7 @@ import warnings
 
 from .config import Config
 from .i18n import Translator
+from .icons import set_app_id, pygame_icon
 from .layout import clamp_window_size, fit_window_size
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
@@ -15,7 +16,9 @@ from .spectrum_audio import AudioSpectrum
 class App:
     def __init__(self, cfg: Config, settings_store=None, saved_geometry=None):
         cfg = deepcopy(cfg)
+        set_app_id()
         pg.init()
+        self._icon = pygame_icon()
         pg.display.set_caption(Translator(cfg.language)("app.title"))
         self.cfg = cfg
         self._requested_max_freq_hz = cfg.max_freq_hz
@@ -48,6 +51,7 @@ class App:
         self.update_info_text()
 
     def _set_mode(self, size, flags):
+        pg.display.set_icon(self._icon)
         self.screen = pg.display.set_mode(size, flags)
         if self._display_window is not None:
             # set_mode may replace the SDL window. Bind the new wrapper before
