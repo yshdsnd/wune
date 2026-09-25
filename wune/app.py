@@ -6,6 +6,7 @@ from copy import deepcopy
 import warnings
 
 from .config import Config
+from .i18n import Translator
 from .layout import clamp_window_size, fit_window_size
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
@@ -15,7 +16,7 @@ class App:
     def __init__(self, cfg: Config, settings_store=None, saved_geometry=None):
         cfg = deepcopy(cfg)
         pg.init()
-        pg.display.set_caption("WuneWune LED Speana v0.1 — F2: 設定")
+        pg.display.set_caption(Translator(cfg.language)("app.title"))
         self.cfg = cfg
         self._requested_max_freq_hz = cfg.max_freq_hz
         self.settings_store = settings_store
@@ -117,8 +118,16 @@ class App:
         self.settings_dialog = SettingsDialog(state, path)
 
     def preview_appearance(self, state, size=None):
+        from .appearance import AppearanceState
+        previous = AppearanceState.capture(self.cfg, self.renderer.preset_name, self.renderer.user_presets)
+        previous.layout["language"] = state.layout["language"]
+        language_only = previous == state
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
+        pg.display.set_caption(Translator(self.cfg.language)("app.title"))
+        self.update_info_text()
+        if language_only and size is None:
+            return
         if self.cfg.limit_to_20khz != previous_cap:
             maximum = self.cfg.spectrum_upper_hz(self.spectrum.sr,
                                                 requested_max_hz=self._requested_max_freq_hz)
@@ -164,14 +173,14 @@ class App:
                     if action == "preview":
                         continue
                     if action == "save" and not self.save_settings():
-                        dialog.reply(False, "保存できませんでした。保存先の権限やJSON形式を確認してください。変更はまだプレビュー中です。")
+                        dialog.reply(False, "error.save")
                         continue
                     self._appearance_baseline = deepcopy(state)
                     self._appearance_size = self.screen.get_size()
                     if action == "save":
                         self._appearance_baseline = None
                         self._settings_closing = True
-                    dialog.reply(True, "適用しました。正常終了時にも保存します。", close=action == "save")
+                    dialog.reply(True, "status.applied", close=action == "save")
         except Empty:
             pass
 
@@ -219,10 +228,10 @@ class App:
     def update_info_text(self):
         # Report actual capture channels, not endpoint capacity or display rows.
         spectrum = self.spectrum
-        device = spectrum.device if spectrum.device is not None else "Default output"
-        self.renderer.info_text = (
-            f"OUTPUT: {device} | {spectrum.sr / 1000:.1f} kHz | {spectrum.channels_eff} ch"
-        )
+        t = Translator(self.cfg.language)
+        device = spectrum.device if spectrum.device is not None else t("app.default_output")
+        self.renderer.info_text = t("app.output", device=device, rate=spectrum.sr / 1000,
+                                    channels=spectrum.channels_eff)
 
     def run(self):
         try:

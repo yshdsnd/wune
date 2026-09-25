@@ -4,23 +4,24 @@ from dataclasses import asdict, dataclass, fields, replace
 import math
 
 from .colors import Theme
+from .i18n import MessageError
 from .config import Config
 from .presets import PRESETS, VisualPreset, get_preset
 from .ballistics import MOTION_LIMITS, valid_motion
 
 
 BUILTINS = {p.name: p for p in PRESETS}
-LAYOUT_FIELDS = ("spectrum_orientation", "channel_layout", "info_enabled", "info_position", "limit_to_20khz")
+LAYOUT_FIELDS = ("language", "spectrum_orientation", "channel_layout", "info_enabled", "info_position", "limit_to_20khz")
 STYLE_FIELDS = ("gauge_style", "led_shape", "led_aspect_ratio")
 COLOR_FIELDS = tuple(f.name for f in fields(Theme) if not f.name.startswith("th_"))
 
 
 def validate_name(name):
     if not isinstance(name, str) or not name.strip() or len(name) > 40:
-        raise ValueError("テーマ名は1～40文字で入力してください。")
+        raise MessageError("error.name_length")
     name = name.strip()
     if name in BUILTINS or name == "CUSTOM" or any(ord(c) < 32 for c in name):
-        raise ValueError("このテーマ名は使用できません。")
+        raise MessageError("error.name_reserved")
     return name
 
 
@@ -103,14 +104,14 @@ class AppearanceDraft:
     def create(self, name, source=None):
         name = validate_name(name)
         if name in self.names():
-            raise ValueError("同じ名前のテーマがあります。")
+            raise MessageError("error.name_exists")
         self.state.preset = replace(source or get_preset("CLASSIC"), name=name)
         self.state.user_presets[name] = self.state.preset
 
     def rename(self, name):
         old = self.state.preset.name
         if old not in self.state.user_presets:
-            raise ValueError("組み込みテーマは名前を変更できません。複製してください。")
+            raise MessageError("error.builtin_rename")
         if name == old:
             return
         self.create(name, self.state.preset)
@@ -119,7 +120,7 @@ class AppearanceDraft:
     def delete(self):
         name = self.state.preset.name
         if name not in self.state.user_presets:
-            raise ValueError("組み込みテーマは削除できません。")
+            raise MessageError("error.builtin_delete")
         del self.state.user_presets[name]
         self.select("CLASSIC")
 
@@ -137,18 +138,20 @@ class AppearanceDraft:
     def edit_style(self, **changes):
         from .settings import valid_preference
         if any(key not in STYLE_FIELDS or not valid_preference(key, value) for key, value in changes.items()):
-            raise ValueError("LED設定は指定範囲の値で入力してください。")
+            raise MessageError("error.style")
         self.state.style.update(changes)
 
     def reset(self):
         # Reset visible preferences without deleting the user's theme library.
+        language = self.state.layout["language"]
         motion = self.state.motion
         self.state = AppearanceState.capture(Config(), "CLASSIC", self.state.user_presets)
         self.state.motion = motion
+        self.state.layout["language"] = language
 
     def edit_motion(self, values):
         if any(key not in MOTION_LIMITS or not valid_motion(key, value) for key, value in values.items()):
-            raise ValueError("動きの設定は指定範囲の数値で入力してください。")
+            raise MessageError("error.motion")
         self.state.motion.update(values)
 
     def reset_motion(self):
