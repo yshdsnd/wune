@@ -74,9 +74,6 @@ class LedBarRenderer:
     def apply_preset(self, name):
         preset = self.user_presets[name] if name in self.user_presets else get_preset(name)
         self.cfg.theme = preset.theme
-        self.cfg.gauge_style = preset.gauge_style
-        self.cfg.led_shape = preset.led_shape
-        self.cfg.led_aspect_ratio = preset.led_aspect_ratio
         self.preset_name = preset.name
 
     def next_preset(self):

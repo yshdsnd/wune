@@ -10,7 +10,7 @@ class Config:
     gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
     led_shape: str = "rounded"   # rectangle, rounded, ellipse
     led_aspect_ratio: float = 2.0  # width / height, independent of cell size
-    initial_preset: str | None = "CLASSIC"  # None keeps custom theme/style.
+    initial_preset: str | None = "CLASSIC"  # Color theme only; None keeps custom colors.
     width: int = 1280
     height: int = 800
     fps: int = 60

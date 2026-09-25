@@ -39,7 +39,7 @@ class SettingsTests(unittest.TestCase):
         loaded, window = SettingsStore(self.path).load(Config())
         self.assertEqual(window, dict(width=916, height=504, x=-1400, y=120))
         self.assertEqual(loaded.initial_preset, "BLUE")
-        self.assertEqual(loaded.gauge_style, "box")
+        self.assertEqual(loaded.gauge_style, "flat")
         self.assertEqual(loaded.spectrum_orientation, "frequency_vertical")
         self.assertEqual(loaded.channel_layout, "horizontal")
         self.assertEqual(loaded.bars, 32)
@@ -65,7 +65,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(geometry, {})
 
     def test_corrupt_or_future_version_is_not_overwritten(self):
-        for text in ('{broken', '{"version": 2}', '[]', '{"version":1,"window":[]}'):
+        for text in ('{broken', '{"version": 3}', '[]', '{"version":1,"window":[]}'):
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self.path.write_text(text, encoding="utf-8")
             store = SettingsStore(self.path)

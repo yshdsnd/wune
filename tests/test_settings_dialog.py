@@ -9,6 +9,19 @@ from wune.settings_dialog import _Dialog
 
 
 class DialogTests(unittest.TestCase):
+    def test_led_controls_preview_independently_of_theme_selection(self):
+        self.dialog.style("gauge_style", "box")
+        self.dialog.style("led_shape", "ellipse")
+        self.dialog.ratio.set("1.5")
+        self.dialog.set_ratio()
+        self.assertEqual(self.dialog.theme_name.get(), "CLASSIC")
+        self.assertEqual(self.dialog.draft.state.user_presets, {})
+        self.dialog.theme_name.set("BLUE")
+        self.dialog.select_theme()
+        self.assertEqual(self.dialog.ratio.get(), "1.5")
+        self.assertEqual(self.dialog.draft.state.style["led_shape"], "ellipse")
+        self.assertEqual(self.dialog.draft.state.user_presets, {})
+
     def setUp(self):
         try:
             import tkinter as tk

@@ -158,7 +158,7 @@ class _Dialog:
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
                             row=7, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Label(general, text="形・比率・配色はテーマに保存します。\n組み込みテーマの編集時はユーザー用コピーを作ります。\n縦横比は形の指定です（1：正方形、2：横長）。\n全体の拡大縮小はメインウィンドウの角をドラッグします。",
+        ttk.Label(general, text="配置・LED設定はテーマと独立して保存します。\nテーマの切り替えは配色だけを変更します。\n縦横比は形の指定です（1：正方形、2：横長）。\n全体の拡大縮小はメインウィンドウの角をドラッグします。",
                   wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=16)
 
         theme_row = ttk.Frame(colors)
@@ -198,7 +198,7 @@ class _Dialog:
         self.hex_entry.bind("<Return>", lambda event: self.set_hex())
         ttk.Button(edit, text="色を反映", command=self.set_hex).pack(side="left", padx=6)
         ttk.Button(edit, text="カラーピッカー…", command=self.pick_color).pack(side="left")
-        ttk.Label(colors, text="色選択の確定・「色を反映」で即プレビュー。変更後は保存してください。", wraplength=500).pack(anchor="w")
+        ttk.Label(colors, text="テーマは配色のみを保存します。組み込み色の編集時はユーザー用コピーを作ります。\n色選択の確定・「色を反映」で即プレビュー。変更後は保存してください。", wraplength=500).pack(anchor="w")
 
         self.status = tk.StringVar(root, "変更はプレビュー中です。「保存」で次回の起動にも使用します。")
         ttk.Label(frame, textvariable=self.status, wraplength=540).pack(anchor="w", pady=(0, 8))
@@ -221,9 +221,9 @@ class _Dialog:
         self.theme_combo.configure(values=self.draft.names())
         self.theme_name.set(state.preset.name)
         for key, (_, choices) in self.combos.items():
-            value = state.layout[key] if key in state.layout else getattr(state.preset, key)
+            value = state.layout[key] if key in state.layout else state.style[key]
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
-        self.ratio.set(str(state.preset.led_aspect_ratio))
+        self.ratio.set(str(state.style["led_aspect_ratio"]))
         self.info.set(state.layout["info_enabled"])
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         for key, value in state.motion.items():
@@ -254,10 +254,10 @@ class _Dialog:
         self.preview()
 
     def style(self, key, value):
-        if self.loading or getattr(self.draft.state.preset, key) == value:
+        if self.loading or self.draft.state.style[key] == value:
             return
         try:
-            self.draft.edit(**{key: value})
+            self.draft.edit_style(**{key: value})
             self.preview()
         except ValueError as error:
             self.status.set(str(error))

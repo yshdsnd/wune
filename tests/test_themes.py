@@ -71,7 +71,8 @@ class ThemeRenderingTests(unittest.TestCase):
             r.next_preset()
             self.assertEqual(r.preset_name, preset.name)
             self.assertEqual(r.cfg.theme, preset.theme)
-            self.assertEqual(r.cfg.gauge_style, preset.gauge_style)
+            self.assertEqual((r.cfg.gauge_style, r.cfg.led_shape, r.cfg.led_aspect_ratio),
+                             ("flat", "rounded", 2.0))
             self.assertIs(r.peak_pos, positions)
             self.assertIs(r.peak_hold, holds)
             np.testing.assert_array_equal(positions, previous_positions)
