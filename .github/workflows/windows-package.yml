@@ -1,0 +1,82 @@
+name: Windows package
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version without v (e.g. 1.0.0-rc.1)
+        required: true
+        default: 0.0.0-dev
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install build dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Test and build ZIP
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          $version = '0.0.0-dev'
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME.Substring(1) }
+          elseif ($env:REQUESTED_VERSION) { $version = $env:REQUESTED_VERSION }
+          python tools/build_windows.py --version $version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wune-win64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Windows-build-diagnostics
+          path: |
+            build/**/warn-*.txt
+            ${{ runner.temp }}/Wune-package-check-*/user-data/Wune/Wune.log
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Wune-win64
+          path: artifacts
+      - name: Attach to a release (new releases remain drafts)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release view $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG --verify-tag --draft --title $env:RELEASE_TAG --notes 'Windows x64 ZIP. Validate installation and update release notes before publishing.'
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $assets = @(Get-ChildItem -LiteralPath artifacts -File | ForEach-Object { $_.FullName })
+          gh release upload $env:RELEASE_TAG @assets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
