@@ -14,8 +14,10 @@ class WindowEventLifetimeTests(unittest.TestCase):
             import pygame as pg
             from pygame._sdl2.video import Window
             from wune.app import App
+            from wune.icons import pygame_icon
             pg.init()
             app = App.__new__(App)
+            app._icon = pygame_icon()
             app.settings_store = object()
             app._display_window = None
             app._windowed_position = None

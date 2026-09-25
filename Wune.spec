@@ -5,6 +5,7 @@ from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 root = Path(SPECPATH)
 datas = collect_data_files("soundcard") + copy_metadata("SoundCard")
 datas += [(str(root / "wune" / "locales"), "wune/locales")]
+datas += [(str(root / "wune" / "assets"), "wune/assets")]
 a = Analysis(
     [str(root / "packaging" / "entry.py")],
     pathex=[str(root)],
@@ -14,6 +15,7 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Wune",
+          icon=str(root / "wune" / "assets" / "Wune.ico"),
           debug=False, bootloader_ignore_signals=False, strip=False, upx=False,
           console=False, disable_windowed_traceback=False)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="Wune")
