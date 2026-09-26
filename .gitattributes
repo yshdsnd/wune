@@ -1,0 +1,3 @@
+# Preserve upstream notice bytes: provenance.json verifies their SHA-256 on Windows too.
+packaging/licenses/** -text
+packaging/fonts/*.ttf binary
