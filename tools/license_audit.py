@@ -34,6 +34,12 @@ def copy_required(source, target):
     shutil.copy2(source, target)
 
 
+def is_namespace_entry(source, kind):
+    # PyInstaller's module graph represents a namespace package without code
+    # using '-', not a filesystem path. Its real child modules are audited.
+    return source == "-" and kind == "PYMODULE"
+
+
 def collect_notices(bundle, inputs):
     if sys.version_info[:3] != (3, 13, 14):
         raise RuntimeError("License audit targets Python 3.13.14; review notices before updating Python")
@@ -51,6 +57,9 @@ def collect_notices(bundle, inputs):
     selected = {}
     modules = []
     for name, source, kind in entries:
+        if is_namespace_entry(source, kind):
+            modules.append({"name": name, "kind": kind, "component": "namespace package (no code)"})
+            continue
         path = Path(source).resolve()
         dist = owners.get(path)
         if dist:

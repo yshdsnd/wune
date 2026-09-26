@@ -9,6 +9,11 @@ from tools import license_audit as audit
 
 
 class LicenseAuditTests(unittest.TestCase):
+    def test_namespace_placeholder_is_not_treated_as_a_file(self):
+        self.assertTrue(audit.is_namespace_entry("-", "PYMODULE"))
+        for source, kind in (("-", "BINARY"), ("-", "DATA"), ("missing.py", "PYMODULE")):
+            self.assertFalse(audit.is_namespace_entry(source, kind))
+
     def test_notice_detection_keeps_nested_and_embedded_notices(self):
         for name in ("numpy/licenses/src/dragon4_LICENSE.txt", "setuptools/config/NOTICE",
                      "vendor/pkg.dist-info/licenses/any-name.txt", "docs/LGPL.txt"):
