@@ -1,0 +1,308 @@
+[
+  {
+    "path": "SDL2/COPYING.txt",
+    "url": "https://www.libsdl.org/release/SDL2-devel-2.28.4-VC.zip",
+    "member": "SDL2-2.28.4/COPYING.txt",
+    "sha256": "ae4df3759a726538607b84c00ab8f8a5567d9f38ad5397486eb9b5c5f626caef"
+  },
+  {
+    "path": "SDL2_image/COPYING.txt",
+    "url": "https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-2.0.5-VC.zip",
+    "member": "SDL2_image-2.0.5/COPYING.txt",
+    "sha256": "45079362e2230154205413a6940544ca94e3479ccf76205c71c4f542a6815d25"
+  },
+  {
+    "path": "SDL2_image/LICENSE.tiff.txt",
+    "url": "https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-2.0.5-VC.zip",
+    "member": "SDL2_image-2.0.5/lib/x64/LICENSE.tiff.txt",
+    "sha256": "58e15005ea45d16482a2dc2f5daa47e75bfab250e57f55c68ee057e457004a3d"
+  },
+  {
+    "path": "SDL2_image/LICENSE.png.txt",
+    "url": "https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-2.0.5-VC.zip",
+    "member": "SDL2_image-2.0.5/lib/x64/LICENSE.png.txt",
+    "sha256": "f40671f236201909a843efc805bded4a04aac79980bab4e62a9655e675c82d4d"
+  },
+  {
+    "path": "SDL2_image/LICENSE.webp.txt",
+    "url": "https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-2.0.5-VC.zip",
+    "member": "SDL2_image-2.0.5/lib/x64/LICENSE.webp.txt",
+    "sha256": "234c8f47e6d3ff26271a75f046a29ec132b55e37884307bbf62ea44910af6c46"
+  },
+  {
+    "path": "SDL2_image/LICENSE.zlib.txt",
+    "url": "https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-2.0.5-VC.zip",
+    "member": "SDL2_image-2.0.5/lib/x64/LICENSE.zlib.txt",
+    "sha256": "49a398f1686d02ce6ff23b32a1214c5af2485682c61e6cbe8fb60bd37ad314d3"
+  },
+  {
+    "path": "SDL2_image/LICENSE.jpeg.txt",
+    "url": "https://www.libsdl.org/projects/SDL_image/release/SDL2_image-devel-2.0.5-VC.zip",
+    "member": "SDL2_image-2.0.5/lib/x64/LICENSE.jpeg.txt",
+    "sha256": "25bf843e90ea09448ecf9f8a8bf94ef50b182075a551bf326a51cc05d1b76f76"
+  },
+  {
+    "path": "SDL2_ttf/LICENSE.harfbuzz.txt",
+    "url": "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-devel-2.20.1-VC.zip",
+    "member": "SDL2_ttf-2.20.1/lib/x64/LICENSE.harfbuzz.txt",
+    "sha256": "c37d6429fd49148d2b4c8b15ae68edb90dfb3e3b6471ab661f0c531f335511f2"
+  },
+  {
+    "path": "SDL2_ttf/LICENSE.zlib.txt",
+    "url": "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-devel-2.20.1-VC.zip",
+    "member": "SDL2_ttf-2.20.1/lib/x64/LICENSE.zlib.txt",
+    "sha256": "24cb8f0040d026442bfd59e621f7e30c85880f804b4377a5344a4c04e7910182"
+  },
+  {
+    "path": "SDL2_ttf/LICENSE.freetype.txt",
+    "url": "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-devel-2.20.1-VC.zip",
+    "member": "SDL2_ttf-2.20.1/lib/x64/LICENSE.freetype.txt",
+    "sha256": "ea247c82c8065ac0f60f3c415e6bd2bf61a4360887172e95a07c2e039862ef5c"
+  },
+  {
+    "path": "SDL2_ttf/LICENSE.txt",
+    "url": "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-devel-2.20.1-VC.zip",
+    "member": "SDL2_ttf-2.20.1/LICENSE.txt",
+    "sha256": "28aabfed22b3cb0b7e23ef40385e4f66297c960082f029c96d073cc1d4e008d5"
+  },
+  {
+    "path": "SDL2_mixer/LICENSE.opusfile.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-devel-2.6.2-VC.zip",
+    "member": "SDL2_mixer-2.6.2/lib/x64/optional/LICENSE.opusfile.txt",
+    "sha256": "15c55f8c6a88ef9ee9a18ada9dbb2459bebaaf2527c91159fc23818f275f32b2"
+  },
+  {
+    "path": "SDL2_mixer/LICENSE.modplug.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-devel-2.6.2-VC.zip",
+    "member": "SDL2_mixer-2.6.2/lib/x64/optional/LICENSE.modplug.txt",
+    "sha256": "0c68419a8cb5785cc963daac39187534f4d2a4a35807d4986e065f7a5ee85c0e"
+  },
+  {
+    "path": "SDL2_mixer/LICENSE.opus.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-devel-2.6.2-VC.zip",
+    "member": "SDL2_mixer-2.6.2/lib/x64/optional/LICENSE.opus.txt",
+    "sha256": "113738704d44ece5a62519426b4c661e44b94a7e0d38e2207f321175478c264d"
+  },
+  {
+    "path": "SDL2_mixer/LICENSE.ogg-vorbis.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-devel-2.6.2-VC.zip",
+    "member": "SDL2_mixer-2.6.2/lib/x64/optional/LICENSE.ogg-vorbis.txt",
+    "sha256": "dd292660913d2052c8405bf634e8386908654b4abe60334b721d71de700b3210"
+  },
+  {
+    "path": "SDL2_mixer/LICENSE.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-devel-2.6.2-VC.zip",
+    "member": "SDL2_mixer-2.6.2/LICENSE.txt",
+    "sha256": "28aabfed22b3cb0b7e23ef40385e4f66297c960082f029c96d073cc1d4e008d5"
+  },
+  {
+    "path": "pygame-supplement/README.rst",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/README.rst",
+    "sha256": "46602e2266deca9f1d06cd8b18ba6398245d04d38a897811768db9dcc65fa4b0"
+  },
+  {
+    "path": "pygame-supplement/LGPL.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/LGPL.txt",
+    "sha256": "a190dc9c8043755d90f8b0a75fa66b9e42d4af4c980bf5ddc633f0124db3cee7"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.FLAC.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.FLAC.txt",
+    "sha256": "349b7bdbf2de10e1303fc3e8aa81f944fd2832fe40270e1b805e20b1b131187c"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.fluidsynth.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.fluidsynth.txt",
+    "sha256": "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.freetype.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.freetype.txt",
+    "sha256": "650737ec7589c35600de73b0db88dafb314f7e32e7e3cf38d0c87ceb1a7ed31b"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.jpeg.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.jpeg.txt",
+    "sha256": "2899a194cc43af0cfbeff33cdecfad20de8bbf784155b0cd0217d27c37609a28"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.modplug.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.modplug.txt",
+    "sha256": "b64d05522976d26e870bfbbf701e5a89cc5e2ab8fbde677e24f07ddaf0dac7c1"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.mpg123.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.mpg123.txt",
+    "sha256": "892cd7e1c0b23374c8a82c244f64c30297c1feada0143cfdd9f6a25f445b0dd6"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.numpy.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.numpy.txt",
+    "sha256": "faaa516b85dbf609b0296918d61924e3145c9d2b8d91ea5be93e7ba073a78aa1"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.ogg-vorbis.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.ogg-vorbis.txt",
+    "sha256": "776b6f6ab87afa263d534ad4061b6180149de0fed90e2e18e1592992922327ce"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.opus.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.opus.txt",
+    "sha256": "fde149f902d124a8c02a218527c440ee2fab6884323f180061b1405fb06af60e"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.opusfile.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.opusfile.txt",
+    "sha256": "54e125c8250361407b34322e0f328f6bdf7fd30cd4f2941a321e47b41f9c159d"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.png.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.png.txt",
+    "sha256": "0ad3bfee8be10e5519949e7af492e36bc349376b75fbeb412229a5967e3e9434"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.portmidi.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.portmidi.txt",
+    "sha256": "eb5d0724b2ae76a94ae804c44b3d6cfaaca822b7d42907aefa9256cb93db6fe0"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.sdl2.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.sdl2.txt",
+    "sha256": "ae4df3759a726538607b84c00ab8f8a5567d9f38ad5397486eb9b5c5f626caef"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.sdl2_image.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.sdl2_image.txt",
+    "sha256": "45079362e2230154205413a6940544ca94e3479ccf76205c71c4f542a6815d25"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.sdl2_mixer.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.sdl2_mixer.txt",
+    "sha256": "113727180e7956cb9718b03b41da85b63ea54743a33047071a623bf672895a10"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.sdl_gfx.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.sdl_gfx.txt",
+    "sha256": "63744690fa28ecf2a9dedacafb08d1209031e7eff1820430d952264f678a1bcf"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.sse2neon-h.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.sse2neon-h.txt",
+    "sha256": "ada11c843d252c0b70837629ac7a54a525ecb7d8c0932ebccf863c55dbd32cb1"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.tiff.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.tiff.txt",
+    "sha256": "8eeab3915f97f6f7b62a8008bf77e7ac3bfbb034b04d93cd63aafa10b2dd6614"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.webp.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.webp.txt",
+    "sha256": "17c029a902ad45a199dfe8e3a1c39305ab28d302b0703360c4a27351a4673dcb"
+  },
+  {
+    "path": "pygame-supplement/LICENSE.zlib.txt",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "member": "pygame-2.6.1/docs/licenses/LICENSE.zlib.txt",
+    "sha256": "31010e0bc26df3001c7bb3c1b7a7094a8972bf6d37a5d0c59d3d3c98fbfaf463"
+  },
+  {
+    "path": "SDL2_mixer/dr_libs-LICENSE.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/archive/refs/tags/release-2.6.2.zip",
+    "member": "SDL_mixer-release-2.6.2/src/codecs/dr_libs/LICENSE",
+    "sha256": "dd1c647e6f767f8ff4b2dfae0fed314726600a01e0cf1ef556afddd5fa96ff15"
+  },
+  {
+    "path": "SDL2_mixer/timidity-COPYING.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/archive/refs/tags/release-2.6.2.zip",
+    "member": "SDL_mixer-release-2.6.2/src/codecs/timidity/COPYING",
+    "sha256": "188de23cc548f2afd04bfb85217220f6864ca2412dc3af003f0d89a9641f42c3"
+  },
+  {
+    "path": "SDL2_mixer/stb_vorbis-stb_vorbis.h.txt",
+    "url": "https://github.com/libsdl-org/SDL_mixer/archive/refs/tags/release-2.6.2.zip",
+    "member": "SDL_mixer-release-2.6.2/src/codecs/stb_vorbis/stb_vorbis.h",
+    "sha256": "7587efcca32db8f95bf5860dea6dfa4be410ee723e1964db3689c8ddf2a2e4a9"
+  },
+  {
+    "path": "FreeFont/COPYING",
+    "url": "https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip",
+    "member": "freefont-20120503/COPYING",
+    "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+  },
+  {
+    "path": "FreeFont/AUTHORS",
+    "url": "https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip",
+    "member": "freefont-20120503/AUTHORS",
+    "sha256": "1baa0cba3f6004ac1277a25c79ab5efb45011102f9ef2ab3a5b7d262088a1f5a"
+  },
+  {
+    "path": "FreeFont/CREDITS",
+    "url": "https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip",
+    "member": "freefont-20120503/CREDITS",
+    "sha256": "da8e9145591c82a4e1aa2aeb5bfccd18d61ca3c62efb2e403598c85dbafbe8f5"
+  },
+  {
+    "path": "FreeFont/README",
+    "url": "https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip",
+    "member": "freefont-20120503/README",
+    "sha256": "d7375e3982a2e0afc471f8900c46ac6ea41b1112de1f5cdb9ca5c820adf25a33"
+  },
+  {
+    "path": "Python/history-and-license.rst",
+    "url": "https://raw.githubusercontent.com/python/cpython/v3.13.14/Doc/license.rst",
+    "member": "Doc/license.rst",
+    "sha256": "62f2c9c2c75d511170eb464ad5f83b78cc1f37eb2eb49c2846c9aa6c4557ee99"
+  },
+  {
+    "path": "Python/OpenSSL-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/openssl/openssl/openssl-3.0.21/LICENSE.txt",
+    "member": "OpenSSL-LICENSE.txt",
+    "sha256": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a"
+  },
+  {
+    "path": "Python/XZ-COPYING",
+    "url": "https://raw.githubusercontent.com/python/cpython-source-deps/xz-5.2.5/COPYING",
+    "member": "XZ-COPYING",
+    "sha256": "bcb02973ef6e87ea73d331b3a80df7748407f17efdb784b61b47e0e610d3bb5c"
+  },
+  {
+    "path": "Python/get_externals.bat.txt",
+    "url": "https://raw.githubusercontent.com/python/cpython/v3.13.14/PCbuild/get_externals.bat",
+    "member": "python-get_externals.bat",
+    "sha256": "7f4ef6af9e941f1d933f5cdee708cc5bd88dafc929058b1b6975575c30c35fb5"
+  },
+  {
+    "path": "Tcl-Tk/tcl8.6/license.terms",
+    "url": "https://raw.githubusercontent.com/python/cpython-source-deps/tcl-core-8.6.15.0/license.terms",
+    "member": "license.terms",
+    "sha256": "c0a69a2bfd757361ec7e6143973b103c90409316b49e9c88db26ad6388e79f16"
+  },
+  {
+    "path": "Tcl-Tk/tk8.6/license.terms",
+    "url": "https://raw.githubusercontent.com/python/cpython-source-deps/tk-8.6.15.0/license.terms",
+    "member": "license.terms",
+    "sha256": "2cde822b93ca16ae535c954b7dfe658b4ad10df2a193628d1b358f1765e8b198"
+  }
+]

@@ -12,6 +12,9 @@ See README.md for the user guide; docs/ contains the preview and developer guide
 Download updates: https://github.com/yshdsnd/wune/releases
 Report issues: https://github.com/yshdsnd/wune/issues
 
+Wune: BSD 2-Clause (LICENSE). Third-party terms: licenses/README.md.
+Component inventory: licenses/inventory.json. Corresponding sources: licenses/sources/.
+
 ZIP全体を展開し、Wune.exeを起動してください。_internalを削除・移動しないでください。
 Pythonのインストールや通常利用時の管理者権限は不要です。
 F2で設定画面を開けます。詳しい説明は同梱のREADME.mdをご覧ください。

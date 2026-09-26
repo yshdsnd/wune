@@ -1,0 +1,12 @@
+[
+  {
+    "filename": "pygame-2.6.1.zip",
+    "url": "https://github.com/pygame/pygame/archive/refs/tags/2.6.1.zip",
+    "sha256": "5d8779617f88ecb5224591bd408ec5a14b6c14875f0e5661ec75c521ee770030"
+  },
+  {
+    "filename": "freefont-src-20120503.tar.gz",
+    "url": "https://ftp.gnu.org/gnu/freefont/freefont-src-20120503.tar.gz",
+    "sha256": "0d62e2e22655f841c3ac5fb8c8059a52fe2c09c695d9e8eda9903406e942657a"
+  }
+]
