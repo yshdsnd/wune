@@ -110,7 +110,7 @@ limit_to_20khz=Trueで最大20 kHzに制限できます。
 | --- | --- | --- |
 | vis_attack_ms | 1～1000 ms | 5 ms |
 | vis_release_ms | 1～5000 ms | 120 ms |
-| peak_hold_ms | 0～5000 ms | 120 ms |
+| peak_hold_ms | 0～5000 ms | 500 ms |
 | peak_fall_per_second | 0～20 表示全幅/秒 | 2.5 |
 
 アタック／リリースは指数応答の時定数です。4096サンプルの取得は48 kHzで約85 msかかるため、
