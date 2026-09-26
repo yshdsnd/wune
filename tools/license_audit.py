@@ -71,7 +71,8 @@ def collect_notices(bundle, inputs):
             owner = "Microsoft runtime"
         elif path.is_relative_to(Path(sys.base_prefix).resolve()) or name == "base_library.zip":
             owner = "Python"
-        elif path.is_relative_to(ROOT / "wune") or path.is_relative_to(ROOT / "packaging"):
+        elif (path == ROOT / "main.py" or path.is_relative_to(ROOT / "wune")
+              or path.is_relative_to(ROOT / "packaging")):
             owner = "Wune"
         elif kind == "SYMLINK":
             continue
