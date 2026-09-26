@@ -9,15 +9,27 @@ import uuid
 from wune.appearance import AppearanceDraft, AppearanceState, decode_preset, encode_preset
 from wune.colors import Theme
 from wune.config import Config
-from wune.presets import get_preset
-from wune.settings import SettingsStore
+from wune.presets import PRESETS, get_preset
+from wune.settings import CHOICES, SettingsStore
 
 
 class AppearanceTests(unittest.TestCase):
+    def test_fresh_and_reset_theme_lists_exclude_classic_box(self):
+        expected = ["CLASSIC", "BLUE", "AMBER"]
+        self.assertEqual([preset.name for preset in PRESETS], expected)
+        self.assertEqual(CHOICES["initial_preset"], (None, *expected))
+        self.assertEqual(self.draft.names(), expected)
+        self.draft.select("BLUE")
+        self.draft.reset()
+        self.assertEqual(self.draft.names(), expected)
+        self.assertEqual(self.draft.state.preset, get_preset("CLASSIC"))
+
     def test_style_and_layout_edits_never_grow_theme_library(self):
         draft = AppearanceDraft(AppearanceState.capture(Config(), "CLASSIC", {}))
-        for name in ("CLASSIC", "BLUE", "AMBER", "CLASSIC BOX"):
+        for name in ("CLASSIC", "BLUE", "AMBER", "CLASSIC"):
+            before_style = draft.snapshot().style
             draft.select(name)
+            self.assertEqual(draft.state.style, before_style)
             for ratio in (1.0, 2.8, 1.5):
                 draft.edit_style(gauge_style="box", led_shape="ellipse", led_aspect_ratio=ratio)
                 draft.state.layout["channel_layout"] = "horizontal"
@@ -112,6 +124,41 @@ class AppearanceTests(unittest.TestCase):
 
 
 class UserThemePersistenceTests(unittest.TestCase):
+    def test_removed_classic_box_migrates_and_round_trips(self):
+        explicit_style = dict(gauge_style="flat", led_shape="ellipse", led_aspect_ratio=3.5)
+        for version in (1, 2):
+            for style in ({}, explicit_style):
+                with self.subTest(version=version, style=style):
+                    self.path.write_text(json.dumps({"version": version, "appearance": {
+                        "initial_preset": "CLASSIC BOX", "channel_layout": "horizontal", **style}}))
+                    store = SettingsStore(self.path)
+                    cfg, _ = store.load(Config())
+                    expected_style = (dict(gauge_style="box", led_shape="rectangle", led_aspect_ratio=2.0)
+                                      if version == 1 else style or dict(gauge_style="flat", led_shape="rounded", led_aspect_ratio=2.0))
+                    self.assertEqual(cfg.initial_preset, "CLASSIC")
+                    self.assertEqual(cfg.theme, get_preset("CLASSIC").theme)
+                    self.assertEqual({key: getattr(cfg, key) for key in expected_style}, expected_style)
+                    self.assertEqual(cfg.channel_layout, "horizontal")
+                    self.assertTrue(store.save(cfg, (800, 600), (0, 0), cfg.initial_preset))
+                    document = json.loads(self.path.read_text())
+                    self.assertEqual(document["appearance"]["initial_preset"], "CLASSIC")
+                    self.assertEqual(document["version"], 2)
+                    reopened, _ = SettingsStore(self.path).load(Config())
+                    self.assertEqual(reopened, cfg)
+                    reset, _ = store.reset()
+                    self.assertEqual(reset.initial_preset, "CLASSIC")
+                    self.assertNotIn("CLASSIC BOX", AppearanceDraft(
+                        AppearanceState.capture(reset, reset.initial_preset, store.user_presets)).names())
+
+    def test_user_theme_named_classic_box_is_not_replaced_by_legacy_alias(self):
+        self.path.write_text(json.dumps({"version": 2,
+            "appearance": {"initial_preset": "CLASSIC BOX", "led_shape": "ellipse"},
+            "user_themes": {"CLASSIC BOX": {"theme": {"peak": [1, 2, 3]}}}}))
+        cfg, _ = SettingsStore(self.path).load(Config())
+        self.assertEqual(cfg.initial_preset, "CLASSIC BOX")
+        self.assertEqual(cfg.theme.peak, (1, 2, 3))
+        self.assertEqual(cfg.led_shape, "ellipse")
+
     def test_v1_selected_style_migrates_once_then_stays_independent(self):
         for name, legacy in (("BLUE", dict(gauge_style="box", led_shape="rectangle", led_aspect_ratio=2.0)),
                              ("mine", dict(gauge_style="flat", led_shape="ellipse", led_aspect_ratio=1.75))):

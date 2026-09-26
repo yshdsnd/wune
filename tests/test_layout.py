@@ -143,7 +143,7 @@ class LayoutTests(unittest.TestCase):
                     r.draw(np.full((2, bars), 0.8, dtype=np.float32))
 
     def test_narrow_leds_keep_their_face_color_in_every_preset(self):
-        for preset in ("CLASSIC", "AMBER", "BLUE", "CLASSIC BOX"):
+        for preset in ("CLASSIC", "AMBER", "BLUE"):
             r = LedBarRenderer(pg.Surface((1280, 480)), Config())
             r.apply_preset(preset)
             for width in range(3, 9):

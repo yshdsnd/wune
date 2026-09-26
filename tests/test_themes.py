@@ -102,7 +102,7 @@ class ThemeRenderingTests(unittest.TestCase):
         name = "夜空" * 20
         r = self.renderer(width=800, height=600)
         r.user_presets = {name: decode_preset(name, encode_preset(PRESETS[1]))}
-        r.apply_preset("CLASSIC BOX")
+        r.apply_preset(PRESETS[-1].name)
         r.next_preset()
         self.assertEqual(r.preset_name, name)
         self.assertEqual(r.cfg.theme, PRESETS[1].theme)
