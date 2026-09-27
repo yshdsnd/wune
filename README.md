@@ -163,6 +163,8 @@ Windows標準のカラーピッカーはWindows側の表示言語に従います
 
 WuneはNumPy、pygame／SDL、SoundCard／CFFI、Python／Tcl・Tkを利用し、配布にはPyInstallerを使用しています。
 配布ZIPのlicensesフォルダーに依存ソフトウェアのライセンス・通知を同梱します。
+同フォルダーのinventory.jsonに実際の同梱物とDLLの一覧、sources/に再ビルド用の対応ソースを含めます。
+第三者コンポーネントの出典・再配布条件は[同梱ソフトウェアの説明](packaging/licenses/README.md)を参照してください。
 独自アイコンの出典と制作記録は[アイコンの説明](https://github.com/yshdsnd/wune/blob/main/wune/assets/README.md)にあります。
 
 Wune本体は **[BSD 2-Clause License](LICENSE)** で提供します。

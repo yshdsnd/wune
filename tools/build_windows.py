@@ -14,6 +14,11 @@ import tempfile
 import uuid
 import zipfile
 
+try:
+    from tools.license_audit import collect_notices, collect_sources, verify_archive
+except ModuleNotFoundError:
+    from license_audit import collect_notices, collect_sources, verify_archive
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -21,31 +26,6 @@ def validate_version(value):
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?", value):
         raise argparse.ArgumentTypeError("Use X.Y.Z or X.Y.Z-rc.1 (without the v prefix)")
     return value
-
-
-def collect_notices(bundle):
-    target = bundle / "licenses"
-    target.mkdir()
-    # Include distributions' bundled license/notice files, not only metadata names.
-    for dist in metadata.distributions():
-        name = dist.metadata.get("Name", "unknown")
-        for file in dist.files or ():
-            if any(part.lower().startswith(("license", "copying", "notice", "lgpl", "gpl")) for part in file.parts):
-                source = Path(dist.locate_file(file))
-                if source.is_file():
-                    dest = target / name / str(file).replace("..", "_")
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(source, dest)
-    for name in ("LICENSE.txt", "LICENSE"):
-        source = Path(sys.base_prefix) / name
-        if source.is_file():
-            shutil.copy2(source, target / ("Python-" + name))
-    tcl = Path(sys.base_prefix) / "tcl"
-    for source in tcl.rglob("license*"):
-        if source.is_file():
-            dest = target / "Tcl-Tk" / source.relative_to(tcl)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, dest)
 
 
 def smoke_test(bundle):
@@ -88,15 +68,24 @@ def main(argv=None):
     work = ROOT / "build" / ("windows-" + uuid.uuid4().hex)
     work.mkdir(parents=True)
     subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"], cwd=ROOT, check=True)
+    # Do not collect unrelated runtime DLLs from tools on the caller's PATH.
+    build_env = os.environ.copy()
+    build_env["PATH"] = os.pathsep.join((str(Path(sys.executable).parent), sys.base_prefix,
+                                        str(Path(sys.base_prefix) / "DLLs"),
+                                        str(Path(os.environ["SYSTEMROOT"]) / "System32")))
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
                     "--workpath", str(work / "work"), "--distpath", str(work / "output"),
-                    str(ROOT / "Wune.spec")], cwd=ROOT, check=True)
+                    str(ROOT / "Wune.spec")], cwd=ROOT, env=build_env, check=True)
     bundle = work / "output" / "Wune"
     shutil.copy2(ROOT / "packaging" / "README.txt", bundle / "README.txt")
     shutil.copy2(ROOT / "README.md", bundle / "README.md")
     shutil.copytree(ROOT / "docs", bundle / "docs")  # Keep README links/images usable offline.
+    # Preserve the source README's third-party-notice link in the offline package.
+    (bundle / "packaging" / "licenses").mkdir(parents=True)
+    shutil.copy2(ROOT / "packaging" / "licenses" / "README.md", bundle / "packaging" / "licenses" / "README.md")
     shutil.copy2(ROOT / "LICENSE", bundle / "LICENSE")
-    collect_notices(bundle)
+    collect_notices(bundle, work / "work" / "Wune" / "license-inputs.json")
+    collect_sources(bundle, ROOT / "build" / "license-sources")
     info = {"version": args.version, "python": sys.version,
             "packages": {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}}
     (bundle / "build-info.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
@@ -105,6 +94,7 @@ def main(argv=None):
         for file in sorted(bundle.rglob("*")):
             if file.is_file():
                 zipped.write(file, file.relative_to(bundle.parent))
+    verify_archive(archive, bundle)
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n", encoding="ascii")
     print(archive)
