@@ -45,7 +45,7 @@ class LevelEnvelope:
 
 
 class PeakEnvelope:
-    def __init__(self, shape, hold_ms=120, fall_per_second=2.5):
+    def __init__(self, shape, hold_ms=500, fall_per_second=2.5):
         self.configure(hold_ms, fall_per_second)
         self.positions = np.zeros(shape, dtype=np.float32)
         self.remaining = np.zeros(shape, dtype=np.float64)

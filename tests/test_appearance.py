@@ -188,7 +188,7 @@ class UserThemePersistenceTests(unittest.TestCase):
         self.path.write_text('{"version": 1, "appearance": {"initial_preset": "BLUE"}}')
         actual, _ = SettingsStore(self.path).load(Config())
         self.assertEqual((actual.vis_attack_ms, actual.vis_release_ms, actual.peak_hold_ms,
-                          actual.peak_fall_per_second), (5, 120, 120, 2.5))
+                          actual.peak_fall_per_second), (5, 120, 500, 2.5))
 
     def test_invalid_persisted_motion_uses_defaults(self):
         self.path.write_text(json.dumps({"version": 1, "appearance": {
@@ -197,7 +197,7 @@ class UserThemePersistenceTests(unittest.TestCase):
         with self.assertWarns(RuntimeWarning):
             cfg, _ = SettingsStore(self.path).load(Config())
         self.assertEqual((cfg.vis_attack_ms, cfg.vis_release_ms, cfg.peak_hold_ms,
-                          cfg.peak_fall_per_second), (5, 120, 120, 2.5))
+                          cfg.peak_fall_per_second), (5, 120, 500, 2.5))
 
     def test_frequency_cap_round_trip_and_old_settings(self):
         cfg = Config(limit_to_20khz=True)

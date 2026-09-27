@@ -556,7 +556,7 @@ class AppCleanupTests(unittest.TestCase):
         self.assertEqual(self.app.cfg.channel_layout, "vertical")
         self.assertEqual((self.app.cfg.led_shape, self.app.cfg.led_aspect_ratio), ("rounded", 2.0))
         self.assertEqual((self.app.cfg.vis_attack_ms, self.app.cfg.vis_release_ms,
-                          self.app.cfg.peak_hold_ms, self.app.cfg.peak_fall_per_second), (5, 120, 120, 2.5))
+                          self.app.cfg.peak_hold_ms, self.app.cfg.peak_fall_per_second), (5, 120, 500, 2.5))
         self.assertIs(self.app.levels, levels)
         self.assertEqual(self.app.spectrum.mock_calls, [])
         self.backend.AudioSpectrum.assert_called_once()

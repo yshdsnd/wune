@@ -28,7 +28,7 @@ class Config:
     info_position: str = "bottom"    # "top" or "bottom"
 
     # Time-based peak marker motion
-    peak_hold_ms: float = 120
+    peak_hold_ms: float = 500
     peak_fall_per_second: float = 2.5  # full-scale spans per second
 
     # ほんのり残像（画面に黒を薄く重ねる）

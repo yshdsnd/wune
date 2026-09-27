@@ -38,12 +38,24 @@ class BallisticsTests(unittest.TestCase):
 
     def test_peak_hold_boundary_and_fall_are_time_based(self):
         for intervals in ([0.01]*40, [0.1]*4, [0.05, 0.15, 0.2]):
-            peak = PeakEnvelope((1,))
+            peak = PeakEnvelope((1,), hold_ms=120)
             peak.step(np.array([1.0]), 0.01)
             for dt in intervals:
                 peak.step(np.array([0.0]), dt)
             # 120 ms hold plus 280 ms fall at 2.5 full-scale spans/s.
             self.assertAlmostEqual(float(peak.positions[0]), 0.3, places=5)
+
+    def test_default_peak_holds_for_500_ms_then_uses_existing_fall_speed(self):
+        from wune.config import Config
+        cfg = Config()
+        for peak in (PeakEnvelope((1,)), PeakEnvelope((1,), cfg.peak_hold_ms, cfg.peak_fall_per_second)):
+            for intervals in ([0.01]*50, [0.1]*5, [0.07, 0.18, 0.25]):
+                with self.subTest(intervals=intervals):
+                    peak.step(np.array([1.0]), 0.01)
+                    for dt in intervals:
+                        np.testing.assert_allclose(peak.step(np.array([0.0]), dt), 1.0, atol=1e-6)
+                    self.assertAlmostEqual(float(peak.remaining[0]), 0.0)
+                    np.testing.assert_allclose(peak.step(np.array([0.0]), 0.1), 0.75, atol=1e-6)
 
     def test_peaks_follow_new_attacks_and_pause(self):
         peak = PeakEnvelope((2,))
@@ -99,7 +111,7 @@ class BallisticsTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 peak.configure(30, bad)
         self.assertEqual((envelope.attack, envelope.release), (.005, .12))
-        self.assertEqual((peak.hold_seconds, peak.fall), (.12, 2.5))
+        self.assertEqual((peak.hold_seconds, peak.fall), (.5, 2.5))
 
     def test_renderer_live_speed_uses_full_scale_units_and_keeps_pause(self):
         import pygame as pg

@@ -28,10 +28,18 @@ class SettingsTests(unittest.TestCase):
     def test_first_launch_copies_defaults_without_creating_file(self):
         defaults = Config()
         cfg, window = self.store.load(defaults)
+        self.assertEqual(cfg.peak_hold_ms, 500)
         cfg.width = 42
         self.assertEqual(defaults.width, 1280)
         self.assertEqual(window, {})
         self.assertFalse(self.path.exists())
+
+    def test_saved_peak_hold_values_survive_restart(self):
+        for hold_ms in (0, 120, 200, 875.5, 5000):
+            with self.subTest(hold_ms=hold_ms):
+                self.assertTrue(self.store.save(Config(peak_hold_ms=hold_ms), (1280, 800), (0, 0), "CLASSIC"))
+                loaded, _ = SettingsStore(self.path).load(Config())
+                self.assertEqual(loaded.peak_hold_ms, hold_ms)
 
     def test_round_trip_geometry_preset_and_orientation(self):
         cfg = Config(spectrum_orientation="frequency_vertical", channel_layout="horizontal", bars=32)

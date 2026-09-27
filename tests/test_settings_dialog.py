@@ -116,10 +116,14 @@ class DialogTests(unittest.TestCase):
         self.events.get_nowait()
         self.dialog.slide_motion("peak_fall_per_second", "8")
         self.events.get_nowait()
+        self.dialog.slide_motion("peak_hold_ms", "200")
+        self.assertEqual(self.events.get_nowait()[1].motion["peak_hold_ms"], 200)
         self.dialog.reset_motion()
         state = self.events.get_nowait()[1]
         self.assertEqual(state.preset.name, "BLUE")
         self.assertEqual(state.motion["peak_fall_per_second"], 2.5)
+        self.assertEqual(state.motion["peak_hold_ms"], 500)
+        self.assertEqual(float(self.dialog.motion_variables["peak_hold_ms"].get()), 500)
 
     def test_frequency_cap_preview_and_default_reset(self):
         self.dialog.limit_to_20khz.set(True)
