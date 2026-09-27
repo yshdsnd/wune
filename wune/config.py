@@ -34,7 +34,7 @@ class Config:
     # ほんのり残像（画面に黒を薄く重ねる）
     afterglow_alpha: int = 35     # 0で残像無し、値が大きいほど早く消える（0〜255）
 
-    # 90s風ラベルなど
+    # テーマ切り替えバッジ
     show_badge: bool = True
     
     # 周波数スケール（表示用）
@@ -60,7 +60,7 @@ class Config:
     channel_gap: int = 24       # チャンネル間の余白(px)
 
     # 追加（目安値。画面の見え方に合わせて微調整OK）
-    header_reserved: int = 36    # 上部のロゴ/バッジ/「dB」余白
+    header_reserved: int = 36    # 各チャンネル上部のラベル・目盛り用余白
     scale_reserved: int = 28     # 下部の周波数ラベル一式の高さ
 
     min_led_height: int = 3

@@ -47,7 +47,6 @@ class LedBarRenderer:
         )
         self.font_badge = pg.font.SysFont("Bahnschrift", 18, bold=True)
         self.font_badge_user = pg.font.SysFont("Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI", 18, bold=True)
-        self.font_logo = pg.font.SysFont("OCR A Extended, OCR A, Consolas", 16)
         self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
 
         # 表示用インフォテキスト（外部からセット）
@@ -107,10 +106,7 @@ class LedBarRenderer:
         self.surf.fill(self.cfg.theme.background)
         # 枠線
         pg.draw.rect(self.surf, self.cfg.theme.border, (8, 8, self.width-16, self.height-16), 2, border_radius=10)
-        # ロゴ
-        logo = self.font_logo.render("SPECTRA-LED 90", True, self.cfg.theme.logo_text)
-        self.surf.blit(logo, (self.cfg.margin_lr, 16))
-        # バッジ（GROOVEなど）
+        # テーマ切り替えバッジ（アプリ名はウィンドウのタイトルバーに表示）
         if self.cfg.show_badge:
             text = self.badge_text()
             tw, th = text.get_size()
