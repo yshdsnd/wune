@@ -84,9 +84,9 @@ CFG = Config(
 - channel_layout：verticalはL/R上下、horizontalはL/R左右。軸の向きとは独立。
 - led_shape：rectangle／rounded／ellipse。led_aspect_ratioは幅÷高さ（0.25～8）。
 - gauge_style：flat／box。比率・形はテーマから独立して保存。
-- initial_preset：CLASSIC／BLUE／AMBER／CLASSIC BOX、またはNoneで直接指定したThemeを使用。
+- initial_preset：CLASSIC／BLUE／AMBER、またはNoneで直接指定したThemeを使用。
 
-CLASSIC BOXは配色の互換名で、現在のテーマ選択はLEDの形や立体表現を変えません。
+テーマ選択はLEDの形や立体表現を変えません。旧設定のCLASSIC BOXは読み込み時にCLASSICへ移行し、version 2の独立したLED設定を保持します。version 1では従来の立体・矩形表示を独立設定へ引き継ぎます。
 配色はwune/colors.pyのTheme、組み込みテーマはwune/presets.pyで定義します。
 独自色をCFGで使う場合はinitial_preset=Noneとtheme=Theme(...)を指定します。
 色はRGBの各0～255で、green/yellow/redは低・中・高レベル領域の色名です。

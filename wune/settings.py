@@ -84,7 +84,11 @@ class SettingsStore:
                 self.user_presets[name] = decode_preset(name, data)
             except ValueError as error:
                 warnings.warn(f"Ignoring user theme {name!r}: {error}", RuntimeWarning)
+        saved_preset = document.get("appearance", {}).get("initial_preset")
         for key, value in document.get("appearance", {}).items():
+            # The removed built-in is a load-time alias, not a selectable theme.
+            if key == "initial_preset" and value == "CLASSIC BOX" and value not in self.user_presets:
+                value = "CLASSIC"
             if key in PREFERENCES:
                 if valid_preference(key, value) or (key == "initial_preset" and isinstance(value, str) and value in self.user_presets):
                     setattr(cfg, key, value)
@@ -105,7 +109,7 @@ class SettingsStore:
                 if cfg.initial_preset in self.user_presets:
                     legacy.update({key: value for key, value in library[cfg.initial_preset].items()
                                    if key in legacy and valid_preference(key, value)})
-                elif cfg.initial_preset in ("BLUE", "CLASSIC BOX"):
+                elif cfg.initial_preset == "BLUE" or saved_preset == "CLASSIC BOX":
                     legacy.update(gauge_style="box", led_shape="rectangle")
                 for key, value in legacy.items():
                     setattr(cfg, key, value)

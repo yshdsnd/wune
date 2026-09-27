@@ -21,7 +21,6 @@ PRESETS = (
         green_off=(35, 22, 8), yellow_off=(40, 30, 12), red_off=(40, 16, 8),
         peak=(255, 240, 190), badge_text=(255, 190, 70),
         badge_glow=(40, 25, 10), badge_background=(65, 40, 15))),
-    VisualPreset("CLASSIC BOX", Theme()),
 )
 
 
