@@ -16,6 +16,7 @@ def run(report):
     from .soundcard_compat import prepare_soundcard
     from .settings import SettingsStore, settings_path
     from .config import Config
+    from .build_identity import application_identity, window_title
     from .i18n import Translator
     from .appearance import AppearanceDraft, AppearanceState
     from .settings_dialog import _Dialog
@@ -38,6 +39,9 @@ def run(report):
     pg.display.set_mode((320, 200), pg.HIDDEN)
     pg.font.init()
     for language in ("en", "ja"):
+        pg.display.set_caption(window_title(language))
+        if pg.display.get_caption()[0] != window_title(language):
+            raise RuntimeError("Window title differs from build identity")
         cfg = Config(language=language)
         renderer = LedBarRenderer(pg.Surface((1280, 800)), cfg)
         renderer.draw(np.zeros((cfg.channels, cfg.bars), dtype=np.float32))
@@ -61,5 +65,5 @@ def run(report):
     if restored.language != "ja" or restored.led_shape != "ellipse" or geometry["x"] != 40:
         raise RuntimeError("Settings round trip failed")
     pg.quit()
-    report.write_text(json.dumps({"ok": True, "frozen": True, "languages": ["en", "ja"],
+    report.write_text(json.dumps({"ok": True, "frozen": True, "identity": application_identity(), "languages": ["en", "ja"],
                                  "settings": str(settings_path())}), encoding="utf-8")

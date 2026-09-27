@@ -6,6 +6,7 @@ from copy import deepcopy
 import warnings
 
 from .config import Config
+from .build_identity import window_title
 from .i18n import Translator
 from .icons import set_app_id, pygame_icon
 from .layout import clamp_window_size, fit_window_size
@@ -19,7 +20,7 @@ class App:
         set_app_id()
         pg.init()
         self._icon = pygame_icon()
-        pg.display.set_caption(Translator(cfg.language)("app.title"))
+        pg.display.set_caption(window_title(cfg.language))
         self.cfg = cfg
         self._requested_max_freq_hz = cfg.max_freq_hz
         self.settings_store = settings_store
@@ -128,7 +129,7 @@ class App:
         language_only = previous == state
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
-        pg.display.set_caption(Translator(self.cfg.language)("app.title"))
+        pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
         if language_only and size is None:
             return

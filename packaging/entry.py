@@ -16,6 +16,8 @@ def launch():
         stream = open(os.devnull, "w", encoding="utf-8")
     sys.stdout = sys.stderr = stream
     try:
+        from wune.build_identity import application_identity
+        print(application_identity())
         if len(sys.argv) == 3 and sys.argv[1] == "--package-smoke-test":
             from wune.package_smoke import run
             run(Path(sys.argv[2]))

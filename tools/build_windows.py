@@ -20,10 +20,12 @@ except ModuleNotFoundError:
     from license_audit import collect_notices, collect_sources, verify_archive
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from wune.build_identity import VERSION_PATTERN, format_identity, source_commit
 
 
 def validate_version(value):
-    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?", value):
+    if not re.fullmatch(VERSION_PATTERN, value):
         raise argparse.ArgumentTypeError("Use X.Y.Z or X.Y.Z-rc.1 (without the v prefix)")
     return value
 
@@ -50,11 +52,16 @@ def smoke_test(bundle):
             print(log.read_text(encoding="utf-8", errors="replace"))
         raise RuntimeError(f"Packaged smoke test failed; inspect {home / 'Wune' / 'Wune.log'}")
     print(f"Packaged smoke test passed: {report}")
+    expected = format_identity(json.loads((bundle / "build-info.json").read_text(encoding="utf-8")))
+    if json.loads(report.read_text(encoding="utf-8")).get("identity") != expected:
+        raise RuntimeError("Packaged build identity differs from build metadata")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True, type=validate_version)
+    parser.add_argument("--release", action="store_true",
+                        help="Use --version as official release identity; otherwise identify a development build")
     args = parser.parse_args(argv)
     if sys.platform != "win32" or platform.machine().lower() not in ("amd64", "x86_64"):
         parser.error("Build on 64-bit Windows with x64 Python")
@@ -86,7 +93,8 @@ def main(argv=None):
     shutil.copy2(ROOT / "LICENSE", bundle / "LICENSE")
     collect_notices(bundle, work / "work" / "Wune" / "license-inputs.json")
     collect_sources(bundle, ROOT / "build" / "license-sources")
-    info = {"version": args.version, "python": sys.version,
+    info = {"version": args.version, "release_version": args.version if args.release else None,
+            "commit": source_commit(ROOT), "python": sys.version,
             "packages": {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}}
     (bundle / "build-info.json").write_text(json.dumps(info, indent=2), encoding="utf-8")
     smoke_test(bundle)

@@ -103,7 +103,7 @@
   "error.builtin_delete": "組み込みテーマは削除できません。",
   "error.style": "LED設定は指定範囲の値で入力してください。",
   "error.motion": "動作の設定は指定範囲の数値で入力してください。",
-  "app.title": "WuneWune LED Speana v0.1 — F2: 設定",
+  "app.title": "{identity} — F2: 設定",
   "app.output": "出力: {device} | {rate:.1f} kHz | {channels} ch",
   "app.default_output": "既定の出力",
   "app.paused": "一時停止",

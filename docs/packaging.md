@@ -44,6 +44,19 @@ Python・wheel・フックを更新するときは、実際の配布物と静的
 
 ## GitHub Actions
 
+### ビルド識別情報
+
+通常のソース起動と開発用ZIPは、タイトルに `Wune dev (コミットID)` を表示します。
+Gitを利用できないソース環境や識別情報が欠けた配布物では `Wune dev (unknown)` になります。
+リリースタグ `vX.Y.Z` のActionsビルドはタグから版を取得し、`Wune vX.Y.Z` を表示します。
+PR・手動実行は開発ビルドです。PRでは実際にビルドしたマージコミットのIDを記録します。
+ローカルで正式リリースとしてビルドする場合のみ、`--version X.Y.Z --release` を指定します。
+`--version` だけではZIP名の版を指定するだけで、正式リリース表示にはなりません。
+
+EXEと同じフォルダーの `build-info.json` に `release_version` と完全な `commit` を保存します。
+タイトルと起動ログはこの情報を共用するため、配布先にGitやソースは不要です。
+ZIPはこのファイルも含めて展開してください。移動後のEXEのスモークテストで識別情報と英日タイトルを確認します。
+
 PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 `vX.Y.Z` または `vX.Y.Z-rc.1` タグを作成するとビルド後にReleaseへ添付します。
 新規Releaseはdraftに留め、公開操作は別途行います。既存の同名assetは上書きしません。
