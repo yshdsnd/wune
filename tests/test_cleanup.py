@@ -311,7 +311,8 @@ class AppCleanupTests(unittest.TestCase):
         self.app.renderer.reset_mock()
         self.app.preview_appearance(draft.snapshot())
         self.assertTrue(self.app.renderer.info_text.startswith("出力:"))
-        self.pg.display.set_caption.assert_called_with("WuneWune LED Speana v0.1 — F2: 設定")
+        from wune.build_identity import window_title
+        self.pg.display.set_caption.assert_called_with(window_title("ja"))
         self.app.renderer.reset_peaks.assert_not_called()
         self.app.renderer.resize.assert_not_called()
         self.app._appearance_baseline = baseline

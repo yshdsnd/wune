@@ -35,9 +35,13 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           $version = '0.0.0-dev'
-          if ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME.Substring(1) }
+          $releaseArgs = @()
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+            $releaseArgs = @('--release')
+          }
           elseif ($env:REQUESTED_VERSION) { $version = $env:REQUESTED_VERSION }
-          python tools/build_windows.py --version $version
+          python tools/build_windows.py --version $version @releaseArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:

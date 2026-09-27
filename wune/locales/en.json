@@ -103,7 +103,7 @@
   "error.builtin_delete": "Built-in themes cannot be deleted.",
   "error.style": "Enter LED settings within the allowed ranges.",
   "error.motion": "Enter motion settings within the allowed ranges.",
-  "app.title": "WuneWune LED Speana v0.1 — F2: Settings",
+  "app.title": "{identity} — F2: Settings",
   "app.output": "OUTPUT: {device} | {rate:.1f} kHz | {channels} ch",
   "app.default_output": "Default output",
   "app.paused": "PAUSED",
