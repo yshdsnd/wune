@@ -326,6 +326,9 @@ class AppCleanupTests(unittest.TestCase):
 
     def setUp(self):
         self.pg = MagicMock()
+        env_patch = patch.dict("os.environ")
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
         self.pg.display.set_mode.return_value.get_size.return_value = (1280, 800)
         for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i", "K_t", "MOUSEBUTTONDOWN", "VIDEORESIZE", "WINDOWSIZECHANGED")):
             setattr(self.pg, name, i + 1)
@@ -501,6 +504,36 @@ class AppCleanupTests(unittest.TestCase):
         self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (-1000, 100), "BLUE")
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
+
+    def test_fullscreen_minimize_policy_is_set_before_pygame_init(self):
+        import os
+        with patch.dict(os.environ, {"SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS": "1"}):
+            self.pg.init.side_effect = lambda: self.assertEqual(
+                os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"], "0")
+            self.app_module.App(Config(language="en"))
+
+    def test_focus_loss_keeps_fullscreen_audio_and_drawing_running(self):
+        self.app._fullscreen = True
+        self.pg.WINDOWFOCUSLOST = 1001
+        self.pg.WINDOWFOCUSGAINED = 1002
+        frame = np.full((2, 64), 0.5, dtype=np.float32)
+        self.app.spectrum.step.return_value = frame
+        self.app.clock.tick.return_value = 16
+        self.pg.display.set_mode.reset_mock()
+        self.pg.event.get.side_effect = [
+            [types.SimpleNamespace(type=self.pg.WINDOWFOCUSLOST)], [],
+            [types.SimpleNamespace(type=self.pg.WINDOWFOCUSGAINED)],
+            [types.SimpleNamespace(type=self.pg.QUIT)],
+        ]
+        self.app.run()
+        self.assertTrue(self.app._fullscreen)
+        self.assertFalse(self.app.paused)
+        self.assertEqual(self.app.spectrum.step.call_count, 3)
+        self.assertEqual(self.app.renderer.draw.call_count, 3)
+        self.assertEqual(self.pg.display.flip.call_count, 3)
+        for call in self.app.renderer.draw.call_args_list:
+            self.assertGreater(call.kwargs["dt"], 0)
+        self.pg.display.set_mode.assert_not_called()
 
     def test_fullscreen_exit_saves_remembered_window_geometry(self):
         self.app.settings_store = MagicMock()
