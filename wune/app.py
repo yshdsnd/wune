@@ -4,6 +4,7 @@ import numpy as np
 import pygame as pg
 from copy import deepcopy
 import warnings
+import os
 
 from .config import Config
 from .build_identity import window_title
@@ -18,6 +19,9 @@ class App:
     def __init__(self, cfg: Config, settings_store=None, saved_geometry=None):
         cfg = deepcopy(cfg)
         set_app_id()
+        # Keep fullscreen visible when another monitor receives keyboard focus.
+        # Set before SDL initialization; do not raise the window or force topmost.
+        os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
         pg.init()
         self._icon = pygame_icon()
         pg.display.set_caption(window_title(cfg.language))
