@@ -16,8 +16,6 @@ Download the Windows ZIP from **[GitHub Releases](https://github.com/yshdsnd/wun
 Look for **Wune-vX.Y.Z-win64.zip**, where X.Y.Z is the version number.
 The “Source code” downloads automatically provided by GitHub are not the packaged application.
 
-**The v1.0 public release is currently being prepared.** If no release ZIP is available yet, follow these instructions once it is published.
-
 ## Get started
 
 1. Right-click the ZIP and choose **Extract All** to extract it to a folder of your choice.
