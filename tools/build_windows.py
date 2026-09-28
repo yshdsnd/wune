@@ -86,6 +86,7 @@ def main(argv=None):
     bundle = work / "output" / "Wune"
     shutil.copy2(ROOT / "packaging" / "README.txt", bundle / "README.txt")
     shutil.copy2(ROOT / "README.md", bundle / "README.md")
+    shutil.copy2(ROOT / "README.en.md", bundle / "README.en.md")
     shutil.copytree(ROOT / "docs", bundle / "docs")  # Keep README links/images usable offline.
     # Preserve the source README's third-party-notice link in the offline package.
     (bundle / "packaging" / "licenses").mkdir(parents=True)

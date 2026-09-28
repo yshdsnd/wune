@@ -8,7 +8,8 @@ ESC or Q: Exit
 
 Settings: %LOCALAPPDATA%\Wune\settings.json
 Startup diagnostics: %LOCALAPPDATA%\Wune\Wune.log
-See README.md for the user guide; docs/ contains the preview and developer guides.
+User guides: README.en.md (English) / README.md (日本語).
+docs/ contains the preview and developer guides.
 Download updates: https://github.com/yshdsnd/wune/releases
 Report issues: https://github.com/yshdsnd/wune/issues
 
