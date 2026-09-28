@@ -7,6 +7,10 @@ on:
         description: Package version without v (e.g. 1.0.0-rc.1)
         required: true
         default: 0.0.0-dev
+      release_identity:
+        description: Build a release-identified candidate without creating a tag or publishing
+        type: boolean
+        default: false
   push:
     tags: ['v*']
 
@@ -33,6 +37,7 @@ jobs:
         shell: pwsh
         env:
           REQUESTED_VERSION: ${{ inputs.version }}
+          RELEASE_IDENTITY: ${{ inputs.release_identity }}
         run: |
           $version = '0.0.0-dev'
           $releaseArgs = @()
@@ -40,7 +45,10 @@ jobs:
             $version = $env:GITHUB_REF_NAME.Substring(1)
             $releaseArgs = @('--release')
           }
-          elseif ($env:REQUESTED_VERSION) { $version = $env:REQUESTED_VERSION }
+          elseif ($env:REQUESTED_VERSION) {
+            $version = $env:REQUESTED_VERSION
+            if ($env:RELEASE_IDENTITY -eq 'true') { $releaseArgs = @('--release') }
+          }
           python tools/build_windows.py --version $version @releaseArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4

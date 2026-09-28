@@ -163,7 +163,7 @@ def collect_sources(bundle, cache):
             for source in sorted((ROOT / name).rglob("*")):
                 if source.is_file() and "__pycache__" not in source.parts:
                     archive.write(source, source.relative_to(ROOT))
-        for name in ("LICENSE", "README.md", "Wune.spec", "main.py", "requirements.txt", "requirements-build.txt",
+        for name in ("LICENSE", "README.md", "README.en.md", "Wune.spec", "main.py", "requirements.txt", "requirements-build.txt",
                      ".gitattributes", ".gitignore"):
             archive.write(ROOT / name, name)
 
