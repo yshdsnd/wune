@@ -21,6 +21,7 @@ def run(report):
     from .appearance import AppearanceDraft, AppearanceState
     from .settings_dialog import _Dialog
     from .renderer import LedBarRenderer
+    from .application_menu import ApplicationMenu
     from .icons import ASSETS, set_app_id, pygame_icon
     prepare_soundcard()  # Includes metadata, CFFI, WASAPI headers and COM loading.
     import soundcard
@@ -46,6 +47,14 @@ def run(report):
         renderer = LedBarRenderer(pg.Surface((1280, 800)), cfg)
         renderer.draw(np.zeros((cfg.channels, cfg.bars), dtype=np.float32))
         renderer.draw_pause_overlay()
+        menu = ApplicationMenu()
+        menu.handle(pg.event.Event(pg.MOUSEBUTTONDOWN, button=3, pos=(1270, 790)),
+                    renderer.surf.get_size(), renderer.font_small, language, False)
+        menu.draw(renderer.surf, renderer.font_small, language, False, cfg.theme)
+        menu.handle(pg.event.Event(pg.WINDOWFOCUSLOST), renderer.surf.get_size(),
+                    renderer.font_small, language, False)
+        if menu.anchor is not None:
+            raise RuntimeError("Application menu did not dismiss on focus loss")
         if Translator(language)("app.paused") == "app.paused":
             raise RuntimeError("Missing locale data")
         root = tk.Tk()

@@ -1,4 +1,9 @@
 {
+  "menu.open": "メニュー",
+  "menu.settings": "設定…",
+  "menu.enter_fullscreen": "全画面にする",
+  "menu.exit_fullscreen": "全画面を解除",
+  "menu.exit": "終了",
   "settings.wune_display_settings": "Wune — 表示設定",
   "settings.preview_changes_on_the_playing_spectrum": "再生中のスペクトラムで見た目を確認できます。",
   "settings.layout_and_leds": "配置・LED",

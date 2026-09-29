@@ -1,4 +1,9 @@
 {
+  "menu.open": "Menu",
+  "menu.settings": "Settings…",
+  "menu.enter_fullscreen": "Enter Fullscreen",
+  "menu.exit_fullscreen": "Exit Fullscreen",
+  "menu.exit": "Exit",
   "settings.wune_display_settings": "Wune — Display settings",
   "settings.preview_changes_on_the_playing_spectrum": "Preview changes on the playing spectrum.",
   "settings.layout_and_leds": "Layout and LEDs",
