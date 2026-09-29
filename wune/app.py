@@ -217,9 +217,11 @@ class App:
                 self.renderer.next_preset()
                 self.resize_window(self.screen.get_size())
         elif event.type == pg.KEYDOWN:
+            mods = pg.key.get_mods()
+            cmd_or_ctrl = bool(mods & (pg.KMOD_META | pg.KMOD_CTRL))
             if event.key in (pg.K_ESCAPE, pg.K_q):
                 self.running = False
-            elif event.key == pg.K_F11:
+            elif event.key == pg.K_F11 or (cmd_or_ctrl and event.key == pg.K_f):
                 self.toggle_fullscreen()
             elif event.key == pg.K_SPACE:
                 self.paused = not self.paused
@@ -231,7 +233,7 @@ class App:
                 if self.settings_dialog is None:
                     self.renderer.next_preset()
                     self.resize_window(self.screen.get_size())
-            elif event.key == pg.K_F2:
+            elif event.key == pg.K_F2 or (cmd_or_ctrl and event.key == pg.K_COMMA):
                 self.open_settings()
 
     def update_info_text(self):

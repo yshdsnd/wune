@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from wune.config import Config
-from wune.settings import SettingsStore
+from wune.settings import SettingsStore, settings_path
 from wune.window_geometry import restore_geometry
 from wune.layout import minimum_window_size
 
@@ -108,6 +108,12 @@ class SettingsTests(unittest.TestCase):
         document = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(document["appearance"]["future"], 123)
         self.assertEqual(document["future_section"], {"mine": {}})
+
+    def test_settings_path_darwin_and_windows(self):
+        with patch("sys.platform", "darwin"):
+            self.assertEqual(settings_path(), Path.home() / "Library" / "Application Support" / "Wune" / "settings.json")
+        with patch("sys.platform", "win32"), patch.dict("os.environ", {"LOCALAPPDATA": "C:\\AppData\\Local"}):
+            self.assertEqual(settings_path(), Path("C:\\AppData\\Local") / "Wune" / "settings.json")
 
 
 class GeometryTests(unittest.TestCase):

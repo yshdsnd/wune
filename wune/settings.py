@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import sys
 import tempfile
 import warnings
 
@@ -26,7 +27,10 @@ PREFERENCES = (*CHOICES, "led_aspect_ratio", "bars", "channels", "info_enabled",
 
 
 def settings_path():
-    base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     return base / "Wune" / "settings.json"
 
 

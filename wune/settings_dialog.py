@@ -5,6 +5,7 @@ No Tk widget or pygame object crosses the queues.
 """
 from dataclasses import replace
 from queue import Empty, Queue
+import sys
 from threading import Thread
 
 from .appearance import AppearanceDraft, COLOR_FIELDS
@@ -87,7 +88,8 @@ class _Dialog:
         root.bind("<Escape>", lambda event: self.submit("cancel"))
         frame = ttk.Frame(root, padding=12)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text=self.t('settings.preview_changes_on_the_playing_spectrum'), font=("Yu Gothic UI", 11, "bold")).pack(anchor="w")
+        heading_font = ("Hiragino Sans", 11, "bold") if sys.platform == "darwin" else ("Yu Gothic UI", 11, "bold")
+        ttk.Label(frame, text=self.t('settings.preview_changes_on_the_playing_spectrum'), font=heading_font).pack(anchor="w")
         notebook = ttk.Notebook(frame)
         self.notebook = notebook
         notebook.pack(fill="both", expand=True, pady=10)

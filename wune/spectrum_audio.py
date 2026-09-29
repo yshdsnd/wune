@@ -1,6 +1,6 @@
-# wune/spectrum_audio.py
 from __future__ import annotations
 from contextlib import ExitStack
+import sys
 
 import numpy as np
 import soundcard as sc
@@ -142,6 +142,9 @@ class AudioSpectrum:
 
     def _select_output(self):
         """Resolve once so rate detection and recording use the same endpoint."""
+        if sys.platform == "darwin":
+            from .capture_macos import select_macos_output
+            return select_macos_output(self.cfg)
         from .soundcard_compat import prepare_soundcard
         prepare_soundcard()
         speaker = (sc.default_speaker() if self.cfg.output_device is None
@@ -154,6 +157,15 @@ class AudioSpectrum:
 
     def _open_loopback(self):
         """Capture the render endpoint, never a microphone or an output player."""
+        if sys.platform == "darwin":
+            from .capture_macos import open_macos_capture
+            stream, device, channels_eff = open_macos_capture(
+                self._speaker, self.sr, self.nfft, self._capture_context
+            )
+            self.device = device
+            self.channels_eff = channels_eff
+            return stream
+
         speaker = self._speaker
         # Resolve by endpoint ID: names can also match ordinary microphones.
         loopback = sc.get_microphone(id=speaker.id, include_loopback=True)
