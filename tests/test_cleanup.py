@@ -505,6 +505,26 @@ class AppCleanupTests(unittest.TestCase):
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
 
+    def test_background_preview_and_cancel_preserve_processing_state(self):
+        from wune.appearance import AppearanceDraft, AppearanceState
+        self.app.renderer.preset_name = "CLASSIC"
+        baseline = AppearanceState.capture(self.app.cfg, "CLASSIC", {})
+        self.app._appearance_baseline = baseline
+        self.app._appearance_size = (1280, 800)
+        draft = AppearanceDraft(baseline)
+        draft.edit_background(background_mode="image", background_path="missing.png", background_sizing="fill")
+        levels = self.app.levels
+        self.app.spectrum.reset_mock()
+        self.app.renderer.reset_mock()
+        self.app.preview_appearance(draft.snapshot())
+        self.assertEqual(self.app.cfg.background_mode, "image")
+        self.app.renderer.resize.assert_not_called()
+        self.app.cancel_settings()
+        self.assertEqual(self.app.cfg.background_mode, "solid")
+        self.assertIs(self.app.levels, levels)
+        self.app.renderer.reset_peaks.assert_not_called()
+        self.assertEqual(self.app.spectrum.mock_calls, [])
+
     def test_fullscreen_minimize_policy_is_set_before_pygame_init(self):
         import os
         with patch.dict(os.environ, {"SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS": "1"}):
