@@ -43,9 +43,17 @@ def run(report):
         if pg.display.get_caption()[0] != window_title(language):
             raise RuntimeError("Window title differs from build identity")
         cfg = Config(language=language)
+        image_path = report.with_name("background.png")
+        image = pg.Surface((40, 20))
+        image.fill((30, 50, 90))
+        pg.image.save(image, str(image_path))
+        cfg.background_mode = "image"
+        cfg.background_path = str(image_path)
         renderer = LedBarRenderer(pg.Surface((1280, 800)), cfg)
         renderer.draw(np.zeros((cfg.channels, cfg.bars), dtype=np.float32))
         renderer.draw_pause_overlay()
+        if renderer.background.source is None:
+            raise RuntimeError("Packaged image background could not load")
         if Translator(language)("app.paused") == "app.paused":
             raise RuntimeError("Missing locale data")
         root = tk.Tk()

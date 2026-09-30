@@ -11,6 +11,7 @@ from .i18n import Translator
 from .layout import calculate_layout
 from .ballistics import PeakEnvelope
 from .presets import PRESETS, get_preset
+from .background import ImageBackground
 
 # ==========================
 # 描画系
@@ -19,6 +20,7 @@ class LedBarRenderer:
     def __init__(self, surf: pg.Surface, cfg: Config):
         self.surf = surf
         self.cfg = cfg
+        self.background = ImageBackground()
         self.preset_name = "CUSTOM"
         self.user_presets = {}
         if cfg.gauge_style not in ("flat", "box"):
@@ -103,7 +105,7 @@ class LedBarRenderer:
 
 
     def draw_panel(self):
-        self.surf.fill(self.cfg.theme.background)
+        self.background.draw(self.surf, self.cfg)
         # 枠線
         pg.draw.rect(self.surf, self.cfg.theme.border, (8, 8, self.width-16, self.height-16), 2, border_radius=10)
         # テーマ切り替えバッジ（アプリ名はウィンドウのタイトルバーに表示）

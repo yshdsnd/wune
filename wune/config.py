@@ -8,6 +8,9 @@ from .colors import Theme
 class Config:
     language: str = "auto"  # auto or a catalog language code.
     theme: Theme = Theme()
+    background_mode: str = "solid"
+    background_path: str = ""
+    background_sizing: str = "fit"
     gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
     led_shape: str = "rounded"   # rectangle, rounded, ellipse
     led_aspect_ratio: float = 2.0  # width / height, independent of cell size

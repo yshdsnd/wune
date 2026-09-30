@@ -14,6 +14,8 @@ from .ballistics import MOTION_LIMITS, valid_motion
 
 
 CHOICES = {
+    "background_mode": ("solid", "image"),
+    "background_sizing": ("fit", "fill"),
     "language": languages(),
     "initial_preset": (None, *(p.name for p in PRESETS)),
     "gauge_style": ("flat", "box"),
@@ -22,7 +24,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "led_aspect_ratio", "bars", "channels", "info_enabled", "limit_to_20khz", *MOTION_LIMITS)
+PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "bars", "channels", "info_enabled", "limit_to_20khz", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -35,6 +37,8 @@ def integer(value, low, high):
 
 
 def valid_preference(key, value):
+    if key == "background_path":
+        return isinstance(value, str) and "\x00" not in value
     if key in MOTION_LIMITS:
         return valid_motion(key, value)
     if key in CHOICES:
