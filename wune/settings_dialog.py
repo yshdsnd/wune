@@ -130,6 +130,22 @@ class _Dialog:
             self.combos[key] = (combo, options)
 
         language_options = {self.t("language.auto"): "auto"}
+        background = ttk.Frame(notebook, padding=12)
+        notebook.add(background, text=self.t("background.tab"))
+        background.columnconfigure(1, weight=1)
+        choice(background, 0, "background_mode", self.t("background.mode"),
+               {self.t("background.solid"): "solid", self.t("background.image"): "image"},
+               lambda value: self.background("background_mode", value))
+        choice(background, 1, "background_sizing", self.t("background.sizing"),
+               {self.t("background.fit"): "fit", self.t("background.fill"): "fill"},
+               lambda value: self.background("background_sizing", value))
+        self.background_path = tk.StringVar(root)
+        ttk.Entry(background, textvariable=self.background_path, state="readonly").grid(
+            row=2, column=0, columnspan=2, sticky="ew", pady=12)
+        ttk.Button(background, text=self.t("background.choose"), command=self.choose_background).grid(
+            row=3, column=0, sticky="w")
+        ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
+            row=4, column=0, columnspan=2, sticky="w", pady=12)
         language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
         choice(general, 9, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
@@ -227,9 +243,11 @@ class _Dialog:
         self.theme_combo.configure(values=self.draft.names())
         self.theme_name.set(state.preset.name)
         for key, (_, choices) in self.combos.items():
-            value = state.layout[key] if key in state.layout else state.style[key]
+            value = (state.background[key] if key in state.background else
+                     state.layout[key] if key in state.layout else state.style[key])
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
+        self.background_path.set(state.background["background_path"])
         self.info.set(state.layout["info_enabled"])
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         for key, value in state.motion.items():
@@ -273,6 +291,22 @@ class _Dialog:
             self.style("led_aspect_ratio", float(self.ratio.get()))
         except ValueError:
             self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
+
+    def background(self, key, value):
+        if self.loading or self.pending:
+            return
+        self.draft.edit_background(**{key: value})
+        self.preview()
+
+    def choose_background(self):
+        from tkinter import filedialog
+        from pathlib import Path
+        path = filedialog.askopenfilename(parent=self.root, title=self.t("background.choose"),
+            filetypes=[(self.t("background.images"), "*.png *.jpg *.jpeg"),
+                       (self.t("background.all_files"), "*.*")])
+        if path:
+            self.draft.edit_background(background_mode="image", background_path=str(Path(path).resolve()))
+            self.preview()
 
     def select_theme(self):
         self.draft.select(self.theme_name.get())

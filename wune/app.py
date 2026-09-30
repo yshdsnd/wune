@@ -134,12 +134,13 @@ class App:
         from .appearance import AppearanceState
         previous = AppearanceState.capture(self.cfg, self.renderer.preset_name, self.renderer.user_presets)
         previous.layout["language"] = state.layout["language"]
-        language_only = previous == state
+        previous.background = deepcopy(state.background)
+        presentation_only = previous == state
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
         pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
-        if language_only and size is None:
+        if presentation_only and size is None:
             return
         if self.cfg.limit_to_20khz != previous_cap:
             maximum = self.cfg.spectrum_upper_hz(self.spectrum.sr,

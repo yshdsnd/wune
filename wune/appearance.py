@@ -13,6 +13,7 @@ from .ballistics import MOTION_LIMITS, valid_motion
 BUILTINS = {p.name: p for p in PRESETS}
 LAYOUT_FIELDS = ("language", "spectrum_orientation", "channel_layout", "info_enabled", "info_position", "limit_to_20khz")
 STYLE_FIELDS = ("gauge_style", "led_shape", "led_aspect_ratio")
+BACKGROUND_FIELDS = ("background_mode", "background_path", "background_sizing")
 COLOR_FIELDS = tuple(f.name for f in fields(Theme) if not f.name.startswith("th_"))
 
 
@@ -58,15 +59,19 @@ class AppearanceState:
     user_presets: dict
     motion: dict
     style: dict
+    background: dict
 
     @classmethod
     def capture(cls, cfg, name, user_presets):
         return cls({key: getattr(cfg, key) for key in LAYOUT_FIELDS},
                    VisualPreset(name, cfg.theme),
                    deepcopy(user_presets), {key: getattr(cfg, key) for key in MOTION_LIMITS},
-                   {key: getattr(cfg, key) for key in STYLE_FIELDS})
+                   {key: getattr(cfg, key) for key in STYLE_FIELDS},
+                   {key: getattr(cfg, key) for key in BACKGROUND_FIELDS})
 
     def apply(self, cfg):
+        for key, value in self.background.items():
+            setattr(cfg, key, value)
         for key, value in self.layout.items():
             setattr(cfg, key, value)
         cfg.theme = self.preset.theme
@@ -140,6 +145,12 @@ class AppearanceDraft:
         if any(key not in STYLE_FIELDS or not valid_preference(key, value) for key, value in changes.items()):
             raise MessageError("error.style")
         self.state.style.update(changes)
+
+    def edit_background(self, **changes):
+        from .settings import valid_preference
+        if any(key not in BACKGROUND_FIELDS or not valid_preference(key, value) for key, value in changes.items()):
+            raise MessageError("background.invalid")
+        self.state.background.update(changes)
 
     def reset(self):
         # Reset visible preferences without deleting the user's theme library.

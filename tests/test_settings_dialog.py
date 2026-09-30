@@ -9,6 +9,23 @@ from wune.settings_dialog import _Dialog
 
 
 class DialogTests(unittest.TestCase):
+    def test_background_picker_preview_reset_and_cancel(self):
+        with patch("tkinter.filedialog.askopenfilename", return_value="C:/Pictures/example.png"):
+            self.dialog.choose_background()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.background["background_mode"], "image")
+        self.assertTrue(state.background["background_path"].endswith("example.png"))
+        self.dialog.background("background_sizing", "fill")
+        self.assertEqual(self.events.get_nowait()[1].background["background_sizing"], "fill")
+        self.dialog.reset()
+        self.assertEqual(self.events.get_nowait()[1].background["background_mode"], "solid")
+        with patch("tkinter.filedialog.askopenfilename", return_value=""):
+            self.dialog.choose_background()
+        self.assertTrue(self.events.empty())
+        self.dialog.submit("cancel")
+        self.assertEqual(self.events.get_nowait()[0], "cancel")
+
     def test_led_controls_preview_independently_of_theme_selection(self):
         self.dialog.style("gauge_style", "box")
         self.dialog.style("led_shape", "ellipse")
