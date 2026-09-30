@@ -15,7 +15,7 @@ class ApplicationMenu:
         t = Translator(language)
         return (("settings", t("menu.settings"), "F2"),
                 ("fullscreen", t("menu.exit_fullscreen" if fullscreen else "menu.enter_fullscreen"), "Alt+Enter"),
-                ("exit", t("menu.exit"), "Q / Esc"))
+                ("exit", t("menu.exit"), "Q" if fullscreen else "Q / Esc"))
 
     @staticmethod
     def button_rect(font, language):

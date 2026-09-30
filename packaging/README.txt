@@ -5,7 +5,9 @@ Python and administrator privileges are not required for normal use.
 
 Menu button or right-click: Settings / Fullscreen / Exit
 F2: Settings / Alt+Enter (also F11): Fullscreen / Space: Pause / T: Theme / I: Information
-ESC or Q: Exit
+Esc: Leave fullscreen; otherwise ask to quit. Q: Ask to quit.
+Close button / Menu Exit: Quit immediately.
+Exit confirmation can be re-enabled in Settings > Layout and LEDs.
 
 Settings: %LOCALAPPDATA%\Wune\settings.json
 Startup diagnostics: %LOCALAPPDATA%\Wune\Wune.log

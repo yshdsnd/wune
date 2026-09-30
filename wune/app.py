@@ -8,6 +8,7 @@ import os
 
 from .config import Config
 from .application_menu import ApplicationMenu
+from .exit_confirmation import ExitConfirmation
 from .build_identity import window_title
 from .i18n import Translator
 from .icons import set_app_id, pygame_icon
@@ -44,6 +45,8 @@ class App:
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
         self.menu = ApplicationMenu()
+        self.exit_confirmation = ExitConfirmation()
+        self._disable_exit_confirmation = False
         self.renderer.user_presets = deepcopy(settings_store.user_presets) if settings_store is not None else {}
         if cfg.initial_preset is not None:
             self.renderer.apply_preset(cfg.initial_preset)
@@ -135,6 +138,7 @@ class App:
         previous = AppearanceState.capture(self.cfg, self.renderer.preset_name, self.renderer.user_presets)
         previous.layout["language"] = state.layout["language"]
         previous.background = deepcopy(state.background)
+        previous.layout["confirm_keyboard_exit"] = state.layout["confirm_keyboard_exit"]
         presentation_only = previous == state
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
@@ -210,6 +214,19 @@ class App:
         self.renderer.resize(self.screen)
 
     def handle_event(self, event: pg.event.Event):
+        if event.type == pg.QUIT:
+            self.execute_command("exit")
+            return
+        if self.exit_confirmation.active:
+            result = self.exit_confirmation.handle(event, self.screen.get_size(),
+                                                   self.renderer.font_small, self.cfg.language)
+            if result is not None:
+                confirmed, dont_ask = result
+                if confirmed:
+                    self._disable_exit_confirmation = dont_ask
+                    self.execute_command("exit")
+            if event.type not in (pg.VIDEORESIZE, pg.WINDOWSIZECHANGED):
+                return
         consumed, command = self.menu.handle(event, self.screen.get_size(), self.renderer.font_small,
                                              self.cfg.language, self._fullscreen)
         if command is not None:
@@ -229,7 +246,15 @@ class App:
                 self.resize_window(self.screen.get_size())
         elif event.type == pg.KEYDOWN:
             if event.key in (pg.K_ESCAPE, pg.K_q):
-                self.execute_command("exit")
+                if getattr(event, "repeat", False):
+                    return
+                if event.key == pg.K_ESCAPE and self._fullscreen:
+                    self.toggle_fullscreen()
+                elif self.cfg.confirm_keyboard_exit:
+                    self.menu.close()
+                    self.exit_confirmation.open()
+                else:
+                    self.execute_command("exit")
             elif event.key == pg.K_F11 or (event.key in (pg.K_RETURN, pg.K_KP_ENTER)
                                            and getattr(event, "mod", 0) & pg.KMOD_ALT):
                 self.execute_command("fullscreen")
@@ -282,8 +307,13 @@ class App:
                     self.renderer.draw_pause_overlay()
                 self.menu.draw(self.screen, self.renderer.font_small, self.cfg.language,
                                self._fullscreen, self.cfg.theme)
+                self.exit_confirmation.draw(self.screen, self.renderer.font_small,
+                                            self.cfg.language, self.cfg.theme)
                 pg.display.flip()
             self.cancel_settings()
+            # Apply the explicit exit choice after reverting any uncommitted settings preview.
+            if self._disable_exit_confirmation:
+                self.cfg.confirm_keyboard_exit = False
             self.save_settings()
         finally:
             if self.settings_dialog is not None:

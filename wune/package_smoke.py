@@ -22,6 +22,7 @@ def run(report):
     from .settings_dialog import _Dialog
     from .renderer import LedBarRenderer
     from .application_menu import ApplicationMenu
+    from .exit_confirmation import ExitConfirmation
     from .icons import ASSETS, set_app_id, pygame_icon
     prepare_soundcard()  # Includes metadata, CFFI, WASAPI headers and COM loading.
     import soundcard
@@ -63,6 +64,9 @@ def run(report):
             raise RuntimeError("Application menu did not dismiss on focus loss")
         if renderer.background.source is None:
             raise RuntimeError("Packaged image background could not load")
+        prompt = ExitConfirmation()
+        prompt.open()
+        prompt.draw(renderer.surf, renderer.font_small, language, cfg.theme)
         if Translator(language)("app.paused") == "app.paused":
             raise RuntimeError("Missing locale data")
         root = tk.Tk()

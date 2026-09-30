@@ -39,6 +39,13 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(self.dialog.draft.state.style["led_shape"], "ellipse")
         self.assertEqual(self.dialog.draft.state.user_presets, {})
 
+    def test_exit_confirmation_can_be_disabled_and_reenabled_without_theme_copy(self):
+        self.dialog.layout("confirm_keyboard_exit", False)
+        self.assertFalse(self.events.get_nowait()[1].layout["confirm_keyboard_exit"])
+        self.dialog.layout("confirm_keyboard_exit", True)
+        self.assertTrue(self.events.get_nowait()[1].layout["confirm_keyboard_exit"])
+        self.assertEqual(self.dialog.draft.state.user_presets, {})
+
     def setUp(self):
         try:
             import tkinter as tk
