@@ -3,7 +3,8 @@ Wune — Windows x64 portable package
 Extract the entire ZIP, then open Wune.exe. Keep _internal beside Wune.exe.
 Python and administrator privileges are not required for normal use.
 
-F2: Settings / F11: Fullscreen / Space: Pause / T: Theme / I: Information
+Menu button or right-click: Settings / Fullscreen / Exit
+F2: Settings / Alt+Enter (also F11): Fullscreen / Space: Pause / T: Theme / I: Information
 ESC or Q: Exit
 
 Settings: %LOCALAPPDATA%\Wune\settings.json

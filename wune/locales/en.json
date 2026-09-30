@@ -1,4 +1,9 @@
 {
+  "menu.open": "Menu",
+  "menu.settings": "Settings…",
+  "menu.enter_fullscreen": "Enter Fullscreen",
+  "menu.exit_fullscreen": "Exit Fullscreen",
+  "menu.exit": "Exit",
   "background.tab": "Background",
   "background.mode": "Background mode",
   "background.solid": "Solid",

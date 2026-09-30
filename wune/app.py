@@ -7,6 +7,7 @@ import warnings
 import os
 
 from .config import Config
+from .application_menu import ApplicationMenu
 from .build_identity import window_title
 from .i18n import Translator
 from .icons import set_app_id, pygame_icon
@@ -42,6 +43,7 @@ class App:
         self._restore_position()
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
+        self.menu = ApplicationMenu()
         self.renderer.user_presets = deepcopy(settings_store.user_presets) if settings_store is not None else {}
         if cfg.initial_preset is not None:
             self.renderer.apply_preset(cfg.initial_preset)
@@ -73,6 +75,7 @@ class App:
         return self._display_window
 
     def toggle_fullscreen(self):
+        self.menu.close()
         if self._fullscreen:
             self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
             self._fullscreen = False
@@ -111,6 +114,7 @@ class App:
             return False
 
     def open_settings(self):
+        self.menu.close()
         if self.settings_dialog is not None:
             self.settings_dialog.focus()
             return
@@ -206,8 +210,14 @@ class App:
         self.renderer.resize(self.screen)
 
     def handle_event(self, event: pg.event.Event):
+        consumed, command = self.menu.handle(event, self.screen.get_size(), self.renderer.font_small,
+                                             self.cfg.language, self._fullscreen)
+        if command is not None:
+            self.execute_command(command)
+        if consumed:
+            return
         if event.type == pg.QUIT:
-            self.running = False
+            self.execute_command("exit")
         elif event.type == pg.VIDEORESIZE:
             self.resize_window(event.size)
         elif event.type == pg.WINDOWSIZECHANGED:
@@ -219,9 +229,10 @@ class App:
                 self.resize_window(self.screen.get_size())
         elif event.type == pg.KEYDOWN:
             if event.key in (pg.K_ESCAPE, pg.K_q):
-                self.running = False
-            elif event.key == pg.K_F11:
-                self.toggle_fullscreen()
+                self.execute_command("exit")
+            elif event.key == pg.K_F11 or (event.key in (pg.K_RETURN, pg.K_KP_ENTER)
+                                           and getattr(event, "mod", 0) & pg.KMOD_ALT):
+                self.execute_command("fullscreen")
             elif event.key == pg.K_SPACE:
                 self.paused = not self.paused
             elif event.key == pg.K_i:
@@ -233,7 +244,16 @@ class App:
                     self.renderer.next_preset()
                     self.resize_window(self.screen.get_size())
             elif event.key == pg.K_F2:
-                self.open_settings()
+                self.execute_command("settings")
+
+    def execute_command(self, command):
+        self.menu.close()
+        if command == "settings":
+            self.open_settings()
+        elif command == "fullscreen":
+            self.toggle_fullscreen()
+        elif command == "exit":
+            self.running = False
 
     def update_info_text(self):
         # Report actual capture channels, not endpoint capacity or display rows.
@@ -260,6 +280,8 @@ class App:
                 self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
                 if self.paused:
                     self.renderer.draw_pause_overlay()
+                self.menu.draw(self.screen, self.renderer.font_small, self.cfg.language,
+                               self._fullscreen, self.cfg.theme)
                 pg.display.flip()
             self.cancel_settings()
             self.save_settings()

@@ -338,9 +338,13 @@ class AppCleanupTests(unittest.TestCase):
             "wune.spectrum_audio": self.backend,
         })
         self.modules.start()
-        for name in ("wune.app", "wune.renderer"):
+        for name in ("wune.app", "wune.renderer", "wune.application_menu"):
             sys.modules.pop(name, None)
         self.app_module = importlib.import_module("wune.app")
+        menu_patch = patch.object(self.app_module, "ApplicationMenu")
+        self.menu_class = menu_patch.start()
+        self.menu_class.return_value.handle.return_value = (False, None)
+        self.addCleanup(menu_patch.stop)
         self.renderer_patch = patch.object(self.app_module, "LedBarRenderer")
         self.renderer_patch.start()
         self.backend.AudioSpectrum.return_value.device = "HDMI Speakers"
@@ -353,7 +357,7 @@ class AppCleanupTests(unittest.TestCase):
 
     def tearDown(self):
         self.renderer_patch.stop()
-        for name in ("wune.app", "wune.renderer"):
+        for name in ("wune.app", "wune.renderer", "wune.application_menu"):
             sys.modules.pop(name, None)
         self.modules.stop()
 
@@ -504,6 +508,35 @@ class AppCleanupTests(unittest.TestCase):
         self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (-1000, 100), "BLUE")
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
+
+    def test_menu_and_shortcuts_dispatch_the_same_commands(self):
+        self.pg.K_RETURN, self.pg.K_KP_ENTER, self.pg.KMOD_ALT, self.pg.K_F2 = 1101, 1102, 0x300, 1103
+        with patch.object(self.app, "toggle_fullscreen") as fullscreen, \
+             patch.object(self.app, "open_settings") as settings:
+            for key, mod in ((self.pg.K_RETURN, self.pg.KMOD_ALT),
+                             (self.pg.K_KP_ENTER, self.pg.KMOD_ALT), (self.pg.K_F11, 0)):
+                self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=key, mod=mod))
+            self.app.menu.handle.return_value = (True, "fullscreen")
+            self.app.handle_event(types.SimpleNamespace(type=self.pg.MOUSEBUTTONDOWN))
+            self.assertEqual(fullscreen.call_count, 4)
+            self.app.menu.handle.return_value = (True, "settings")
+            self.app.handle_event(types.SimpleNamespace(type=self.pg.MOUSEBUTTONDOWN))
+            self.app.menu.handle.return_value = (False, None)
+            self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_F2))
+            self.assertEqual(settings.call_count, 2)
+
+    def test_menu_interaction_keeps_processing_and_exit_saves(self):
+        self.app.menu.handle.side_effect = [(True, None), (True, None), (True, "exit")]
+        self.pg.event.get.side_effect = [[types.SimpleNamespace(type=self.pg.MOUSEBUTTONDOWN)]] * 3
+        self.app.clock.tick.return_value = 16
+        with patch.object(self.app, "save_settings") as save:
+            self.app.run()
+        save.assert_called_once()
+        self.assertEqual(self.app.spectrum.step.call_count, 2)
+        self.assertEqual(self.app.renderer.draw.call_count, 2)
+        self.assertEqual(self.app.menu.draw.call_count, 2)
+        self.app.renderer.reset_peaks.assert_not_called()
+        self.app.spectrum.close.assert_called_once()
 
     def test_background_preview_and_cancel_preserve_processing_state(self):
         from wune.appearance import AppearanceDraft, AppearanceState
@@ -762,4 +795,3 @@ class AppCleanupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

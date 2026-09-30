@@ -11,6 +11,7 @@ from .i18n import Translator
 from .layout import calculate_layout
 from .ballistics import PeakEnvelope
 from .presets import PRESETS, get_preset
+from .application_menu import ApplicationMenu
 from .background import ImageBackground
 
 # ==========================
@@ -92,8 +93,9 @@ class LedBarRenderer:
     def badge_text(self):
         font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
         name = self.preset_name
-        if font.size(name)[0] > self.width - 56:
-            while name and font.size(name + "…")[0] > self.width - 56:
+        available = self.width - ApplicationMenu.button_rect(self.font_small, self.cfg.language).right - 64
+        if font.size(name)[0] > available:
+            while name and font.size(name + "…")[0] > available:
                 name = name[:-1]
             name += "…"
         return font.render(name, True, self.cfg.theme.badge_text)
