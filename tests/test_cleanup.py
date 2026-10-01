@@ -40,13 +40,18 @@ class AudioCleanupTests(unittest.TestCase):
         self.stream = MagicMock()
         self.recorder = self.loopback.recorder.return_value
         self.recorder.__enter__.return_value = self.stream
+        platform_patch = patch("sys.platform", "win32")
+        platform_patch.start()
+        self.addCleanup(platform_patch.stop)
         self.modules = patch.dict(sys.modules, {"soundcard": self.sc})
         self.modules.start()
         sys.modules.pop("wune.spectrum_audio", None)
+        sys.modules.pop("wune.capture", None)
         self.audio = importlib.import_module("wune.spectrum_audio")
 
     def tearDown(self):
         sys.modules.pop("wune.spectrum_audio", None)
+        sys.modules.pop("wune.capture", None)
         self.modules.stop()
 
     def make_spectrum(self):

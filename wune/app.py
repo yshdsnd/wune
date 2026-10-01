@@ -5,6 +5,7 @@ import pygame as pg
 from copy import deepcopy
 import warnings
 import os
+import sys
 
 from .config import Config
 from .build_identity import window_title
@@ -218,10 +219,10 @@ class App:
                 self.resize_window(self.screen.get_size())
         elif event.type == pg.KEYDOWN:
             mods = pg.key.get_mods()
-            cmd_or_ctrl = bool(mods & (pg.KMOD_META | pg.KMOD_CTRL))
+            mac_cmd = sys.platform == "darwin" and bool(mods & pg.KMOD_META)
             if event.key in (pg.K_ESCAPE, pg.K_q):
                 self.running = False
-            elif event.key == pg.K_F11 or (cmd_or_ctrl and event.key == pg.K_f):
+            elif event.key == pg.K_F11 or (mac_cmd and event.key == pg.K_f):
                 self.toggle_fullscreen()
             elif event.key == pg.K_SPACE:
                 self.paused = not self.paused
@@ -233,7 +234,7 @@ class App:
                 if self.settings_dialog is None:
                     self.renderer.next_preset()
                     self.resize_window(self.screen.get_size())
-            elif event.key == pg.K_F2 or (cmd_or_ctrl and event.key == pg.K_COMMA):
+            elif event.key == pg.K_F2 or (mac_cmd and event.key == pg.K_COMMA):
                 self.open_settings()
 
     def update_info_text(self):
