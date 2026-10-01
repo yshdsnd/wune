@@ -23,6 +23,8 @@ def main(argv=None):
     App(cfg, settings_store=store, saved_geometry=geometry).run()
 
 if __name__ == "__main__":
+    import multiprocessing as mp
+    mp.freeze_support()
     try:
         main()
     except Exception as ex:

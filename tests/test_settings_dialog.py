@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from wune.appearance import AppearanceDraft, AppearanceState
 from wune.config import Config
-from wune.settings_dialog import _Dialog
+from wune.settings_dialog import _Dialog, SettingsDialog
 
 
 class DialogTests(unittest.TestCase):
@@ -134,3 +134,21 @@ class DialogTests(unittest.TestCase):
         self.dialog.reset()
         self.assertFalse(self.events.get_nowait()[1].layout["limit_to_20khz"])
         self.assertFalse(self.dialog.limit_to_20khz.get())
+
+
+class SettingsDialogLifecycleTests(unittest.TestCase):
+    def test_settings_dialog_lifecycle(self):
+        try:
+            import tkinter as tk
+            test_tk = tk.Tk()
+            test_tk.destroy()
+        except Exception as error:
+            self.skipTest(f"Tk display not available: {error}")
+        state = AppearanceState.capture(Config(), "CLASSIC", {})
+        dialog = SettingsDialog(state, "test_settings.json")
+        try:
+            dialog.focus()
+            dialog.reply(True, "settings.applied", False)
+        finally:
+            dialog.close()
+        self.assertFalse(dialog.worker.is_alive())

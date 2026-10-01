@@ -1,9 +1,10 @@
-"""Tk owns its own thread; pygame/audio only receive immutable draft snapshots.
+"""Tk owns its own thread/process; pygame/audio only receive immutable draft snapshots.
 
 Native color/name dialogs can run their modal loops without blocking capture.
 No Tk widget or pygame object crosses the queues.
 """
 from dataclasses import replace
+import multiprocessing as mp
 from queue import Empty, Queue
 import sys
 from threading import Thread
@@ -32,43 +33,83 @@ MOTION_LABELS = {
 COLOR_LABELS = {key: "color." + key for key in COLOR_FIELDS}
 
 
+def _run_dialog(state, path, events, commands):
+    root = dialog = None
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        dialog = _Dialog(root, AppearanceDraft(state), path, events, commands)
+        root.mainloop()
+    except Exception as error:
+        try:
+            events.put(("error", str(error)))
+        except Exception:
+            pass
+    finally:
+        if root is not None:
+            try:
+                root.destroy()
+            except Exception:
+                pass
+        # Tcl objects must be finalized on the thread/process that created them.
+        dialog = root = None
+        import gc
+        gc.collect()
+        try:
+            events.put(("closed", None))
+        except Exception:
+            pass
+
+
 class SettingsDialog:
     def __init__(self, state, path):
-        self.events = Queue()
-        self.commands = Queue()
-        self.thread = Thread(target=self._run, args=(state, str(path)), daemon=True, name="Wune settings")
-        self.thread.start()
+        if sys.platform == "win32":
+            self.events = Queue()
+            self.commands = Queue()
+            self.worker = Thread(
+                target=_run_dialog,
+                args=(state, str(path), self.events, self.commands),
+                daemon=True,
+                name="Wune settings",
+            )
+        else:
+            ctx = mp.get_context("spawn")
+            self.events = ctx.Queue()
+            self.commands = ctx.Queue()
+            self.worker = ctx.Process(
+                target=_run_dialog,
+                args=(state, str(path), self.events, self.commands),
+                daemon=True,
+                name="Wune settings",
+            )
+        self.thread = self.worker
+        self.worker.start()
 
     def _run(self, state, path):
-        root = dialog = None
-        try:
-            import tkinter as tk
-            root = tk.Tk()
-            dialog = _Dialog(root, AppearanceDraft(state), path, self.events, self.commands)
-            root.mainloop()
-        except Exception as error:
-            self.events.put(("error", str(error)))
-        finally:
-            if root is not None:
-                try:
-                    root.destroy()
-                except Exception:
-                    pass
-            # Tcl objects must be finalized on the thread that created them.
-            dialog = root = None
-            import gc
-            gc.collect()
-            self.events.put(("closed", None))
+        _run_dialog(state, path, self.events, self.commands)
 
     def focus(self):
-        self.commands.put(("focus", None))
+        try:
+            self.commands.put(("focus", None))
+        except Exception:
+            pass
 
     def close(self):
-        self.commands.put(("close", None))
-        self.thread.join(timeout=1.0)
+        try:
+            self.commands.put(("close", None))
+        except Exception:
+            pass
+        self.worker.join(timeout=1.0)
+        if hasattr(self.worker, "is_alive") and self.worker.is_alive():
+            if hasattr(self.worker, "terminate"):
+                self.worker.terminate()
+                self.worker.join(timeout=0.5)
 
     def reply(self, success, message="", close=False):
-        self.commands.put(("reply", (success, message, close)))
+        try:
+            self.commands.put(("reply", (success, message, close)))
+        except Exception:
+            pass
 
 
 class _Dialog:
