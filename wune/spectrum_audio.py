@@ -1,15 +1,18 @@
-# wune/spectrum_audio.py
+"""Audio spectrum analyzer pipeline: PCM capture -> FFT -> bands -> envelope."""
 from __future__ import annotations
-from contextlib import ExitStack
 
+import sys
+from typing import TYPE_CHECKING
 import numpy as np
-import soundcard as sc
-from .config import Config
 
+from .config import Config
 from .ballistics import LevelEnvelope
+from .capture import CaptureBackend, create_capture_backend
+
 
 class AudioSpectrum:
-    """Windows WASAPI loopback → Hann/rFFT → calibrated band power → display levels."""
+    """PCM capture → Hann/rFFT → calibrated band power → display levels."""
+
     def __init__(
         self,
         cfg: Config,
@@ -17,19 +20,25 @@ class AudioSpectrum:
         channels: int = 2,
         samplerate: int | None = None,
         blocksize: int | None = None,
+        capture_backend: CaptureBackend | None = None,
     ):
         self.cfg = cfg
         self.bars = int(bars)
         self.channels_req = int(channels)
-        self._speaker = self._select_output()
-        requested_rate = cfg.sample_rate if samplerate is None else samplerate
-        if requested_rate is None:
-            from .soundcard_compat import output_sample_rate
-            requested_rate = output_sample_rate(self._speaker)
-        self.sr = int(requested_rate)
+        self.nfft = int(cfg.block_size if blocksize is None else blocksize)
+
+        if capture_backend is not None:
+            self.capture = capture_backend
+        else:
+            self.capture = create_capture_backend(cfg, blocksize=self.nfft)
+
+        self.sr = int(samplerate if samplerate is not None else self.capture.sample_rate)
         if self.sr <= 0:
             raise ValueError("Sample rate must be positive.")
-        self.nfft = int(cfg.block_size if blocksize is None else blocksize)
+        self.channels_eff = int(self.capture.channels)
+        self.device = self.capture.device_name
+        self.stream = self.capture  # Backwards compatibility
+
         self.last_rms = 0.0
         self.gated = False
 
@@ -54,11 +63,6 @@ class AudioSpectrum:
         # ビジュアルエンベロープの作成
         self._vis_env = LevelEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms)
 
-        # Open last so initialization errors cannot leave capture running.
-        self._capture_context = ExitStack()
-        self.stream = self._open_loopback()
-
-
     # --- public API ----------------------------------------------------------
     def set_range(self, fmin: float, fmax: float) -> None:
         """外側（Configなど）から周波数レンジを合わせる用。"""
@@ -79,7 +83,7 @@ class AudioSpectrum:
         1フレームぶん処理して (channels,bars) の 0..1 を返す。
         固定の正弦波フルスケール基準で表示レベルに変換する。
         """
-        data = self.stream.record(numframes=self.nfft)     # shape: (nfft, C)
+        data = self.capture.record(self.nfft)     # shape: (nfft, C)
         if data.ndim == 1:
             data = data[:, None]
 
@@ -116,12 +120,7 @@ class AudioSpectrum:
         return self._out
 
     def _map_levels(self, data: np.ndarray) -> np.ndarray:
-        """Band energy in sine-peak-equivalent dBFS, without temporal processing.
-
-        Sum linear power before taking the log. No per-frame or historical
-        gain reference: scaling input by A shifts every band by 20*log10(A).
-        A tone split across band boundaries shares its energy between them.
-        """
+        """Band energy in sine-peak-equivalent dBFS, without temporal processing."""
         out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
         for ch in range(self.channels_req):
             spec = np.fft.rfft(self.window * data[:, ch])
@@ -138,65 +137,28 @@ class AudioSpectrum:
         return out
 
     def close(self) -> None:
-        self._capture_context.close()
-
-    def _select_output(self):
-        """Resolve once so rate detection and recording use the same endpoint."""
-        from .soundcard_compat import prepare_soundcard
-        prepare_soundcard()
-        speaker = (sc.default_speaker() if self.cfg.output_device is None
-                   else sc.get_speaker(self.cfg.output_device))
-        if speaker is None:
-            raise RuntimeError("No Windows playback device is available.")
-        if speaker.channels < 2:
-            raise RuntimeError("Select a stereo Windows playback device for loopback.")
-        return speaker
-
-    def _open_loopback(self):
-        """Capture the render endpoint, never a microphone or an output player."""
-        speaker = self._speaker
-        # Resolve by endpoint ID: names can also match ordinary microphones.
-        loopback = sc.get_microphone(id=speaker.id, include_loopback=True)
-        if not loopback.isloopback:
-            raise RuntimeError("The selected playback endpoint has no loopback capture.")
-        self.device = speaker.name
-        self.channels_eff = 2
-        # Shared mode leaves normal playback running. Avoid SoundCard's known
-        # single-channel WASAPI issue even when the display is configured mono.
-        recorder = loopback.recorder(
-            samplerate=self.sr, channels=[0, 1], blocksize=self.nfft,
-            exclusive_mode=False,
-        )
-        return self._capture_context.enter_context(recorder)
+        self.capture.close()
 
     def _rebuild_bins(self) -> None:
-        """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
-        狭い範囲に多数のバーを割り当てても表示上限を越えない。
-        """
-        freqs = self.freqs                        # len = nfft//2+1, 0..Nyquist
+        """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。"""
+        freqs = self.freqs
         nyq = self.sr * 0.5
 
         fmin = max(1.0, float(self.fmin))
-        fmax = min(float(self.fmax), nyq * 0.999)  # Nyquist手前に倒す（安全側）
+        fmax = min(float(self.fmax), nyq * 0.999)
 
-        # ログ等分の境界（bars → bars+1 個）
         edges = np.geomspace(fmin, fmax, self.bars + 1)
 
-        # 各境界を「左側に最も近いビン」へ（整数化）
         edge_bins = np.searchsorted(freqs, edges, side="left")
         upper_bin = min(len(freqs) - 1, int(np.searchsorted(freqs, fmax, side="left")))
-        edge_bins = np.clip(edge_bins, 1, upper_bin)  # Exclude DC and bins outside the requested range.
+        edge_bins = np.clip(edge_bins, 1, upper_bin)
 
-        # Prefer at least one bin, but keep exhausted bands empty at the upper limit.
         for i in range(1, len(edge_bins)):
             if edge_bins[i] <= edge_bins[i-1]:
                 edge_bins[i] = min(edge_bins[i-1] + 1, upper_bin)
 
         starts = edge_bins[:-1]
-        # Preserve the existing mapping: zip uses the first bars stops.
-        # The appended endpoint is currently unused; changing it would retune bands.
-        stops  = np.append(edge_bins[1:], len(freqs))
+        stops = np.append(edge_bins[1:], len(freqs))
 
-        # 各バーのビン配列（hi は排他）
         self._bin_idx = [np.arange(int(lo), int(hi), dtype=np.int32)
                         for lo, hi in zip(starts, stops)]

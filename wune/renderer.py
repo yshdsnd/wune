@@ -33,7 +33,7 @@ class LedBarRenderer:
         self.peak_hold = self._peaks.remaining
 
         # チャンネルラベル用フォント（任意）
-        self.font_channel = pg.font.SysFont("Bahnschrift", 16, bold=True)
+        self.font_channel = pg.font.SysFont("Bahnschrift,SF Pro Display,Helvetica Neue,Arial", 16, bold=True)
 
         # 透明サーフェス（残像用）
         self.trail = None
@@ -42,12 +42,15 @@ class LedBarRenderer:
         # SysFont picks one installed font; it does not fill missing glyphs
         # from other fonts. Prefer Japanese-capable fonts for endpoint names.
         self.font_small = pg.font.SysFont(
-            "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
-            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", 15
+            "Hiragino Sans,Hiragino Kaku Gothic ProN,Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
+            "Noto Sans CJK JP,Noto Sans JP,Segoe UI,Helvetica Neue,Arial", 15
         )
-        self.font_badge = pg.font.SysFont("Bahnschrift", 18, bold=True)
-        self.font_badge_user = pg.font.SysFont("Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI", 18, bold=True)
-        self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
+        self.font_badge = pg.font.SysFont("Bahnschrift,SF Pro Display,Helvetica Neue,Arial", 18, bold=True)
+        self.font_badge_user = pg.font.SysFont(
+            "Hiragino Sans,Hiragino Kaku Gothic ProN,Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,Helvetica Neue,Arial",
+            18, bold=True
+        )
+        self.font_scale = pg.font.SysFont("Consolas,SF Mono,Menlo,Monaco,Segoe UI,Courier,monospace", 12)
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""

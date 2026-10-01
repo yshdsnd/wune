@@ -51,6 +51,8 @@ def _install_propvariant(backend):
 
 def output_sample_rate(speaker):
     """Read the selected endpoint's shared-mode mix rate before capture starts."""
+    if sys.platform != "win32":
+        return 48000
     from soundcard import mediafoundation
     return _mix_sample_rate(speaker, mediafoundation)
 
