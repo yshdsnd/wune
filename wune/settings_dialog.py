@@ -151,6 +151,11 @@ class _Dialog:
                lambda value: self.layout("language", value))
         ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
             row=10, column=0, columnspan=2, sticky="w", pady=8)
+        self.confirm_keyboard_exit = tk.BooleanVar()
+        ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
+                        variable=self.confirm_keyboard_exit,
+                        command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
+                            row=11, column=0, columnspan=2, sticky="w", pady=8)
         general.columnconfigure(1, weight=1)
         choice(general, 0, "spectrum_orientation", self.t('settings.spectrum_direction'), {
             self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal", self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
@@ -248,6 +253,7 @@ class _Dialog:
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
         self.background_path.set(state.background["background_path"])
+        self.confirm_keyboard_exit.set(state.layout["confirm_keyboard_exit"])
         self.info.set(state.layout["info_enabled"])
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         for key, value in state.motion.items():

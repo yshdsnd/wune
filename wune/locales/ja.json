@@ -126,5 +126,10 @@
   "app.paused": "一時停止",
   "status.applied": "適用しました。正常終了時にも保存します。",
   "error.save": "保存できませんでした。保存先の権限やJSON形式を確認してください。変更はまだプレビュー中です。",
-  "common.ok": "OK"
+  "common.ok": "OK",
+  "exit.title": "Wuneを終了しますか？",
+  "exit.dont_ask": "次回から終了時に確認しない",
+  "exit.cancel": "キャンセル",
+  "exit.confirm": "終了",
+  "exit.confirm_setting": "Q / Escで終了するときに確認する"
 }

@@ -338,7 +338,7 @@ class AppCleanupTests(unittest.TestCase):
             "wune.spectrum_audio": self.backend,
         })
         self.modules.start()
-        for name in ("wune.app", "wune.renderer", "wune.application_menu"):
+        for name in ("wune.app", "wune.renderer", "wune.application_menu", "wune.exit_confirmation"):
             sys.modules.pop(name, None)
         self.app_module = importlib.import_module("wune.app")
         menu_patch = patch.object(self.app_module, "ApplicationMenu")
@@ -357,7 +357,7 @@ class AppCleanupTests(unittest.TestCase):
 
     def tearDown(self):
         self.renderer_patch.stop()
-        for name in ("wune.app", "wune.renderer", "wune.application_menu"):
+        for name in ("wune.app", "wune.renderer", "wune.application_menu", "wune.exit_confirmation"):
             sys.modules.pop(name, None)
         self.modules.stop()
 
@@ -508,6 +508,45 @@ class AppCleanupTests(unittest.TestCase):
         self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (-1000, 100), "BLUE")
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
+
+    def test_escape_leaves_fullscreen_without_requesting_exit(self):
+        self.app._fullscreen = True
+        with patch.object(self.app, "toggle_fullscreen") as toggle:
+            self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_ESCAPE))
+        toggle.assert_called_once()
+        self.assertTrue(self.app.running)
+        self.assertFalse(self.app.exit_confirmation.active)
+        self.app.spectrum.close.assert_not_called()
+
+    def test_keyboard_confirmation_and_window_close_are_separate(self):
+        for key in (self.pg.K_q, self.pg.K_ESCAPE):
+            self.app.exit_confirmation.active = False
+            self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=key))
+            self.assertTrue(self.app.exit_confirmation.active)
+            self.assertTrue(self.app.running)
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.QUIT))
+        self.assertFalse(self.app.running)
+
+    def test_disabled_confirmation_exits_directly(self):
+        self.app.cfg.confirm_keyboard_exit = False
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_q))
+        self.assertFalse(self.app.running)
+        self.assertFalse(self.app.exit_confirmation.active)
+
+    def test_confirmation_keeps_processing_and_persists_after_preview_rollback(self):
+        self.app.exit_confirmation = MagicMock(active=True)
+        self.app.exit_confirmation.handle.side_effect = [None, (True, True)]
+        self.pg.event.get.side_effect = [[types.SimpleNamespace(type=self.pg.KEYDOWN)]] * 2
+        self.app.clock.tick.return_value = 16
+        def rollback():
+            self.app.cfg.confirm_keyboard_exit = True
+        with patch.object(self.app, "cancel_settings", side_effect=rollback), \
+             patch.object(self.app, "save_settings") as save:
+            self.app.run()
+        self.assertFalse(self.app.cfg.confirm_keyboard_exit)
+        save.assert_called_once()
+        self.app.spectrum.step.assert_called_once()
+        self.app.renderer.draw.assert_called_once()
 
     def test_menu_and_shortcuts_dispatch_the_same_commands(self):
         self.pg.K_RETURN, self.pg.K_KP_ENTER, self.pg.KMOD_ALT, self.pg.K_F2 = 1101, 1102, 0x300, 1103
@@ -780,6 +819,7 @@ class AppCleanupTests(unittest.TestCase):
         self.backend.AudioSpectrum.assert_called_once()
 
     def test_close_escape_and_q_remain_effective_after_toggle(self):
+        self.app.cfg.confirm_keyboard_exit = False
         self.app.screen.get_size.return_value = (960, 600)
         self.pg.display.set_mode.return_value.get_size.return_value = (960, 600)
         for event in (types.SimpleNamespace(type=self.pg.QUIT),

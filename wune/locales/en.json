@@ -126,5 +126,10 @@
   "app.paused": "PAUSED",
   "status.applied": "Applied. Settings will also be saved on normal exit.",
   "error.save": "Could not save. Check file permissions and JSON format. Changes are still previews.",
-  "common.ok": "OK"
+  "common.ok": "OK",
+  "exit.title": "Exit Wune?",
+  "exit.dont_ask": "Don't ask again when exiting",
+  "exit.cancel": "Cancel",
+  "exit.confirm": "Exit",
+  "exit.confirm_setting": "Confirm before quitting with Q / Esc"
 }

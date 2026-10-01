@@ -1,7 +1,7 @@
 """Wune: Windows WASAPI loopback with an LED spectrum display.
 
 Menu button/right-click: Settings, fullscreen, Exit.
-ESC/Q: quit, Alt+Enter (also F11): fullscreen, Space: pause, I: input information,
+ESC: leave fullscreen or ask to quit; Q: ask to quit, Alt+Enter (also F11): fullscreen, Space: pause, I: input information,
 T or left-click the preset badge: next visual preset.
 """
 # main.py

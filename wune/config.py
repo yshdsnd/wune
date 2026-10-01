@@ -6,6 +6,7 @@ from .colors import Theme
 # ==========================
 @dataclass
 class Config:
+    confirm_keyboard_exit: bool = True
     language: str = "auto"  # auto or a catalog language code.
     theme: Theme = Theme()
     background_mode: str = "solid"

@@ -52,13 +52,17 @@ Click the main window before using keyboard shortcuts.
 | Space | Pause / resume the display; music playback continues |
 | T, or left-click the theme name at the top right | Switch to the next color theme |
 | I | Show / hide the output information bar |
-| Esc, Q, or the close button | Quit |
+| Esc | Leave fullscreen; otherwise ask to quit |
+| Q | Ask to quit, including in fullscreen |
+| Close button or Menu → Exit | Quit immediately |
 | Drag the window border | Resize the display |
 
 Window dimensions are constrained by a minimum size and aspect-ratio adjustments to preserve LED shapes and spacing.
 Width and height cannot be changed completely independently.
 Pressing F2 in fullscreen mode returns to a normal window.
 While Settings is open, theme changes through T or the theme badge, and information-bar changes through I, are disabled.
+The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → Layout and LEDs → Confirm before quitting with Q / Esc.
+
 Esc or the close button in the Settings window cancels settings changes rather than quitting the application.
 
 ## Settings and customization
