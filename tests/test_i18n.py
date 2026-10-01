@@ -22,10 +22,20 @@ class TranslationTests(unittest.TestCase):
             self.assertEqual(placeholders(en[key]), placeholders(ja[key]), key)
 
     def test_system_language_and_unsupported_locale_fallback(self):
-        for system, expected in (("ja_JP", "ja"), ("en-US", "en"), ("de_DE", "en"), (None, "en")):
+        for system, expected in (("ja_JP", "ja"), ("ja-JP", "ja"), ("en-US", "en"), ("de_DE", "en"), (None, "en")):
             with patch("wune.system_locale.user_locale", return_value=system):
                 self.assertEqual(resolve_language(), expected)
                 self.assertEqual(resolve_language("ja"), "ja")
+
+    def test_macos_system_locale_detection(self):
+        import sys
+        if sys.platform != "darwin":
+            self.skipTest("macOS specific test")
+        from wune.system_locale import user_locale
+        user_locale.cache_clear()
+        detected = user_locale()
+        self.assertIsInstance(detected, str)
+        self.assertGreater(len(detected), 0)
 
     def test_missing_keys_and_bad_translation_fall_back_safely(self):
         english = {"greeting": "Hello {name}"}
