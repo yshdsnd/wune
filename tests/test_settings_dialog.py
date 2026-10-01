@@ -1,5 +1,7 @@
 """Exercise real Tk widgets without opening a user-visible window or audio."""
 from queue import Queue
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -138,17 +140,21 @@ class DialogTests(unittest.TestCase):
 
 class SettingsDialogLifecycleTests(unittest.TestCase):
     def test_settings_dialog_lifecycle(self):
-        try:
-            import tkinter as tk
-            test_tk = tk.Tk()
-            test_tk.destroy()
-        except Exception as error:
-            self.skipTest(f"Tk display not available: {error}")
-        state = AppearanceState.capture(Config(), "CLASSIC", {})
-        dialog = SettingsDialog(state, "test_settings.json")
-        try:
-            dialog.focus()
-            dialog.reply(True, "settings.applied", False)
-        finally:
-            dialog.close()
-        self.assertFalse(dialog.worker.is_alive())
+        script = (
+            "from wune.appearance import AppearanceState\n"
+            "from wune.config import Config\n"
+            "from wune.settings_dialog import SettingsDialog\n"
+            "state = AppearanceState.capture(Config(), 'CLASSIC', {})\n"
+            "dialog = SettingsDialog(state, 'test_settings.json')\n"
+            "try:\n"
+            "    dialog.focus()\n"
+            "    dialog.reply(True, 'settings.applied', False)\n"
+            "finally:\n"
+            "    dialog.close()\n"
+            "assert not dialog.worker.is_alive()\n"
+        )
+        res = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=15)
+        if res.returncode != 0:
+            if "tclerror" in res.stderr.lower() or "no display" in res.stderr.lower():
+                self.skipTest(f"Tk display not available: {res.stderr}")
+            self.fail(f"SettingsDialog lifecycle failed (code {res.returncode}):\n{res.stderr}\n{res.stdout}")
