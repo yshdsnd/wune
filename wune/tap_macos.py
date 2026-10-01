@@ -28,6 +28,8 @@ def _ensure_dylib() -> str | None:
                 "-dynamiclib",
                 "-O3",
                 "-fobjc-arc",
+                "-arch", "arm64",
+                "-arch", "x86_64",
                 "-framework", "Foundation",
                 "-framework", "CoreAudio",
                 src_path,
@@ -68,6 +70,7 @@ class CoreAudioTapBackend:
             ctypes.c_void_p,
             ctypes.c_void_p,
             ctypes.c_uint32,
+            ctypes.c_uint32,
         ]
 
         self._lib.wune_tap_destroy.restype = None
@@ -89,13 +92,19 @@ class CoreAudioTapBackend:
             return np.zeros((numframes, self._channels), dtype=np.float32)
 
         buffer = np.zeros((numframes, self._channels), dtype=np.float32)
-        read_frames = self._lib.wune_tap_read(
-            self._handle,
-            buffer.ctypes.data,
-            ctypes.c_uint32(numframes),
-        )
-        if read_frames < numframes:
-            buffer[read_frames:] = 0.0
+        total_read = 0
+        while total_read < numframes:
+            read = self._lib.wune_tap_read(
+                self._handle,
+                buffer[total_read:].ctypes.data,
+                ctypes.c_uint32(numframes - total_read),
+                ctypes.c_uint32(0),
+            )
+            if read == 0:
+                # Silence or timeout: zero-fill remainder
+                buffer[total_read:] = 0.0
+                break
+            total_read += read
         return buffer
 
     @property

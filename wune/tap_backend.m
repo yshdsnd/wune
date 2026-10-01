@@ -10,6 +10,7 @@
 
 #define RING_BUFFER_FRAMES 65536
 #define CHANNELS 2
+#define MAX_STACK_FRAMES 2048
 
 typedef struct WuneTapContext {
     AudioObjectID tapID;
@@ -28,6 +29,57 @@ typedef struct WuneTapContext {
     bool active;
 } WuneTapContext;
 
+static void ring_write_frames(WuneTapContext *ctx, const float *src, uint32_t frames) {
+    if (!ctx || !src || frames == 0) return;
+
+    if (frames > RING_BUFFER_FRAMES) {
+        src += (frames - RING_BUFFER_FRAMES) * CHANNELS;
+        frames = RING_BUFFER_FRAMES;
+    }
+
+    // Overwrite behavior: if full, advance readIndex to drop oldest frames
+    if (ctx->availableFrames + frames > RING_BUFFER_FRAMES) {
+        uint32_t overflow = (uint32_t)((ctx->availableFrames + frames) - RING_BUFFER_FRAMES);
+        ctx->readIndex = (ctx->readIndex + overflow) % RING_BUFFER_FRAMES;
+        ctx->availableFrames = RING_BUFFER_FRAMES - frames;
+    }
+
+    uint32_t part1 = (uint32_t)(RING_BUFFER_FRAMES - ctx->writeIndex);
+    if (part1 > frames) part1 = frames;
+    uint32_t part2 = frames - part1;
+
+    memcpy(&ctx->ringBuffer[ctx->writeIndex * CHANNELS], src, part1 * CHANNELS * sizeof(float));
+    if (part2 > 0) {
+        memcpy(&ctx->ringBuffer[0], src + (part1 * CHANNELS), part2 * CHANNELS * sizeof(float));
+        ctx->writeIndex = part2;
+    } else {
+        ctx->writeIndex = (ctx->writeIndex + part1) % RING_BUFFER_FRAMES;
+    }
+    ctx->availableFrames += frames;
+}
+
+static uint32_t ring_read_frames(WuneTapContext *ctx, float *dst, uint32_t frames) {
+    if (!ctx || !dst || frames == 0) return 0;
+    if (frames > ctx->availableFrames) {
+        frames = (uint32_t)ctx->availableFrames;
+    }
+    if (frames == 0) return 0;
+
+    uint32_t part1 = (uint32_t)(RING_BUFFER_FRAMES - ctx->readIndex);
+    if (part1 > frames) part1 = frames;
+    uint32_t part2 = frames - part1;
+
+    memcpy(dst, &ctx->ringBuffer[ctx->readIndex * CHANNELS], part1 * CHANNELS * sizeof(float));
+    if (part2 > 0) {
+        memcpy(dst + (part1 * CHANNELS), &ctx->ringBuffer[0], part2 * CHANNELS * sizeof(float));
+        ctx->readIndex = part2;
+    } else {
+        ctx->readIndex = (ctx->readIndex + part1) % RING_BUFFER_FRAMES;
+    }
+    ctx->availableFrames -= frames;
+    return frames;
+}
+
 static OSStatus tapAudioIOProc(
     AudioObjectID inDevice,
     const AudioTimeStamp* inNow,
@@ -39,31 +91,78 @@ static OSStatus tapAudioIOProc(
 {
     WuneTapContext *ctx = (WuneTapContext *)inClientData;
     if (!ctx || !ctx->active) return noErr;
+    if (!inInputData || inInputData->mNumberBuffers == 0) return noErr;
 
-    if (inInputData && inInputData->mNumberBuffers > 0) {
-        const AudioBuffer *buf = &inInputData->mBuffers[0];
-        const float *src = (const float *)buf->mData;
-        uint32_t inFrames = buf->mDataByteSize / (sizeof(float) * buf->mNumberChannels);
+    uint32_t numBuffers = inInputData->mNumberBuffers;
+    const AudioBuffer *b0 = &inInputData->mBuffers[0];
+    if (!b0->mData || b0->mDataByteSize == 0) return noErr;
 
-        pthread_mutex_lock(&ctx->mutex);
-        for (uint32_t i = 0; i < inFrames; i++) {
-            if (ctx->availableFrames < RING_BUFFER_FRAMES) {
-                float left = 0.0f;
-                float right = 0.0f;
-                if (buf->mNumberChannels >= 2) {
-                    left = src[i * buf->mNumberChannels];
-                    right = src[i * buf->mNumberChannels + 1];
-                } else if (buf->mNumberChannels == 1) {
-                    left = right = src[i];
+    if (numBuffers >= 2) {
+        // Non-interleaved buffers: Buffer 0 = Left, Buffer 1 = Right
+        const AudioBuffer *b1 = &inInputData->mBuffers[1];
+        if (!b1->mData || b1->mDataByteSize == 0) return noErr;
+
+        const float *srcL = (const float *)b0->mData;
+        const float *srcR = (const float *)b1->mData;
+        uint32_t framesL = b0->mDataByteSize / (sizeof(float) * (b0->mNumberChannels > 0 ? b0->mNumberChannels : 1));
+        uint32_t framesR = b1->mDataByteSize / (sizeof(float) * (b1->mNumberChannels > 0 ? b1->mNumberChannels : 1));
+        uint32_t inFrames = framesL < framesR ? framesL : framesR;
+
+        uint32_t offset = 0;
+        while (offset < inFrames) {
+            uint32_t chunk = inFrames - offset;
+            if (chunk > MAX_STACK_FRAMES) chunk = MAX_STACK_FRAMES;
+
+            float temp[MAX_STACK_FRAMES * CHANNELS];
+            for (uint32_t i = 0; i < chunk; i++) {
+                temp[i * CHANNELS] = srcL[offset + i];
+                temp[i * CHANNELS + 1] = srcR[offset + i];
+            }
+
+            pthread_mutex_lock(&ctx->mutex);
+            ring_write_frames(ctx, temp, chunk);
+            pthread_cond_signal(&ctx->cond);
+            pthread_mutex_unlock(&ctx->mutex);
+
+            offset += chunk;
+        }
+    } else {
+        // Single buffer: Interleaved stereo (or mono / multichannel)
+        const float *src = (const float *)b0->mData;
+        uint32_t ch = b0->mNumberChannels > 0 ? b0->mNumberChannels : 1;
+        uint32_t inFrames = b0->mDataByteSize / (sizeof(float) * ch);
+
+        if (ch == CHANNELS) {
+            // Standard interleaved stereo: direct fast bulk write
+            pthread_mutex_lock(&ctx->mutex);
+            ring_write_frames(ctx, src, inFrames);
+            pthread_cond_signal(&ctx->cond);
+            pthread_mutex_unlock(&ctx->mutex);
+        } else {
+            // Mono or multichannel: interleave into temp buffer
+            uint32_t offset = 0;
+            while (offset < inFrames) {
+                uint32_t chunk = inFrames - offset;
+                if (chunk > MAX_STACK_FRAMES) chunk = MAX_STACK_FRAMES;
+
+                float temp[MAX_STACK_FRAMES * CHANNELS];
+                for (uint32_t i = 0; i < chunk; i++) {
+                    if (ch >= 2) {
+                        temp[i * CHANNELS] = src[(offset + i) * ch];
+                        temp[i * CHANNELS + 1] = src[(offset + i) * ch + 1];
+                    } else {
+                        temp[i * CHANNELS] = temp[i * CHANNELS + 1] = src[offset + i];
+                    }
                 }
-                ctx->ringBuffer[ctx->writeIndex * CHANNELS] = left;
-                ctx->ringBuffer[ctx->writeIndex * CHANNELS + 1] = right;
-                ctx->writeIndex = (ctx->writeIndex + 1) % RING_BUFFER_FRAMES;
-                ctx->availableFrames++;
+
+                pthread_mutex_lock(&ctx->mutex);
+                ring_write_frames(ctx, temp, chunk);
+                pthread_cond_signal(&ctx->cond);
+                pthread_mutex_unlock(&ctx->mutex);
+
+                offset += chunk;
             }
         }
-        pthread_cond_signal(&ctx->cond);
-        pthread_mutex_unlock(&ctx->mutex);
     }
     return noErr;
 }
@@ -183,17 +282,19 @@ WuneTapContext* wune_tap_create(uint32_t* out_sample_rate, uint32_t* out_channel
     }
 }
 
-uint32_t wune_tap_read(WuneTapContext* ctx, float* buffer, uint32_t num_frames) {
+uint32_t wune_tap_read(WuneTapContext* ctx, float* buffer, uint32_t num_frames, uint32_t timeout_ms) {
     if (!ctx || !buffer || num_frames == 0) return 0;
+
+    if (timeout_ms == 0) {
+        uint32_t sr = ctx->sampleRate ? ctx->sampleRate : 48000;
+        timeout_ms = (uint32_t)((uint64_t)num_frames * 1500 / sr) + 50;
+    }
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    // 50ms timeout
-    ts.tv_nsec += 50000000;
-    if (ts.tv_nsec >= 1000000000) {
-        ts.tv_sec += 1;
-        ts.tv_nsec -= 1000000000;
-    }
+    uint64_t nsec = (uint64_t)ts.tv_nsec + ((uint64_t)timeout_ms * 1000000ULL);
+    ts.tv_sec += nsec / 1000000000ULL;
+    ts.tv_nsec = nsec % 1000000000ULL;
 
     pthread_mutex_lock(&ctx->mutex);
     while (ctx->availableFrames < num_frames && ctx->active) {
@@ -201,20 +302,10 @@ uint32_t wune_tap_read(WuneTapContext* ctx, float* buffer, uint32_t num_frames) 
         if (r != 0) break; // timeout
     }
 
-    uint32_t framesToRead = (uint32_t)(ctx->availableFrames < num_frames ? ctx->availableFrames : num_frames);
-    for (uint32_t i = 0; i < framesToRead; i++) {
-        buffer[i * CHANNELS] = ctx->ringBuffer[ctx->readIndex * CHANNELS];
-        buffer[i * CHANNELS + 1] = ctx->ringBuffer[ctx->readIndex * CHANNELS + 1];
-        ctx->readIndex = (ctx->readIndex + 1) % RING_BUFFER_FRAMES;
-    }
-    ctx->availableFrames -= framesToRead;
+    uint32_t framesRead = ring_read_frames(ctx, buffer, num_frames);
     pthread_mutex_unlock(&ctx->mutex);
 
-    // If frames were missing due to timeout (silence), fill remainder with zero
-    if (framesToRead < num_frames) {
-        memset(buffer + (framesToRead * CHANNELS), 0, (num_frames - framesToRead) * CHANNELS * sizeof(float));
-    }
-    return num_frames;
+    return framesRead;
 }
 
 void wune_tap_destroy(WuneTapContext* ctx) {

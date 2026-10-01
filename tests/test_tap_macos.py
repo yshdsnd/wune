@@ -47,22 +47,65 @@ class MacOsTapTests(unittest.TestCase):
             self.assertEqual(backend.device_name, "System Audio (Core Audio Tap)")
 
     def test_open_macos_capture_backend_falls_back_when_tap_fails(self):
-        """When CoreAudioTapBackend raises an error, falls back to SoundCard loopback/mic."""
-        mock_soundcard_backend = MagicMock()
-        mock_soundcard_backend.device_name = "BlackHole 2ch"
+        """When CoreAudioTapBackend raises an error, falls back to virtual loopback if available."""
+        blackhole_mic = MagicMock()
+        blackhole_mic.name = "BlackHole 2ch"
+        blackhole_mic.samplerate = 48000
+        blackhole_mic.channels = 2
 
         with patch("wune.tap_macos.CoreAudioTapBackend", side_effect=RuntimeError("tap unavailable")), \
+             patch("soundcard.all_microphones", return_value=[blackhole_mic]), \
              patch("wune.capture_macos.open_macos_capture") as mock_open:
             mock_stream = MagicMock()
             mock_open.return_value = (mock_stream, "BlackHole 2ch", 2)
-            speaker = MagicMock()
-            speaker.samplerate = 48000
+            cfg = Config(output_device=None)
+            backend = open_macos_capture_backend(cfg, blocksize=4096)
+            self.assertEqual(backend.device_name, "BlackHole 2ch")
+            self.assertEqual(backend.channels, 2)
 
-            with patch("wune.capture_macos.select_macos_output", return_value=speaker):
-                cfg = Config(output_device=None)
-                backend = open_macos_capture_backend(cfg, blocksize=4096)
-                self.assertEqual(backend.device_name, "BlackHole 2ch")
-                self.assertEqual(backend.channels, 2)
+    def test_open_macos_capture_backend_refuses_silent_microphone_fallback(self):
+        """Review P1: Never silently fall back to physical microphone when system audio tap fails."""
+        internal_mic = MagicMock()
+        internal_mic.name = "MacBook Pro Microphone"
+        internal_mic.channels = 1
+
+        with patch("wune.tap_macos.CoreAudioTapBackend", side_effect=RuntimeError("permission denied")), \
+             patch("soundcard.all_microphones", return_value=[internal_mic]):
+            cfg = Config(output_device=None)
+            with self.assertRaisesRegex(RuntimeError, "System audio capture failed: permission denied"):
+                open_macos_capture_backend(cfg, blocksize=4096)
+
+    def test_core_audio_tap_backend_accumulates_until_complete_block(self):
+        """Review P1: Backend accumulates chunks until requested numframes is reached."""
+        from wune.tap_macos import CoreAudioTapBackend
+        backend = CoreAudioTapBackend.__new__(CoreAudioTapBackend)
+        backend._closed = False
+        backend._channels = 2
+        backend._handle = 12345
+        backend._lib = MagicMock()
+
+        # Simulate wune_tap_read returning 2400 frames first, then remaining 1696 frames
+        backend._lib.wune_tap_read.side_effect = [2400, 1696]
+
+        data = backend.record(4096)
+        self.assertEqual(data.shape, (4096, 2))
+        self.assertEqual(backend._lib.wune_tap_read.call_count, 2)
+
+    def test_core_audio_tap_backend_silence_timeout_zero_fills(self):
+        """Review P1: Zero-fill when wune_tap_read times out with 0 frames."""
+        from wune.tap_macos import CoreAudioTapBackend
+        backend = CoreAudioTapBackend.__new__(CoreAudioTapBackend)
+        backend._closed = False
+        backend._channels = 2
+        backend._handle = 12345
+        backend._lib = MagicMock()
+
+        # Simulate timeout returning 0 frames
+        backend._lib.wune_tap_read.return_value = 0
+
+        data = backend.record(4096)
+        self.assertEqual(data.shape, (4096, 2))
+        self.assertTrue((data == 0).all())
 
     def test_renderer_status_text_renders_japanese_device_names(self):
         """Verify Japanese text in status area renders successfully without glyph failure."""
