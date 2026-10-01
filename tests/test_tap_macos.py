@@ -40,7 +40,8 @@ class MacOsTapTests(unittest.TestCase):
         mock_backend.sample_rate = 48000
         mock_backend.channels = 2
 
-        with patch("wune.tap_macos.CoreAudioTapBackend", return_value=mock_backend):
+        with patch("wune.capture_macos.is_macos_tap_supported", return_value=True), \
+             patch("wune.tap_macos.CoreAudioTapBackend", return_value=mock_backend):
             cfg = Config(output_device=None)
             backend = open_macos_capture_backend(cfg, blocksize=4096)
             self.assertEqual(backend, mock_backend)
@@ -53,7 +54,8 @@ class MacOsTapTests(unittest.TestCase):
         blackhole_mic.samplerate = 48000
         blackhole_mic.channels = 2
 
-        with patch("wune.tap_macos.CoreAudioTapBackend", side_effect=RuntimeError("tap unavailable")), \
+        with patch("wune.capture_macos.is_macos_tap_supported", return_value=True), \
+             patch("wune.tap_macos.CoreAudioTapBackend", side_effect=RuntimeError("tap unavailable")), \
              patch("soundcard.all_microphones", return_value=[blackhole_mic]), \
              patch("wune.capture_macos.open_macos_capture") as mock_open:
             mock_stream = MagicMock()
@@ -69,10 +71,22 @@ class MacOsTapTests(unittest.TestCase):
         internal_mic.name = "MacBook Pro Microphone"
         internal_mic.channels = 1
 
-        with patch("wune.tap_macos.CoreAudioTapBackend", side_effect=RuntimeError("permission denied")), \
+        with patch("wune.capture_macos.is_macos_tap_supported", return_value=True), \
+             patch("wune.tap_macos.CoreAudioTapBackend", side_effect=RuntimeError("permission denied")), \
              patch("soundcard.all_microphones", return_value=[internal_mic]):
             cfg = Config(output_device=None)
             with self.assertRaisesRegex(RuntimeError, "System audio capture failed: permission denied"):
+                open_macos_capture_backend(cfg, blocksize=4096)
+
+    def test_open_macos_capture_backend_unsupported_on_old_macos(self):
+        """When macOS < 14.2, tap is unsupported; falls back to virtual loopback or raises clear error."""
+        internal_mic = MagicMock()
+        internal_mic.name = "MacBook Pro Microphone"
+
+        with patch("wune.capture_macos.is_macos_tap_supported", return_value=False), \
+             patch("soundcard.all_microphones", return_value=[internal_mic]):
+            cfg = Config(output_device=None)
+            with self.assertRaisesRegex(RuntimeError, "Driverless system audio capture requires macOS 14.2+"):
                 open_macos_capture_backend(cfg, blocksize=4096)
 
     def test_core_audio_tap_backend_accumulates_until_complete_block(self):
