@@ -78,8 +78,17 @@ class SoundCardCaptureBackend:
 
 def open_macos_capture_backend(
     cfg: Config, blocksize: int | None = None
-) -> SoundCardCaptureBackend:
-    """Open macOS capture backend using ScreenCaptureKit or CoreAudio/soundcard."""
+) -> Any:
+    """Open macOS capture backend using Core Audio Process Tap (preferred) or SoundCard fallback."""
+    # If user did not request an explicit device, prefer driverless native system-audio tap
+    if cfg.output_device is None:
+        try:
+            from .tap_macos import CoreAudioTapBackend
+
+            return CoreAudioTapBackend(cfg, blocksize=blocksize)
+        except Exception:
+            pass
+
     endpoint = select_macos_output(cfg)
     requested_rate = cfg.sample_rate
     if requested_rate is None:

@@ -42,12 +42,15 @@ class LedBarRenderer:
         # SysFont picks one installed font; it does not fill missing glyphs
         # from other fonts. Prefer Japanese-capable fonts for endpoint names.
         self.font_small = pg.font.SysFont(
+            "Hiragino Sans GB,hiraginosansgb,ヒラキノ角コシックw3,arialunicode,AppleGothic,"
             "Hiragino Sans,Hiragino Kaku Gothic ProN,Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
             "Noto Sans CJK JP,Noto Sans JP,Segoe UI,Helvetica Neue,Arial", 15
         )
         self.font_badge = pg.font.SysFont("Bahnschrift,SF Pro Display,Helvetica Neue,Arial", 18, bold=True)
         self.font_badge_user = pg.font.SysFont(
-            "Hiragino Sans,Hiragino Kaku Gothic ProN,Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,Helvetica Neue,Arial",
+            "Hiragino Sans GB,hiraginosansgb,ヒラキノ角コシックw3,arialunicode,AppleGothic,"
+            "Hiragino Sans,Hiragino Kaku Gothic ProN,Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
+            "Noto Sans CJK JP,Noto Sans JP,Segoe UI,Helvetica Neue,Arial",
             18, bold=True
         )
         self.font_scale = pg.font.SysFont("Consolas,SF Mono,Menlo,Monaco,Segoe UI,Courier,monospace", 12)
