@@ -76,10 +76,102 @@ class SoundCardCaptureBackend:
         self._exit_stack.close()
 
 
+def is_macos_tap_supported() -> bool:
+    """Return True if running macOS 14.2+ where Core Audio Process Tap is supported."""
+    if sys.platform != "darwin":
+        return False
+    import platform
+
+    ver_str = platform.mac_ver()[0]
+    if not ver_str:
+        return False
+    parts = []
+    for x in ver_str.split("."):
+        try:
+            parts.append(int(x))
+        except ValueError:
+            break
+    return tuple(parts[:2]) >= (14, 2)
+
+
+def _find_virtual_loopback_microphone() -> Any | None:
+    """Search for virtual loopback audio devices (e.g. BlackHole, Soundflower)."""
+    import soundcard as sc
+
+    try:
+        mics = sc.all_microphones()
+    except Exception:
+        mics = []
+    for m in mics:
+        name_lower = getattr(m, "name", "").lower()
+        if any(k in name_lower for k in ("blackhole", "loopback", "soundflower")):
+            return m
+    return None
+
+
+def _open_macos_virtual_loopback(
+    cfg: Config,
+    loopback_mic: Any,
+    blocksize: int | None,
+) -> Any:
+    """Open SoundCard capture backend targeting an identified virtual loopback device."""
+    requested_rate = cfg.sample_rate or getattr(loopback_mic, "samplerate", 48000)
+    samplerate = int(requested_rate)
+    stack = ExitStack()
+    stream, device_name, channels_eff = open_macos_capture(
+        endpoint=loopback_mic,
+        samplerate=samplerate,
+        blocksize=blocksize,
+        exit_stack=stack,
+    )
+    return SoundCardCaptureBackend(
+        stream=stream,
+        device_name=device_name,
+        channels=channels_eff,
+        sample_rate=samplerate,
+        exit_stack=stack,
+    )
+
+
 def open_macos_capture_backend(
     cfg: Config, blocksize: int | None = None
-) -> SoundCardCaptureBackend:
-    """Open macOS capture backend using ScreenCaptureKit or CoreAudio/soundcard."""
+) -> Any:
+    """Open macOS capture backend using Core Audio Process Tap (preferred) or virtual loopback fallback.
+
+    If system playback capture is requested (output_device is None), does NOT silently fall back
+    to physical microphone capture when tap fails or is unsupported.
+    """
+    import warnings
+
+    # If user did not request an explicit device, prefer driverless native system-audio tap
+    if cfg.output_device is None:
+        if is_macos_tap_supported():
+            try:
+                from .tap_macos import CoreAudioTapBackend
+
+                return CoreAudioTapBackend(cfg, blocksize=blocksize)
+            except Exception as error:
+                warnings.warn(
+                    f"Core Audio system audio tap failed: {error}. Checking for virtual loopback fallback...",
+                    RuntimeWarning,
+                )
+                loopback = _find_virtual_loopback_microphone()
+                if loopback is not None:
+                    return _open_macos_virtual_loopback(cfg, loopback, blocksize)
+                raise RuntimeError(
+                    f"System audio capture failed: {error}. "
+                    "Install BlackHole for virtual loopback, or specify --device to capture from a microphone."
+                ) from error
+        else:
+            # macOS < 14.2: tap is unsupported by the OS
+            loopback = _find_virtual_loopback_microphone()
+            if loopback is not None:
+                return _open_macos_virtual_loopback(cfg, loopback, blocksize)
+            raise RuntimeError(
+                "Driverless system audio capture requires macOS 14.2+. "
+                "Install BlackHole for virtual loopback, or specify --device to capture from a microphone."
+            )
+
     endpoint = select_macos_output(cfg)
     requested_rate = cfg.sample_rate
     if requested_rate is None:
