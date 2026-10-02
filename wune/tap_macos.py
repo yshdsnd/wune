@@ -14,10 +14,26 @@ if TYPE_CHECKING:
 
 def _ensure_dylib() -> str | None:
     """Locate or compile libwune_tap.dylib."""
+    candidates = []
     dir_path = os.path.dirname(os.path.abspath(__file__))
-    dylib_path = os.path.join(dir_path, "libwune_tap.dylib")
-    if os.path.exists(dylib_path):
-        return dylib_path
+    candidates.append(os.path.join(dir_path, "libwune_tap.dylib"))
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", "")
+        if meipass:
+            candidates.append(os.path.join(meipass, "wune", "libwune_tap.dylib"))
+            candidates.append(os.path.join(meipass, "libwune_tap.dylib"))
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        candidates.append(os.path.join(exe_dir, "libwune_tap.dylib"))
+        candidates.append(os.path.join(exe_dir, "wune", "libwune_tap.dylib"))
+        candidates.append(os.path.join(exe_dir, "_internal", "wune", "libwune_tap.dylib"))
+        candidates.append(os.path.join(exe_dir, "_internal", "libwune_tap.dylib"))
+        candidates.append(os.path.join(exe_dir, "..", "Frameworks", "libwune_tap.dylib"))
+        candidates.append(os.path.join(exe_dir, "..", "Resources", "wune", "libwune_tap.dylib"))
+        candidates.append(os.path.join(exe_dir, "..", "Resources", "libwune_tap.dylib"))
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
 
     # Attempt to build from tap_backend.m if clang is available
     src_path = os.path.join(dir_path, "tap_backend.m")

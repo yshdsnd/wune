@@ -33,6 +33,46 @@ MOTION_LABELS = {
 COLOR_LABELS = {key: "color." + key for key in COLOR_FIELDS}
 
 
+def _bring_to_front(root):
+    if root is None:
+        return
+    if sys.platform == "darwin":
+        try:
+            import ctypes
+            app_services = ctypes.cdll.LoadLibrary(
+                "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
+            )
+
+            class ProcessSerialNumber(ctypes.Structure):
+                _fields_ = [
+                    ("highLongOfPSN", ctypes.c_uint32),
+                    ("lowLongOfPSN", ctypes.c_uint32),
+                ]
+
+            psn = ProcessSerialNumber(0, 2)
+            app_services.SetFrontProcessWithOptions(ctypes.byref(psn), 1)
+        except Exception:
+            pass
+    try:
+        if root.state() != "withdrawn":
+            root.deiconify()
+            root.lift()
+            root.attributes("-topmost", True)
+            root.after(150, lambda: _safe_unset_topmost(root))
+            root.focus_force()
+    except Exception:
+        pass
+
+
+def _safe_unset_topmost(root):
+    try:
+        if root.winfo_exists():
+            root.attributes("-topmost", False)
+            root.lift()
+    except Exception:
+        pass
+
+
 def _run_dialog(state, path, events, commands):
     root = dialog = None
     try:
@@ -262,6 +302,7 @@ class _Dialog:
         self.refresh()
         root.update_idletasks()
         root.minsize(max(570, root.winfo_reqwidth()), max(560, root.winfo_reqheight()))
+        _bring_to_front(root)
         root.after(30, self.poll)
 
     def refresh(self):
@@ -443,8 +484,7 @@ class _Dialog:
                     self.root.destroy()
                     return
                 if action == "focus":
-                    self.root.deiconify()
-                    self.root.lift()
+                    _bring_to_front(self.root)
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:
