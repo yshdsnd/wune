@@ -18,9 +18,10 @@ def launch():
     try:
         from wune.build_identity import application_identity
         print(application_identity())
-        if len(sys.argv) == 3 and sys.argv[1] == "--package-smoke-test":
+        if "--package-smoke-test" in sys.argv:
+            idx = sys.argv.index("--package-smoke-test")
             from wune.package_smoke import run
-            run(Path(sys.argv[2]))
+            run(Path(sys.argv[idx + 1]))
         else:
             from main import main
             main()
@@ -30,10 +31,18 @@ def launch():
         stream.flush()
         if "--package-smoke-test" not in sys.argv:
             # Also works if pygame/Tk failed before the application opened.
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(
-                None, f"Wune could not start. / Wuneを起動できませんでした。\n\n{log}\n\n{traceback.format_exc()}",
-                "Wune", 0x10)
+            if sys.platform == "win32":
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    None, f"Wune could not start. / Wuneを起動できませんでした。\n\n{log}\n\n{traceback.format_exc()}",
+                    "Wune", 0x10)
+            elif sys.platform == "darwin":
+                try:
+                    import subprocess
+                    msg = f"Wune could not start. / Wuneを起動できませんでした。\n\n{log}"
+                    subprocess.run(["osascript", "-e", f'display dialog "{msg}" with title "Wune" buttons {{"OK"}} default button "OK" with icon stop'], timeout=5)
+                except Exception:
+                    pass
         return 1
     finally:
         stream.flush()

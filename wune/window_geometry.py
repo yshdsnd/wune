@@ -32,6 +32,42 @@ def work_areas():
         if user32.EnumDisplayMonitors(None, None, visit, 0) and found:
             return [rect for primary, rect in sorted(found, key=lambda item: not item[0])]
         warnings.warn("Monitor detection failed; using the primary desktop size", RuntimeWarning)
+    elif sys.platform == "darwin":
+        try:
+            import ctypes as ct
+            from ctypes import c_uint32, c_double, Structure, POINTER
+
+            class CGPoint(Structure):
+                _fields_ = [("x", c_double), ("y", c_double)]
+
+            class CGSize(Structure):
+                _fields_ = [("width", c_double), ("height", c_double)]
+
+            class CGRect(Structure):
+                _fields_ = [("origin", CGPoint), ("size", CGSize)]
+
+            cg = ct.cdll.LoadLibrary("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
+            cg.CGGetActiveDisplayList.restype = c_uint32
+            cg.CGGetActiveDisplayList.argtypes = [c_uint32, POINTER(c_uint32), POINTER(c_uint32)]
+            cg.CGDisplayBounds.restype = CGRect
+            cg.CGDisplayBounds.argtypes = [c_uint32]
+            cg.CGMainDisplayID.restype = c_uint32
+
+            main_id = cg.CGMainDisplayID()
+            max_displays = 16
+            displays = (c_uint32 * max_displays)()
+            count = c_uint32(0)
+            if cg.CGGetActiveDisplayList(max_displays, displays, ct.byref(count)) == 0 and count.value > 0:
+                areas = []
+                for i in range(count.value):
+                    d_id = displays[i]
+                    bounds = cg.CGDisplayBounds(d_id)
+                    rect = (int(bounds.origin.x), int(bounds.origin.y),
+                            int(bounds.size.width), int(bounds.size.height))
+                    areas.append((d_id == main_id, rect))
+                return [rect for is_main, rect in sorted(areas, key=lambda item: not item[0])]
+        except Exception as error:
+            warnings.warn(f"Monitor detection failed ({error}); using the primary desktop size", RuntimeWarning)
     import pygame as pg
     width, height = pg.display.get_desktop_sizes()[0]
     return [(0, 0, width, height)]
