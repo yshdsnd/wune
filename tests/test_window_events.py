@@ -20,6 +20,7 @@ class WindowEventLifetimeTests(unittest.TestCase):
             app._icon = pygame_icon()
             app.settings_store = object()
             app._display_window = None
+            app._settings_window = None
             app._windowed_position = None
             try:
                 app._set_mode((800, 600), pg.RESIZABLE)
