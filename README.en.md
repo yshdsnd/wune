@@ -87,7 +87,9 @@ Editing a built-in theme creates a user copy, preserving the original colors.
 | Reset display | Preview the default display settings and colors; preserve language, motion settings, and the user theme list |
 | Reset motion only | Preview defaults for the four settings on the Motion tab only |
 
-On exit, Wune saves the window size and position and the confirmed display, theme, and motion settings, then restores them at the next launch.
+On exit, Wune saves the normal-window size and position and the confirmed display, theme, and motion settings, then restores them at the next launch.
+
+If Wune exits in fullscreen, it starts fullscreen on the same monitor only when its Windows monitor identity is uniquely found again. If the monitor is missing, ambiguous, or cannot be identified, Wune starts windowed. Port or driver changes can also change the identity and cause a windowed fallback. Leaving fullscreen restores the saved normal-window position and size.
 If you quit with Settings still open, unapplied previews are not saved.
 
 ### Switch between English and Japanese
@@ -107,7 +109,7 @@ Paste the following into the File Explorer address bar:
 
 | File | Contents |
 | --- | --- |
-| settings.json | Display settings, user themes, and the normal window's position and size |
+| settings.json | Display settings, user themes, normal-window geometry, and fullscreen monitor identity |
 | Wune.log | Startup and runtime log for the packaged EXE; overwritten at each launch |
 
 The Settings window also shows the save path at the bottom. To back up your settings, close Wune and copy settings.json.

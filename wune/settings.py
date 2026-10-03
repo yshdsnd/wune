@@ -102,6 +102,10 @@ class SettingsStore:
             bounds = (64, 16384) if key in ("width", "height") else (-131072, 131072)
             if key in ("width", "height", "x", "y") and integer(value, *bounds):
                 geometry[key] = value
+        from .monitor_identity import valid_identity
+        window = document.get("window", {})
+        if window.get("fullscreen") is True and valid_identity(window.get("fullscreen_monitor")):
+            geometry.update(fullscreen=True, fullscreen_monitor=window["fullscreen_monitor"])
         # A named theme supplies colors only; v1 bundled style is migrated once.
         if cfg.initial_preset is not None:
             preset = self.user_presets[cfg.initial_preset] if cfg.initial_preset in self.user_presets else get_preset(cfg.initial_preset)
@@ -124,7 +128,7 @@ class SettingsStore:
                 warnings.warn(f"Ignoring custom colors: {error}", RuntimeWarning)
         return cfg, geometry
 
-    def save(self, cfg, size, position, preset_name):
+    def save(self, cfg, size, position, preset_name, *, fullscreen=False, fullscreen_monitor=None):
         if not self.writable:
             return False
         document = deepcopy(self._document)
@@ -138,6 +142,10 @@ class SettingsStore:
         document["user_themes"] = {name: encode_preset(preset) for name, preset in self.user_presets.items()}
         document.setdefault("window", {}).update(width=int(size[0]), height=int(size[1]),
                                                   x=int(position[0]), y=int(position[1]))
+        from .monitor_identity import valid_identity
+        document["window"].update(
+            fullscreen=fullscreen is True,
+            fullscreen_monitor=fullscreen_monitor if fullscreen is True and valid_identity(fullscreen_monitor) else None)
         temporary = None
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
