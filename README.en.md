@@ -59,7 +59,7 @@ Click the main window before using keyboard shortcuts.
 
 Window dimensions are constrained by a minimum size and aspect-ratio adjustments to preserve LED shapes and spacing.
 Width and height cannot be changed completely independently.
-Pressing F2 in fullscreen mode returns to a normal window.
+F2 or the menu opens Settings above the main window while keeping fullscreen active. Preview, save, and cancel changes without leaving fullscreen.
 While Settings is open, theme changes through T or the theme badge, and information-bar changes through I, are disabled.
 The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → Layout and LEDs → Confirm before quitting with Q / Esc.
 
