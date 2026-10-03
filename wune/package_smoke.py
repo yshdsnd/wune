@@ -75,7 +75,14 @@ def run(report):
             dialog = _Dialog(root, AppearanceDraft(AppearanceState.capture(cfg, "CLASSIC", {})),
                              str(settings_path()), Queue(), Queue())
             root.update_idletasks()
-            dialog.style("led_shape", "ellipse")
+            from .settings_window import SettingsWindow
+            native = SettingsWindow(root.winfo_id())
+            try:
+                native.bind(pg.display.get_wm_info().get("window"))
+                native.position(pg.display.get_wm_info().get("window"))
+                dialog.style("led_shape", "ellipse")
+            finally:
+                native.detach()
         finally:
             root.destroy()
     store = SettingsStore()

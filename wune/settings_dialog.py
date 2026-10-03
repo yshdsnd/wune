@@ -43,7 +43,10 @@ class SettingsDialog:
         try:
             import tkinter as tk
             root = tk.Tk()
+            root.withdraw()
             dialog = _Dialog(root, AppearanceDraft(state), path, self.events, self.commands)
+            root.update_idletasks()
+            self.events.put(("ready", root.winfo_id()))
             root.mainloop()
         except Exception as error:
             self.events.put(("error", str(error)))
@@ -442,6 +445,7 @@ class _Dialog:
                 if action == "focus":
                     self.root.deiconify()
                     self.root.lift()
+                    self.root.focus_force()
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:

@@ -743,6 +743,60 @@ class AppCleanupTests(unittest.TestCase):
         self.app.save_settings.assert_called_once()
         dialog.close.assert_called_once()
 
+    def test_open_settings_keeps_fullscreen_and_windowed_geometry(self):
+        self.app._fullscreen = True
+        self.app._windowed_size = (960, 600)
+        self.app.screen.get_size.return_value = (1920, 1080)
+        self.app.renderer.preset_name = "CLASSIC"
+        self.app.renderer.user_presets = {}
+        with patch("wune.settings_dialog.SettingsDialog") as dialog, \
+             patch.object(self.app, "toggle_fullscreen") as toggle:
+            self.app.open_settings()
+        toggle.assert_not_called()
+        self.assertTrue(self.app._fullscreen)
+        self.assertEqual(self.app._appearance_size, (960, 600))
+        dialog.assert_called_once()
+        self.app.spectrum.close.assert_not_called()
+
+    def test_settings_ready_attaches_before_showing(self):
+        self.prepare_settings_session()
+        self.pg.display.get_wm_info.return_value = {"window": 456}
+        self.app.settings_dialog.events.put(("ready", 123))
+        with patch("wune.settings_window.SettingsWindow") as native:
+            self.app.poll_settings()
+            native.assert_called_once_with(123)
+            native.return_value.bind.assert_called_once_with(456)
+            native.return_value.position.assert_called_once_with(456)
+        self.app.settings_dialog.focus.assert_called_once()
+
+    def test_display_recreation_detaches_and_rebinds_settings(self):
+        native = self.app._settings_window = MagicMock()
+        calls = []
+        native.detach.side_effect = lambda: calls.append("detach")
+        self.pg.display.set_mode.side_effect = lambda *args: calls.append("mode") or self.app.screen
+        self.pg.display.get_wm_info.return_value = {"window": 789}
+        native.bind.side_effect = lambda hwnd: calls.append(("bind", hwnd))
+        self.app._set_mode((960, 600), self.pg.RESIZABLE)
+        self.assertEqual(calls, ["detach", "mode", ("bind", 789)])
+
+    def test_fullscreen_settings_preview_apply_cancel_do_not_change_display_mode(self):
+        draft = self.prepare_settings_session()
+        self.app._fullscreen = True
+        self.app._windowed_size = (960, 600)
+        self.app._appearance_size = (960, 600)
+        self.app.screen.get_size.return_value = (1920, 1080)
+        with patch.object(self.app, "_set_mode") as mode:
+            self.app.settings_dialog.events.put(("preview", draft.snapshot()))
+            self.app.settings_dialog.events.put(("apply", draft.snapshot()))
+            self.app.settings_dialog.events.put(("cancel", None))
+            self.app.poll_settings()
+        self.assertTrue(self.app._fullscreen)
+        self.assertEqual(self.app._windowed_size, (960, 600))
+        self.assertEqual(self.app._appearance_size, (960, 600))
+        mode.assert_not_called()
+        self.app.spectrum.close.assert_not_called()
+        self.backend.AudioSpectrum.assert_called_once()
+
     def test_duplicate_open_focuses_existing_settings_window(self):
         self.prepare_settings_session()
         self.app.open_settings()

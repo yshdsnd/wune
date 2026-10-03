@@ -31,6 +31,7 @@ class App:
         self._requested_max_freq_hz = cfg.max_freq_hz
         self.settings_store = settings_store
         self.settings_dialog = None
+        self._settings_window = None
         self._appearance_baseline = None
         self._settings_closing = False
         self._display_window = None
@@ -62,7 +63,14 @@ class App:
 
     def _set_mode(self, size, flags):
         pg.display.set_icon(self._icon)
-        self.screen = pg.display.set_mode(size, flags)
+        # Detach before SDL can replace/destroy its HWND (which destroys owned windows).
+        if self._settings_window is not None:
+            self._settings_window.detach()
+        try:
+            self.screen = pg.display.set_mode(size, flags)
+        finally:
+            if self._settings_window is not None:
+                self._settings_window.bind(pg.display.get_wm_info().get("window"))
         if self._display_window is not None:
             # set_mode may replace the SDL window. Bind the new wrapper before
             # releasing the old one; queued events may still reference it.
@@ -124,11 +132,9 @@ class App:
         from .appearance import AppearanceState
         from .settings_dialog import SettingsDialog
         from .settings import settings_path
-        if self._fullscreen:
-            self.toggle_fullscreen()
         state = AppearanceState.capture(self.cfg, self.renderer.preset_name, self.renderer.user_presets)
         self._appearance_baseline = state
-        self._appearance_size = self.screen.get_size()
+        self._appearance_size = self._windowed_size if self._fullscreen else self.screen.get_size()
         self._settings_closing = False
         path = self.settings_store.path if self.settings_store is not None else settings_path()
         self.settings_dialog = SettingsDialog(state, path)
@@ -173,9 +179,21 @@ class App:
         try:
             while True:
                 action, state = dialog.events.get_nowait()
+                if action == "ready":
+                    from .settings_window import SettingsWindow
+                    try:
+                        self._settings_window = SettingsWindow(state)
+                        owner = pg.display.get_wm_info().get("window")
+                        self._settings_window.bind(owner)
+                        self._settings_window.position(owner)
+                    except OSError as error:
+                        warnings.warn(f"Cannot attach settings window: {error}", RuntimeWarning)
+                    dialog.focus()
+                    continue
                 if action == "closed":
                     self.cancel_settings()
                     self.settings_dialog = None
+                    self._settings_window = None
                     return
                 if action == "error":
                     warnings.warn(f"Cannot open settings: {state}", RuntimeWarning)
@@ -194,7 +212,7 @@ class App:
                         dialog.reply(False, "error.save")
                         continue
                     self._appearance_baseline = deepcopy(state)
-                    self._appearance_size = self.screen.get_size()
+                    self._appearance_size = self._windowed_size if self._fullscreen else self.screen.get_size()
                     if action == "save":
                         self._appearance_baseline = None
                         self._settings_closing = True
@@ -316,6 +334,8 @@ class App:
                 self.cfg.confirm_keyboard_exit = False
             self.save_settings()
         finally:
+            if self._settings_window is not None:
+                self._settings_window.detach()
             if self.settings_dialog is not None:
                 self.settings_dialog.close()
             try:
