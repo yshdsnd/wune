@@ -58,6 +58,25 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(loaded.channel_layout, "horizontal")
         self.assertEqual(loaded.bars, 32)
 
+    def test_fullscreen_monitor_round_trip_and_windowed_exit_clears_it(self):
+        self.assertTrue(self.store.save(Config(), (900, 600), (-900, 50), "CLASSIC",
+                                        fullscreen=True, fullscreen_monitor="monitor-a"))
+        _, window = SettingsStore(self.path).load(Config())
+        self.assertTrue(window["fullscreen"])
+        self.assertEqual(window["fullscreen_monitor"], "monitor-a")
+        self.assertEqual((window["width"], window["height"]), (900, 600))
+        self.store.save(Config(), (900, 600), (-900, 50), "CLASSIC")
+        _, window = SettingsStore(self.path).load(Config())
+        self.assertNotIn("fullscreen", window)
+        self.assertIsNone(json.loads(self.path.read_text())["window"]["fullscreen_monitor"])
+
+    def test_invalid_fullscreen_metadata_does_not_request_restoration(self):
+        for flag, identity in ((1, "monitor-a"), ("true", "monitor-a"), (True, None),
+                               (True, ""), (True, "x" * 1025), (True, "bad\x00id")):
+            self.write({"version": 2, "window": {"fullscreen": flag, "fullscreen_monitor": identity}})
+            _, window = self.store.load(Config())
+            self.assertNotIn("fullscreen", window)
+
     def test_custom_style_round_trip(self):
         cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5)
         self.store.save(cfg, (1000, 700), (50, 60), "CUSTOM")

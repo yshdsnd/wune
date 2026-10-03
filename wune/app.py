@@ -13,6 +13,7 @@ from .build_identity import window_title
 from .i18n import Translator
 from .icons import set_app_id, pygame_icon
 from .layout import clamp_window_size, fit_window_size
+from .monitor_identity import connected_monitors, matching_monitor, current_monitor_identity
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
 
@@ -51,6 +52,7 @@ class App:
         self.renderer.user_presets = deepcopy(settings_store.user_presets) if settings_store is not None else {}
         if cfg.initial_preset is not None:
             self.renderer.apply_preset(cfg.initial_preset)
+        self._restore_fullscreen(saved_geometry or {})
         # Audio errors must remain visible rather than silently showing fake data.
         self.spectrum = AudioSpectrum(cfg, cfg.bars, cfg.channels)
         self.spectrum.set_range(cfg.min_freq_hz, cfg.spectrum_upper_hz(self.spectrum.sr))
@@ -61,13 +63,13 @@ class App:
         self.levels = np.zeros((cfg.channels, cfg.bars), dtype=np.float32)
         self.update_info_text()
 
-    def _set_mode(self, size, flags):
+    def _set_mode(self, size, flags, *, display=None):
         pg.display.set_icon(self._icon)
         # Detach before SDL can replace/destroy its HWND (which destroys owned windows).
         if self._settings_window is not None:
             self._settings_window.detach()
         try:
-            self.screen = pg.display.set_mode(size, flags)
+            self.screen = pg.display.set_mode(size, flags, **({"display": display} if display is not None else {}))
         finally:
             if self._settings_window is not None:
                 self._settings_window.bind(pg.display.get_wm_info().get("window"))
@@ -102,6 +104,38 @@ class App:
                 self._restore_position()
         self.renderer.resize(self.screen)
 
+    def _restore_fullscreen(self, saved):
+        if saved.get("fullscreen") is not True:
+            return
+        try:
+            target = matching_monitor(saved.get("fullscreen_monitor"), connected_monitors())
+            if target is None:
+                return
+            # Resolve SDL's current index by placing the window on the identified
+            # monitor. Keep the saved normal-window geometry untouched.
+            x, y, width, height = target.bounds
+            if (width, height) != clamp_window_size((width, height), self.cfg):
+                return
+            placement_size = (min(width, self._windowed_size[0]), min(height, self._windowed_size[1]))
+            if placement_size != self.screen.get_size():
+                self._set_mode(placement_size, pg.RESIZABLE)
+            window = self._geometry_window()
+            window.position = (x + max(0, (width - placement_size[0]) // 2),
+                               y + max(0, (height - placement_size[1]) // 2))
+            self._set_mode((0, 0), pg.FULLSCREEN, display=window.display_index)
+            self._fullscreen = True
+            actual = current_monitor_identity(pg.display.get_wm_info().get("window"))
+            if not actual or actual.casefold() != target.identity.casefold():
+                raise ValueError("Fullscreen monitor changed during startup")
+            self.renderer.resize(self.screen)
+            return
+        except (OSError, pg.error, ValueError) as error:
+            warnings.warn(f"Cannot restore fullscreen: {error}. Using a normal window.", RuntimeWarning)
+        self._fullscreen = False
+        self._set_mode(self._windowed_size, pg.RESIZABLE)
+        self._restore_position()
+        self.renderer.resize(self.screen)
+
     def _remember_position(self):
         if self.settings_store is not None:
             self._windowed_position = tuple(self._geometry_window().position)
@@ -118,8 +152,15 @@ class App:
                 self._windowed_size = self.screen.get_size()
                 self._remember_position()
             self.settings_store.user_presets = deepcopy(self.renderer.user_presets)
+            monitor = None
+            if self._fullscreen:
+                try:
+                    monitor = current_monitor_identity(pg.display.get_wm_info().get("window"))
+                except OSError as error:
+                    warnings.warn(f"Cannot identify fullscreen monitor: {error}", RuntimeWarning)
             return self.settings_store.save(self.cfg, self._windowed_size, self._windowed_position,
-                                            self.renderer.preset_name)
+                                            self.renderer.preset_name, fullscreen=self._fullscreen,
+                                            fullscreen_monitor=monitor)
         except (OSError, pg.error) as error:
             warnings.warn(f"Cannot save window settings: {error}", RuntimeWarning)
             return False

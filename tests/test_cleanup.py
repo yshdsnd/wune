@@ -326,6 +326,7 @@ class AppCleanupTests(unittest.TestCase):
 
     def setUp(self):
         self.pg = MagicMock()
+        self.pg.error = RuntimeError
         env_patch = patch.dict("os.environ")
         env_patch.start()
         self.addCleanup(env_patch.stop)
@@ -505,7 +506,7 @@ class AppCleanupTests(unittest.TestCase):
         self.app.renderer.preset_name = "BLUE"
         self.pg.event.get.return_value = [types.SimpleNamespace(type=self.pg.QUIT)]
         self.app.run()
-        self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (-1000, 100), "BLUE")
+        self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (-1000, 100), "BLUE", fullscreen=False, fullscreen_monitor=None)
         self.app.spectrum.close.assert_called_once()
         self.pg.quit.assert_called_once()
 
@@ -627,6 +628,50 @@ class AppCleanupTests(unittest.TestCase):
             self.assertGreater(call.kwargs["dt"], 0)
         self.pg.display.set_mode.assert_not_called()
 
+    def test_restore_fullscreen_matches_identity_and_keeps_windowed_geometry(self):
+        from wune.monitor_identity import Monitor
+        self.app._windowed_size = (900, 600)
+        self.app._windowed_position = (40, 80)
+        self.app.screen.get_size.return_value = (900, 600)
+        target = Monitor("monitor-a", (-1920, 0, 1920, 1080), 10)
+        window = MagicMock(display_index=2)
+        with patch.object(self.app_module, "connected_monitors", return_value=[target]), \
+             patch.object(self.app_module, "current_monitor_identity", return_value="MONITOR-A"), \
+             patch.object(self.app, "_geometry_window", return_value=window), \
+             patch.object(self.app, "_set_mode") as mode:
+            self.app._restore_fullscreen({"fullscreen": True, "fullscreen_monitor": "monitor-a"})
+        mode.assert_called_once_with((0, 0), self.pg.FULLSCREEN, display=2)
+        self.assertTrue(self.app._fullscreen)
+        self.assertEqual(window.position, (-1410, 240))
+        self.assertEqual(self.app._windowed_size, (900, 600))
+        self.assertEqual(self.app._windowed_position, (40, 80))
+        self.app.spectrum.close.assert_not_called()
+
+    def test_restore_fullscreen_missing_monitor_stays_windowed(self):
+        from wune.monitor_identity import Monitor
+        for saved in ({}, {"fullscreen": False}, {"fullscreen": True, "fullscreen_monitor": "removed"}):
+            with patch.object(self.app_module, "connected_monitors", return_value=[Monitor("other", (0,0,1920,1080), 1)]), \
+                 patch.object(self.app, "_set_mode") as mode:
+                self.app._restore_fullscreen(saved)
+            mode.assert_not_called()
+            self.assertFalse(self.app._fullscreen)
+
+    def test_restore_fullscreen_failed_or_changed_display_falls_back(self):
+        from wune.monitor_identity import Monitor
+        target = Monitor("monitor-a", (0, 0, 1920, 1080), 1)
+        self.app.screen.get_size.return_value = self.app._windowed_size
+        for actual in (None, "different"):
+            with patch.object(self.app_module, "connected_monitors", return_value=[target]), \
+                 patch.object(self.app_module, "current_monitor_identity", return_value=actual), \
+                 patch.object(self.app, "_geometry_window", return_value=MagicMock(display_index=1)), \
+                 patch.object(self.app, "_set_mode") as mode, \
+                 patch.object(self.app, "_restore_position") as position:
+                with self.assertWarns(RuntimeWarning):
+                    self.app._restore_fullscreen({"fullscreen": True, "fullscreen_monitor": "monitor-a"})
+            self.assertFalse(self.app._fullscreen)
+            self.assertEqual(mode.call_args, unittest.mock.call(self.app._windowed_size, self.pg.RESIZABLE))
+            position.assert_called_once()
+
     def test_fullscreen_exit_saves_remembered_window_geometry(self):
         self.app.settings_store = MagicMock()
         self.app._fullscreen = True
@@ -634,8 +679,10 @@ class AppCleanupTests(unittest.TestCase):
         self.app._windowed_position = (40, 80)
         self.app.screen.get_size.return_value = (3840, 2160)
         self.app.renderer.preset_name = "AMBER"
-        self.app.save_settings()
-        self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (40, 80), "AMBER")
+        with patch.object(self.app_module, "current_monitor_identity", return_value="monitor-a"):
+            self.app.save_settings()
+        self.app.settings_store.save.assert_called_once_with(self.app.cfg, (900, 600), (40, 80), "AMBER",
+                                                            fullscreen=True, fullscreen_monitor="monitor-a")
 
     def test_audio_failure_does_not_overwrite_saved_preferences(self):
         self.app.settings_store = MagicMock()
