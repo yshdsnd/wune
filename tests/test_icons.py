@@ -51,3 +51,10 @@ class IconTests(unittest.TestCase):
             child.destroy()
         finally:
             root.destroy()
+
+    def test_icns_file_exists_and_has_valid_header(self):
+        icns_path = ASSETS / "Wune.icns"
+        self.assertTrue(icns_path.is_file())
+        data = icns_path.read_bytes()
+        self.assertEqual(data[:4], b"icns")
+        self.assertGreater(len(data), 1000)

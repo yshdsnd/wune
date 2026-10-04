@@ -15,7 +15,11 @@ class MacOsTapTests(unittest.TestCase):
             self.skipTest("macOS specific test")
 
         from wune.tap_macos import CoreAudioTapBackend
-        backend = CoreAudioTapBackend()
+        try:
+            backend = CoreAudioTapBackend()
+        except RuntimeError as error:
+            self.skipTest(f"Core Audio tap unavailable on this system or headless CI runner: {error}")
+
         self.assertEqual(backend.device_name, "System Audio (Core Audio Tap)")
         self.assertGreater(backend.sample_rate, 0)
         self.assertEqual(backend.channels, 2)

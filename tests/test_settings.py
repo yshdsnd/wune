@@ -144,3 +144,13 @@ class GeometryTests(unittest.TestCase):
         size, pos = restore_geometry(cfg, dict(width=960, height=1800, x=100, y=100), [(0, 0, 1920, 1040)])
         self.assertEqual(size, (916, 504))
         self.assertEqual(pos, (100, 100))
+
+    def test_work_areas_enumerates_displays(self):
+        from wune.window_geometry import work_areas
+        areas = work_areas()
+        self.assertIsInstance(areas, list)
+        self.assertGreater(len(areas), 0)
+        for rect in areas:
+            self.assertEqual(len(rect), 4)
+            self.assertGreater(rect[2], 0)
+            self.assertGreater(rect[3], 0)

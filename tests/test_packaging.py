@@ -23,3 +23,14 @@ class PackagingTests(unittest.TestCase):
         from wune.package_smoke import run
         with self.assertRaisesRegex(RuntimeError, "packaged Wune.exe"):
             run(Path("must-not-be-created.json"))
+
+    def test_macos_version_is_safe_for_archive_names(self):
+        path = Path(__file__).resolve().parents[1] / "tools" / "build_macos.py"
+        spec = importlib.util.spec_from_file_location("build_macos", path)
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        for value in ("1.0.0", "1.0.0-rc.1", "0.0.0-dev"):
+            self.assertEqual(builder.validate_version(value), value)
+        for value in ("../release", "v1.0.0", "1.0", "1.0.0/x", "1.0.0;exit", ""):
+            with self.assertRaises(argparse.ArgumentTypeError):
+                builder.validate_version(value)

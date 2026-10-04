@@ -25,15 +25,35 @@ def run(report):
     prepare_soundcard()  # Includes metadata, CFFI, WASAPI headers and COM loading.
     import soundcard
     bundle = Path(sys._MEIPASS).resolve()
+    bundle_root = bundle.parent if sys.platform == "darwin" and bundle.name == "Frameworks" else bundle
     for module in (np, pg, tk, soundcard):
-        if not Path(module.__file__).resolve().is_relative_to(bundle):
+        mod_path = Path(module.__file__).resolve()
+        if not mod_path.is_relative_to(bundle_root):
             raise RuntimeError(f"Dependency escaped the bundle: {module.__name__}")
     if settings_path().resolve().is_relative_to(Path(sys.executable).parent.resolve()):
         raise RuntimeError("Settings must live outside the application directory")
     np.fft.rfft(np.zeros(4096))
-    if not ASSETS.resolve().is_relative_to(bundle) or not (ASSETS / "Wune.ico").is_file():
+    if not ASSETS.resolve().is_relative_to(bundle_root) or not (ASSETS / "Wune.ico").is_file():
         raise RuntimeError("Missing bundled icon resources")
+    if sys.platform == "darwin":
+        if not (ASSETS / "Wune.icns").is_file():
+            raise RuntimeError("Missing bundled macOS icon resources")
+        from .tap_macos import _ensure_dylib
+        dylib = _ensure_dylib()
+        if not dylib or not Path(dylib).is_file():
+            raise RuntimeError("Missing bundled libwune_tap.dylib")
     set_app_id()
+    for language in ("en", "ja"):
+        cfg = Config(language=language)
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            dialog = _Dialog(root, AppearanceDraft(AppearanceState.capture(cfg, "CLASSIC", {})),
+                             str(settings_path()), Queue(), Queue())
+            root.update_idletasks()
+            dialog.style("led_shape", "ellipse")
+        finally:
+            root.destroy()
     pg.display.init()
     pg.display.set_icon(pygame_icon())
     pg.display.set_mode((320, 200), pg.HIDDEN)
@@ -48,15 +68,6 @@ def run(report):
         renderer.draw_pause_overlay()
         if Translator(language)("app.paused") == "app.paused":
             raise RuntimeError("Missing locale data")
-        root = tk.Tk()
-        root.withdraw()
-        try:
-            dialog = _Dialog(root, AppearanceDraft(AppearanceState.capture(cfg, "CLASSIC", {})),
-                             str(settings_path()), Queue(), Queue())
-            root.update_idletasks()
-            dialog.style("led_shape", "ellipse")
-        finally:
-            root.destroy()
     store = SettingsStore()
     cfg = Config(language="ja", led_shape="ellipse")
     if not store.save(cfg, (1000, 700), (40, 50), "BLUE"):
