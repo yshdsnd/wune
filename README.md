@@ -17,7 +17,7 @@ GitHubが自動で表示する「Source code」ではなく、ビルド済みの
 
 - **Windows用**: `Wune-vX.Y.Z-win64.zip`（Windows 11 x64対応）
   - インストールと起動手順は **[Windows向け導入ガイド (INSTALL_WINDOWS.md)](INSTALL_WINDOWS.md)** をご覧ください。
-- **macOS用**: `Wune-vX.Y.Z-macos-arm64.zip`（Apple Silicon）/ `Wune-vX.Y.Z-macos-x86_64.zip`（Intel）（macOS 14.2+対応）
+- **macOS用**: `Wune-vX.Y.Z-macos-arm64.zip`（Apple Silicon対応）
   - インストール、セキュリティ許可、起動手順は **[macOS向け導入ガイド (INSTALL_MACOS.md)](INSTALL_MACOS.md)** をご覧ください。
 
 **Pythonのインストールや通常利用時の管理者権限は不要です。**
@@ -94,7 +94,9 @@ Windows標準のカラーピッカーはWindows側の表示言語に従います
 
 - **動作確認済み**:
   - Windows 11（64ビット）、x64版パッケージ
-  - macOS 14.2 (Sonoma) 以降（Apple Silicon arm64 / Intel x86_64）
+  - macOS 27（Apple Silicon arm64 実機にて動作確認済み）
+    - ※ 理論上は Core Audio Process Tap API が提供されている macOS 14.2 (Sonoma) 以降で動作可能ですが、実機での動作確認・検証は最新バージョンの macOS 27 でのみ行っています。
+    - ※ Intel Mac（x86_64）はテスト環境がないため非対応です。
 - ステレオ音声を再生できる出力デバイスが必要です。
 - 音声はシステムの既定の出力先から取得します（Windows: WASAPIループバック、macOS: Core Audio Process Tap）。マイク入力・音声ファイルの直接読み込みには対応していません。
 - 起動中の出力デバイス切り替えやサンプルレート変更には自動追従しません。

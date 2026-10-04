@@ -6,16 +6,17 @@
 
 ## 動作環境
 
-- **動作確認済み**: macOS 14.2 (Sonoma) 以降
-- **対応アーキテクチャ**: Apple Silicon（arm64: M1/M2/M3/M4など）および Intel（x86_64）
+- **対応アーキテクチャ**: **Apple Silicon（arm64: M1/M2/M3/M4など）のみ**
+  - ※ Intel Mac（x86_64）はテスト環境がないため非対応です。
+- **実機確認済みOS**: **macOS 27**（Apple Silicon 実機にて動作確認済み）
+  - 理論上は、必要な Core Audio Process Tap API が導入された macOS 14.2 (Sonoma) 以降で動作可能ですが、実機での動作確認・検証は最新バージョンの macOS 27 でのみ行っています。
+  - macOS 14.1 以前のバージョンは、API が存在しないため動作しません。
 - ステレオ音声を再生できる出力デバイス（内蔵スピーカー、ヘッドホン、外部オーディオインターフェース等）
-- ※ macOS 14.1 以前のバージョンは、Core Audio Process Tap API に対応していないため動作しません。
 
 ## ダウンロードと配置
 
-1. **[GitHub Releases](https://github.com/yshdsnd/wune/releases)** からお使いのMacに合わせたZIPをダウンロードします。
-   - Apple Silicon Mac: **Wune-vX.Y.Z-macos-arm64.zip**
-   - Intel Mac: **Wune-vX.Y.Z-macos-x86_64.zip**
+1. **[GitHub Releases](https://github.com/yshdsnd/wune/releases)** からZIPパッケージをダウンロードします。
+   - ファイル名: **Wune-vX.Y.Z-macos-arm64.zip**（X.Y.Zはバージョン番号）
    - ※ GitHubが自動で表示する「Source code」ではなく、上記のビルド済みZIPを選択してください。
 2. ダウンロードしたZIPファイルをダブルクリックして展開します。
 3. 展開された **`Wune.app`** を、お使いのMacの **「アプリケーション」**（`/Applications`）フォルダーへドラッグ＆ドロップして移動します（任意のフォルダーのままでも起動可能です）。

@@ -62,8 +62,8 @@ def main(argv=None):
     if sys.platform != "darwin":
         parser.error("Build on macOS")
     arch = platform.machine().lower()
-    if arch not in ("arm64", "x86_64"):
-        parser.error("Build on 64-bit macOS (arm64 or x86_64)")
+    if arch != "arm64":
+        parser.error("Build on Apple Silicon macOS (arm64). Intel (x86_64) is not supported.")
 
     output = ROOT / "dist"
     output.mkdir(exist_ok=True)

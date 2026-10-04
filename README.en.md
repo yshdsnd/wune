@@ -17,7 +17,7 @@ Please download the prebuilt binary ZIP packages rather than the automated "Sour
 
 - **Windows package**: `Wune-vX.Y.Z-win64.zip` (for Windows 11 x64)
   - See the **[Windows Installation Guide (INSTALL_WINDOWS.en.md)](INSTALL_WINDOWS.en.md)** for installation and setup instructions.
-- **macOS packages**: `Wune-vX.Y.Z-macos-arm64.zip` (Apple Silicon) / `Wune-vX.Y.Z-macos-x86_64.zip` (Intel) (for macOS 14.2+)
+- **macOS package**: `Wune-vX.Y.Z-macos-arm64.zip` (for Apple Silicon)
   - See the **[macOS Installation Guide (INSTALL_MACOS.en.md)](INSTALL_MACOS.en.md)** for installation, security prompts, and audio permission instructions.
 
 **No Python installation or administrator privileges are required for normal use.**
@@ -94,7 +94,9 @@ For detailed reset instructions, see the respective platform guide ([Windows](IN
 
 - **Tested environments**:
   - Windows 11 (64-bit), x64 package
-  - macOS 14.2 (Sonoma) or later (Apple Silicon arm64 / Intel x86_64)
+  - macOS 27 (tested and verified on Apple Silicon arm64 hardware)
+    - *Note*: While theoretically compatible with macOS 14.2 (Sonoma) or later where Core Audio Process Tap is available, hardware verification and testing are performed exclusively on the latest macOS 27.
+    - *Note*: Intel Mac (`x86_64`) is not supported due to lack of test hardware.
 - An output device capable of stereo audio playback is required.
 - Audio is captured from the system's default output device (Windows: WASAPI loopback, macOS: Core Audio Process Tap). Microphone input and direct audio-file loading are not supported.
 - Output-device and sample-rate changes are not followed automatically while Wune is running.

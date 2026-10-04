@@ -63,3 +63,14 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("INSTALL_MACOS.md", mac_script)
         self.assertIn("INSTALL.md", mac_script)
         self.assertNotIn("INSTALL_WINDOWS.md", mac_script)
+
+    def test_macos_build_rejects_non_arm64(self):
+        from unittest.mock import patch
+        path = Path(__file__).resolve().parents[1] / "tools" / "build_macos.py"
+        spec = importlib.util.spec_from_file_location("build_macos", path)
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        with patch("platform.machine", return_value="x86_64"), \
+             patch("sys.platform", "darwin"):
+            with self.assertRaises(SystemExit):
+                builder.main(["--version", "1.0.0"])
