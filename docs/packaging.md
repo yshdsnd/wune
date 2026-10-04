@@ -1,7 +1,7 @@
 # Windowsパッケージの作成
 
 配布形式はPyInstallerのonedirをZIP化したWindows x64版です。
-`Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、README、Wune本体のLICENSE、依存物のライセンス、
+`Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、INSTALL.md、README、Wune本体のLICENSE、依存物のライセンス、
 `build-info.json` を含みます。Pythonを含むランタイムを同梱し、通常利用時の管理者権限は要求しません。
 設定とログはユーザーの `%LOCALAPPDATA%/Wune` に保存します。
 

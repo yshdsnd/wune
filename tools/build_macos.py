@@ -95,6 +95,8 @@ def main(argv=None):
     shutil.copy2(ROOT / "packaging" / "README.txt", bundle_dir / "README.txt")
     shutil.copy2(ROOT / "README.md", bundle_dir / "README.md")
     shutil.copy2(ROOT / "README.en.md", bundle_dir / "README.en.md")
+    shutil.copy2(ROOT / "INSTALL_MACOS.md", bundle_dir / "INSTALL.md")
+    shutil.copy2(ROOT / "INSTALL_MACOS.en.md", bundle_dir / "INSTALL.en.md")
     shutil.copytree(ROOT / "docs", bundle_dir / "docs")
     (bundle_dir / "packaging" / "licenses").mkdir(parents=True)
     shutil.copy2(ROOT / "packaging" / "licenses" / "README.md", bundle_dir / "packaging" / "licenses" / "README.md")
