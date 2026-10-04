@@ -62,8 +62,8 @@ def main(argv=None):
     if sys.platform != "darwin":
         parser.error("Build on macOS")
     arch = platform.machine().lower()
-    if arch not in ("arm64", "x86_64"):
-        parser.error("Build on 64-bit macOS (arm64 or x86_64)")
+    if arch != "arm64":
+        parser.error("Build on Apple Silicon macOS (arm64). Intel (x86_64) is not supported.")
 
     output = ROOT / "dist"
     output.mkdir(exist_ok=True)
@@ -95,6 +95,8 @@ def main(argv=None):
     shutil.copy2(ROOT / "packaging" / "README.txt", bundle_dir / "README.txt")
     shutil.copy2(ROOT / "README.md", bundle_dir / "README.md")
     shutil.copy2(ROOT / "README.en.md", bundle_dir / "README.en.md")
+    shutil.copy2(ROOT / "INSTALL_MACOS.md", bundle_dir / "INSTALL.md")
+    shutil.copy2(ROOT / "INSTALL_MACOS.en.md", bundle_dir / "INSTALL.en.md")
     shutil.copytree(ROOT / "docs", bundle_dir / "docs")
     (bundle_dir / "packaging" / "licenses").mkdir(parents=True)
     shutil.copy2(ROOT / "packaging" / "licenses" / "README.md", bundle_dir / "packaging" / "licenses" / "README.md")
