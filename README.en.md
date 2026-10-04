@@ -112,6 +112,7 @@ For detailed reset instructions, see the respective platform guide ([Windows](IN
 | Symptom | What to check |
 | --- | --- |
 | Wune will not start or closes immediately | Verify that files were properly extracted according to the platform guide ([Windows](INSTALL_WINDOWS.en.md) / [macOS](INSTALL_MACOS.en.md)). Check any displayed error and inspect `Wune.log`. |
+| Blocked by security alert (macOS) | Open **System Settings** → **Privacy & Security** and click **Open Anyway**, or run `xattr -d com.apple.quarantine` in Terminal (see [macOS guide](INSTALL_MACOS.en.md)). |
 | The spectrum does not move | Resume with Space if paused. Verify audio is playing. On macOS, ensure system audio recording permission is granted. |
 | The display stops after switching outputs | Check your system's default output device and restart Wune. |
 | F2 or other shortcuts do not work | Click the main window first. On Mac keyboards, pressing `Fn + F2` may be required. |
