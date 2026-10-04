@@ -54,6 +54,7 @@ class App:
         self.running = True
         self.paused = False
         self.levels = np.zeros((cfg.channels, cfg.bars), dtype=np.float32)
+        self._idle_frames = 0
         self.update_info_text()
 
     def _set_mode(self, size, flags):
@@ -249,7 +250,9 @@ class App:
         try:
             while self.running:
                 dt = self.clock.tick(self.cfg.fps) / 1000.0
+                had_events = False
                 for event in pg.event.get():
+                    had_events = True
                     self.handle_event(event)
                 if not self.running:
                     break
@@ -257,12 +260,24 @@ class App:
 
                 if not self.paused:
                     self.levels = self.spectrum.step(dt)
-                # Pause reuses the last levels and freezes peak timers.
-                self.update_info_text()
-                self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
-                if self.paused:
-                    self.renderer.draw_pause_overlay()
-                pg.display.flip()
+
+                is_silent = np.all(self.levels == 0) and np.all(self.renderer.peak_pos == 0)
+                if is_silent and not had_events and self.settings_dialog is None and not self.paused:
+                    self._idle_frames += 1
+                else:
+                    self._idle_frames = 0
+
+                needs_render = (self._idle_frames < 30) or (self._idle_frames % 60 == 0) or self.paused or had_events
+
+                if needs_render:
+                    # Pause reuses the last levels and freezes peak timers.
+                    self.update_info_text()
+                    self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
+                    if self.paused:
+                        self.renderer.draw_pause_overlay()
+                    pg.display.flip()
+                else:
+                    pg.time.wait(15)
             self.cancel_settings()
             self.save_settings()
         finally:

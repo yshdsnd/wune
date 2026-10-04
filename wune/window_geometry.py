@@ -49,6 +49,8 @@ def work_areas():
             cg = ct.cdll.LoadLibrary("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
             cg.CGGetActiveDisplayList.restype = c_uint32
             cg.CGGetActiveDisplayList.argtypes = [c_uint32, POINTER(c_uint32), POINTER(c_uint32)]
+            cg.CGGetOnlineDisplayList.restype = c_uint32
+            cg.CGGetOnlineDisplayList.argtypes = [c_uint32, POINTER(c_uint32), POINTER(c_uint32)]
             cg.CGDisplayBounds.restype = CGRect
             cg.CGDisplayBounds.argtypes = [c_uint32]
             cg.CGMainDisplayID.restype = c_uint32
@@ -57,7 +59,10 @@ def work_areas():
             max_displays = 16
             displays = (c_uint32 * max_displays)()
             count = c_uint32(0)
-            if cg.CGGetActiveDisplayList(max_displays, displays, ct.byref(count)) == 0 and count.value > 0:
+            if cg.CGGetActiveDisplayList(max_displays, displays, ct.byref(count)) != 0 or count.value == 0:
+                cg.CGGetOnlineDisplayList(max_displays, displays, ct.byref(count))
+
+            if count.value > 0:
                 areas = []
                 for i in range(count.value):
                     d_id = displays[i]
@@ -66,11 +71,23 @@ def work_areas():
                             int(bounds.size.width), int(bounds.size.height))
                     areas.append((d_id == main_id, rect))
                 return [rect for is_main, rect in sorted(areas, key=lambda item: not item[0])]
+            elif main_id:
+                bounds = cg.CGDisplayBounds(main_id)
+                return [(int(bounds.origin.x), int(bounds.origin.y),
+                         int(bounds.size.width), int(bounds.size.height))]
         except Exception as error:
             warnings.warn(f"Monitor detection failed ({error}); using the primary desktop size", RuntimeWarning)
     import pygame as pg
-    width, height = pg.display.get_desktop_sizes()[0]
-    return [(0, 0, width, height)]
+    if not pg.display.get_init():
+        pg.display.init()
+    try:
+        sizes = pg.display.get_desktop_sizes()
+        if sizes:
+            width, height = sizes[0]
+            return [(0, 0, width, height)]
+    except Exception:
+        pass
+    return [(0, 0, 1920, 1080)]
 
 
 def restore_geometry(cfg, saved, areas):

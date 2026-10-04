@@ -26,6 +26,10 @@ class LedBarRenderer:
         self.channels = cfg.channels
         self._layout = None
         self._led_cache = {}
+        self._grid_rects = None
+        self._row_tiles = None
+        self._cached_theme = None
+        self._cached_style = None
         # ピーク情報を (ch, bar) で持つ
         self._peaks = PeakEnvelope((self.channels, cfg.bars), cfg.peak_hold_ms,
                                    cfg.peak_fall_per_second * cfg.leds_per_bar)
@@ -65,7 +69,7 @@ class LedBarRenderer:
         size_changed = self.trail is None or self.trail.get_size() != surf.get_size()
         self.surf = surf
         self.width, self.height = surf.get_size()
-        if not size_changed and layout == self._layout:
+        if not size_changed and layout == self._layout and self._grid_rects is not None:
             return
         self._layout = layout
         self._led_cache.clear()
@@ -76,11 +80,14 @@ class LedBarRenderer:
         self.ch_y0 = [rect.y for rect in self.plots]
         self.ch_h = self.plots[0].height
         self.trail = pg.Surface(surf.get_size(), pg.SRCALPHA)
+        self._rebuild_grid_and_tiles()
 
     def apply_preset(self, name):
         preset = self.user_presets[name] if name in self.user_presets else get_preset(name)
         self.cfg.theme = preset.theme
         self.preset_name = preset.name
+        self._led_cache.clear()
+        self._rebuild_tiles()
 
     def next_preset(self):
         names = [preset.name for preset in PRESETS] + list(self.user_presets)
@@ -242,6 +249,22 @@ class LedBarRenderer:
 
     def draw(self, levels: np.ndarray, dt=None):
         self.resize(self.surf)
+
+        # テーマやスタイルが外部から直接変更された場合の自動同期
+        current_style = (
+            self.cfg.gauge_style,
+            self.cfg.led_shape,
+            self.cfg.led_aspect_ratio,
+            self.cfg.leds_per_bar,
+            self.cfg.bars,
+            self.cfg.spectrum_orientation,
+            self.channels,
+        )
+        if self._grid_rects is None or self._cached_style != current_style:
+            self._rebuild_grid_and_tiles()
+        elif self._cached_theme != self.cfg.theme:
+            self._rebuild_tiles()
+
         # バックパネル等
         self.draw_panel()
 
@@ -253,42 +276,39 @@ class LedBarRenderer:
         level_leds = levels * self.cfg.leds_per_bar
         self.update_peaks(level_leds, dt)
 
+        is_freq_vert = (self.cfg.spectrum_orientation == "frequency_vertical")
+        peak_color = self.cfg.theme.peak
+        led_gap = self.led_gap
+        peak_cutout = self.cfg.theme.peak_cutout
+
         for ch in range(self.channels):
-            y0 = self.ch_y0[ch]           # この段の“下端”基準
-            ch_h = self.ch_h
-            
+            ch_rects = self._grid_rects[ch]
             for b in range(self.cfg.bars):
-                x = self.plots[ch].x + b * (self.bar_w + self.bar_gap)
-                # 下から上へLEDを描く
+                bar_rects = ch_rects[b]
                 lit = float(level_leds[ch, b])
+                # 下から上へLEDを描く
                 for j in range(self.cfg.leds_per_bar):
-                    led_ratio = (j + 0.5) / self.cfg.leds_per_bar  # このLEDの高さ割合
-                    on_color, off_color = self.cfg.theme.choose_color(led_ratio)
-                    rect = self.cell_rect(ch, b, j)
-                    on = (j < lit)
-                    self.draw_led(rect, on_color if on else off_color, on)
+                    tiles = self._row_tiles[j]
+                    tile = tiles[0] if j < lit else tiles[1]
+                    self.surf.blit(tile, bar_rects[j][1])
 
                 # ピークマーカー（ホールド位置を使う）
                 peak = float(self.peak_pos[ch, b])
                 if peak > 0:
                     top_index = min(self.cfg.leds_per_bar - 1, max(0, math.ceil(peak) - 1))
+                    cell_rect, led_rect = bar_rects[top_index]
 
-                    if self.cfg.spectrum_orientation == "frequency_vertical":
-                        led_rect = self.cell_rect(ch, b, top_index)
-                        marker = pg.Rect(led_rect.right, led_rect.top, 1, led_rect.height)
-                        pg.draw.rect(self.surf, self.cfg.theme.peak, marker)
+                    if is_freq_vert:
+                        marker = pg.Rect(cell_rect.right, cell_rect.top, 1, cell_rect.height)
+                        pg.draw.rect(self.surf, peak_color, marker)
                         continue
-
-                    # トップLED矩形（外枠）
-                    led_y = y0 + ch_h - (top_index + 1) * (self.led_h + self.led_gap) + self.led_gap
-                    led_rect = self.led_rect(pg.Rect(x, led_y, self.bar_w, self.led_h))
 
                     # トップLEDの"inner"を算出（draw_ledのパディングと揃える）
                     pad = 1 if (led_rect.w < 6 or led_rect.h < 6) else 2
                     inner = led_rect.inflate(-pad, -pad)
 
                     # まず“上のスリット”に描けるか判定（= gap >= 1）
-                    if self.led_gap >= 1:
+                    if led_gap >= 1:
                         # トップLEDの上端の1px上（= ギャップ内の最下段）に白線を置く
                         y_gap = led_rect.top - 1
 
@@ -308,17 +328,14 @@ class LedBarRenderer:
                             w_line = max(1, x_max - x_line + 1)
 
                         pm_rect = pg.Rect(x_line, y_gap, w_line, 1)
-
-                        s = pg.Surface((pm_rect.w, pm_rect.h), pg.SRCALPHA)
-                        s.fill((*self.cfg.theme.peak, 255))
-                        self.surf.blit(s, pm_rect)
+                        pg.draw.rect(self.surf, peak_color, pm_rect)
                     else:
                         # フォールバック：LED内側に“カットアウト→白”で視認性確保
                         if inner.w > 0 and inner.h > 0:
                             y_line = max(inner.top, min(inner.bottom - 1, inner.top))
                             cut = pg.Rect(inner.left, y_line, inner.width, 1)
-                            pg.draw.rect(self.surf, self.cfg.theme.peak_cutout, cut)         # 暗線で下地を断つ
-                            pg.draw.rect(self.surf, self.cfg.theme.peak, cut)    # その上に白
+                            pg.draw.rect(self.surf, peak_cutout, cut)         # 暗線で下地を断つ
+                            pg.draw.rect(self.surf, peak_color, cut)          # その上に白
 
             # dBラベル（段ごと）
             self.draw_db_labels_ch(ch)
@@ -403,14 +420,13 @@ class LedBarRenderer:
         rect.center = cell.center
         return rect
 
-    def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
-        rect = self.led_rect(rect)
-        # Rasterize one reference design, then scale all its details together.
+    def _create_or_get_tile(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool) -> pg.Surface:
         if min(rect.size) < 3:
-            pg.draw.rect(self.surf, color, rect)
-            return
+            s = pg.Surface(rect.size)
+            s.fill(color)
+            return s
         key = (rect.size, tuple(color), on, self.cfg.gauge_style, self.cfg.led_shape,
-               self.cfg.led_aspect_ratio, repr(self.cfg.theme))
+               self.cfg.led_aspect_ratio, id(self.cfg.theme))
         tile = self._led_cache.get(key)
         if tile is None:
             original = self.surf
@@ -424,6 +440,53 @@ class LedBarRenderer:
             if len(self._led_cache) >= 256:
                 self._led_cache.clear()
             self._led_cache[key] = tile
+        return tile
+
+    def _rebuild_tiles(self):
+        sample_cell = self.cell_rect(0, 0, 0)
+        sample_rect = self.led_rect(sample_cell)
+        self._row_tiles = []
+        for j in range(self.cfg.leds_per_bar):
+            led_ratio = (j + 0.5) / self.cfg.leds_per_bar
+            on_color, off_color = self.cfg.theme.choose_color(led_ratio)
+            tile_on = self._create_or_get_tile(sample_rect, on_color, True)
+            tile_off = self._create_or_get_tile(sample_rect, off_color, False)
+            self._row_tiles.append((tile_on, tile_off))
+        self._cached_theme = self.cfg.theme
+
+    def _rebuild_grid_and_tiles(self):
+        self._grid_rects = []
+        for ch in range(self.channels):
+            ch_rects = []
+            for b in range(self.cfg.bars):
+                bar_rects = []
+                for j in range(self.cfg.leds_per_bar):
+                    cell = self.cell_rect(ch, b, j)
+                    bar_rects.append((cell, self.led_rect(cell)))
+                ch_rects.append(bar_rects)
+            self._grid_rects.append(ch_rects)
+
+        self._rebuild_tiles()
+        self._cached_style = (
+            self.cfg.gauge_style,
+            self.cfg.led_shape,
+            self.cfg.led_aspect_ratio,
+            self.cfg.leds_per_bar,
+            self.cfg.bars,
+            self.cfg.spectrum_orientation,
+            self.channels,
+        )
+
+    def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
+        rect = self.led_rect(rect)
+        if min(rect.size) < 3:
+            pg.draw.rect(self.surf, color, rect)
+            return
+        key = (rect.size, tuple(color), on, self.cfg.gauge_style, self.cfg.led_shape,
+               self.cfg.led_aspect_ratio, id(self.cfg.theme))
+        tile = self._led_cache.get(key)
+        if tile is None:
+            tile = self._create_or_get_tile(rect, color, on)
         self.surf.blit(tile, rect)
 
     def _draw_led_design(self, rect, color, on):

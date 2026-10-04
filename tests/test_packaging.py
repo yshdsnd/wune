@@ -71,6 +71,7 @@ class PackagingTests(unittest.TestCase):
         builder = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(builder)
         with patch("platform.machine", return_value="x86_64"), \
-             patch("sys.platform", "darwin"):
+             patch("sys.platform", "darwin"), \
+             patch("sys.stderr"):
             with self.assertRaises(SystemExit):
                 builder.main(["--version", "1.0.0"])

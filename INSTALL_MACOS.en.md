@@ -26,16 +26,21 @@ Installation and initial setup instructions for Wune, an LED audio spectrum anal
 
 ## First Launch and Gatekeeper (Security Prompts)
 
-Because this distribution is an open-source build signed with an ad-hoc certificate, macOS Gatekeeper may display a security alert on first launch ("cannot be opened because the developer cannot be verified" or "Apple cannot check it for malicious software").
+Because this distribution is an open-source build signed with an ad-hoc certificate, macOS Gatekeeper blocks the application on first launch with an alert: **"“Wune” was not opened (Apple could not verify that it is free of malware)"**.
 
-### Opening on First Launch
-1. Locate `Wune.app` in Finder.
-2. **Hold the Control key, click `Wune.app` (or right-click it), and choose "Open"**.
-3. A warning dialog will appear. Click the **"Open"** button inside the dialog.
-4. Once opened this way, Wune is remembered as safe and can subsequently be launched normally via double-click, Launchpad, or the Dock.
+### Authorizing on First Launch (System Settings)
+1. Double-click `Wune.app`.
+2. When the alert **"“Wune” was not opened"** appears, click **"Done"** to dismiss it (do not select "Move to Trash").
+3. Open macOS **System Settings** → **Privacy & Security**.
+4. Scroll down to the **Security** section. You will see the notice: **"“Wune” was blocked to protect your Mac."**
+5. Click the **"Open Anyway"** button next to it.
+6. Authenticate using Touch ID or your Mac's administrator password.
+7. The system audio recording permission prompt will then appear; click **"Allow"** (see below).
+8. Once authorized, Wune is remembered as safe and can subsequently be opened normally via double-click, Dock, or Launchpad.
 
 > [!TIP]
-> If the "Open" button does not appear or Gatekeeper continues to block the application, open Terminal and remove the quarantine attribute:
+> **Quick Terminal alternative (recommended)**:
+> After placing the app, open Terminal and remove the quarantine attribute with the following command to allow opening immediately without going through System Settings:
 > ```bash
 > xattr -d com.apple.quarantine /Applications/Wune.app
 > ```
