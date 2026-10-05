@@ -3,6 +3,7 @@ from copy import deepcopy
 import json
 import math
 import os
+import sys
 from pathlib import Path
 import tempfile
 import warnings
@@ -28,6 +29,8 @@ PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "bars", "channel
 
 
 def settings_path():
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Wune" / "settings.json"
     base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     return base / "Wune" / "settings.json"
 
