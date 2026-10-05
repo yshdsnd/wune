@@ -2,6 +2,7 @@
 # 描画ルーチン
 
 import math
+import sys
 
 import numpy as np
 import pygame as pg
@@ -38,7 +39,11 @@ class LedBarRenderer:
         self.peak_hold = self._peaks.remaining
 
         # チャンネルラベル用フォント（任意）
-        self.font_channel = pg.font.SysFont("Bahnschrift", 16, bold=True)
+        mac = sys.platform == "darwin"
+        display_font = "SF Pro Display,Helvetica Neue,Arial" if mac else "Bahnschrift"
+        japanese_font = ("Hiragino Sans GB,hiraginosansgb,Hiragino Sans,"
+                         "Hiragino Kaku Gothic ProN,arialunicode,AppleGothic,") if mac else ""
+        self.font_channel = pg.font.SysFont(display_font, 16, bold=True)
 
         # 透明サーフェス（残像用）
         self.trail = None
@@ -47,12 +52,12 @@ class LedBarRenderer:
         # SysFont picks one installed font; it does not fill missing glyphs
         # from other fonts. Prefer Japanese-capable fonts for endpoint names.
         self.font_small = pg.font.SysFont(
-            "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
+            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
             "Noto Sans CJK JP,Noto Sans JP,Segoe UI", 15
         )
-        self.font_badge = pg.font.SysFont("Bahnschrift", 18, bold=True)
-        self.font_badge_user = pg.font.SysFont("Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI", 18, bold=True)
-        self.font_scale = pg.font.SysFont("Consolas, Segoe UI", 12)
+        self.font_badge = pg.font.SysFont(display_font, 18, bold=True)
+        self.font_badge_user = pg.font.SysFont(japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI", 18, bold=True)
+        self.font_scale = pg.font.SysFont("SF Mono,Menlo,Monaco,Consolas, Segoe UI" if mac else "Consolas, Segoe UI", 12)
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
