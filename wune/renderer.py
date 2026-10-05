@@ -29,6 +29,8 @@ class LedBarRenderer:
         self.channels = cfg.channels
         self._layout = None
         self._led_cache = {}
+        self._grid_key = None
+        self._tile_key = None
         # ピーク情報を (ch, bar) で持つ
         self._peaks = PeakEnvelope((self.channels, cfg.bars), cfg.peak_hold_ms,
                                    cfg.peak_fall_per_second * cfg.leds_per_bar)
@@ -240,6 +242,7 @@ class LedBarRenderer:
 
     def draw(self, levels: np.ndarray, dt=None):
         self.resize(self.surf)
+        self._prepare_leds()
         # バックパネル等
         self.draw_panel()
 
@@ -260,11 +263,8 @@ class LedBarRenderer:
                 # 下から上へLEDを描く
                 lit = float(level_leds[ch, b])
                 for j in range(self.cfg.leds_per_bar):
-                    led_ratio = (j + 0.5) / self.cfg.leds_per_bar  # このLEDの高さ割合
-                    on_color, off_color = self.cfg.theme.choose_color(led_ratio)
-                    rect = self.cell_rect(ch, b, j)
-                    on = (j < lit)
-                    self.draw_led(rect, on_color if on else off_color, on)
+                    tile = self._row_tiles[j][0 if j < lit else 1]
+                    self.surf.blit(tile, self._grid_rects[ch][b][j])
 
                 # ピークマーカー（ホールド位置を使う）
                 peak = float(self.peak_pos[ch, b])
@@ -307,9 +307,7 @@ class LedBarRenderer:
 
                         pm_rect = pg.Rect(x_line, y_gap, w_line, 1)
 
-                        s = pg.Surface((pm_rect.w, pm_rect.h), pg.SRCALPHA)
-                        s.fill((*self.cfg.theme.peak, 255))
-                        self.surf.blit(s, pm_rect)
+                        pg.draw.rect(self.surf, self.cfg.theme.peak, pm_rect)
                     else:
                         # フォールバック：LED内側に“カットアウト→白”で視認性確保
                         if inner.w > 0 and inner.h > 0:
@@ -401,14 +399,46 @@ class LedBarRenderer:
         rect.center = cell.center
         return rect
 
+    def _prepare_leds(self):
+        # Geometry and artwork have separate lifetimes: recoloring must not
+        # rebuild every cell, and moving a plot must not reuse old positions.
+        grid_key = (self._layout, self.cfg.bars, self.cfg.leds_per_bar,
+                    self.channels, self.cfg.spectrum_orientation,
+                    self.cfg.led_shape, self.cfg.led_aspect_ratio)
+        if grid_key != self._grid_key:
+            self._grid_rects = [
+                [[self.led_rect(self.cell_rect(ch, band, led))
+                  for led in range(self.cfg.leds_per_bar)]
+                 for band in range(self.cfg.bars)]
+                for ch in range(self.channels)]
+            self._grid_key = grid_key
+        rect = self._grid_rects[0][0][0]
+        # Use a value snapshot, not identity: live theme edits can mutate
+        # the same object. Compute this once per frame, not once per LED.
+        theme_key = repr(self.cfg.theme)
+        tile_key = (rect.size, self.cfg.gauge_style, self.cfg.led_shape,
+                    self.cfg.led_aspect_ratio, self.cfg.leds_per_bar, theme_key)
+        if tile_key != self._tile_key:
+            self._led_cache.clear()
+            self._row_tiles = []
+            for led in range(self.cfg.leds_per_bar):
+                on, off = self.cfg.theme.choose_color((led + 0.5) / self.cfg.leds_per_bar)
+                self._row_tiles.append((self._led_tile(rect, on, True, theme_key),
+                                        self._led_tile(rect, off, False, theme_key)))
+            self._tile_key = tile_key
+
     def draw_led(self, rect: pg.Rect, color: Tuple[int, int, int], on: bool):
         rect = self.led_rect(rect)
+        self.surf.blit(self._led_tile(rect, color, on, repr(self.cfg.theme)), rect)
+
+    def _led_tile(self, rect, color, on, theme_key):
         # Rasterize one reference design, then scale all its details together.
         if min(rect.size) < 3:
-            pg.draw.rect(self.surf, color, rect)
-            return
+            tile = pg.Surface(rect.size)
+            tile.fill(color)
+            return tile
         key = (rect.size, tuple(color), on, self.cfg.gauge_style, self.cfg.led_shape,
-               self.cfg.led_aspect_ratio, repr(self.cfg.theme))
+               self.cfg.led_aspect_ratio, theme_key)
         tile = self._led_cache.get(key)
         if tile is None:
             original = self.surf
@@ -422,7 +452,7 @@ class LedBarRenderer:
             if len(self._led_cache) >= 256:
                 self._led_cache.clear()
             self._led_cache[key] = tile
-        self.surf.blit(tile, rect)
+        return tile
 
     def _draw_led_design(self, rect, color, on):
         if self.cfg.led_shape == "ellipse":
