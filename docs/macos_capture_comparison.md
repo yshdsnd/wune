@@ -1,5 +1,9 @@
 # macOS Native Audio Capture: Core Audio Process Tap vs ScreenCaptureKit
 
+Historical design notes imported from v1.0.1. For current routing, supported
+inputs, and limitations, use [audio-backends.md](audio-backends.md).
+The relative performance statements below are design estimates, not benchmarks.
+
 This document compares Apple's **Core Audio Process Tap** API and **ScreenCaptureKit** for driverless system audio capture in Wune (Issue #75).
 
 ---
