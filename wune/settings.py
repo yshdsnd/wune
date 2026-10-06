@@ -22,6 +22,7 @@ CHOICES = {
     "gauge_style": ("flat", "box"),
     "led_shape": ("rectangle", "rounded", "ellipse"),
     "spectrum_orientation": ("frequency_horizontal", "frequency_vertical"),
+    "channel_mode": ("stereo", "stereo_mix"),
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }

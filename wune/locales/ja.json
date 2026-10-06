@@ -131,5 +131,8 @@
   "exit.dont_ask": "次回から終了時に確認しない",
   "exit.cancel": "キャンセル",
   "exit.confirm": "終了",
-  "exit.confirm_setting": "Q / Escで終了するときに確認する"
+  "exit.confirm_setting": "Q / Escで終了するときに確認する",
+  "settings.channel_mode": "チャンネル表示",
+  "settings.stereo_separate": "ステレオ（L/R個別）",
+  "settings.stereo_mix": "ステレオミックス（合成）"
 }

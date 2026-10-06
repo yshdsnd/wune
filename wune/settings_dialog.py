@@ -206,44 +206,49 @@ class _Dialog:
         ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
             row=4, column=0, columnspan=2, sticky="w", pady=12)
         language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
-        choice(general, 9, "language", self.t("settings.language"), language_options,
+        choice(general, 10, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
         ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
-            row=10, column=0, columnspan=2, sticky="w", pady=8)
+            row=11, column=0, columnspan=2, sticky="w", pady=8)
         self.confirm_keyboard_exit = tk.BooleanVar()
         ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
                         variable=self.confirm_keyboard_exit,
                         command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
-                            row=11, column=0, columnspan=2, sticky="w", pady=8)
+                            row=12, column=0, columnspan=2, sticky="w", pady=8)
         general.columnconfigure(1, weight=1)
-        choice(general, 0, "spectrum_orientation", self.t('settings.spectrum_direction'), {
+        choice(general, 1, "spectrum_orientation", self.t('settings.spectrum_direction'), {
             self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal", self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
             lambda value: self.layout("spectrum_orientation", value))
-        choice(general, 1, "channel_layout", self.t('settings.l_r_arrangement'), {self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
+        choice(general, 2, "channel_layout", self.t('settings.l_r_arrangement'), {self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
             lambda value: self.layout("channel_layout", value))
-        choice(general, 2, "gauge_style", self.t('settings.led_rendering'), {self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
+        choice(general, 3, "gauge_style", self.t('settings.led_rendering'), {self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
             lambda value: self.style("gauge_style", value))
-        choice(general, 3, "led_shape", self.t('settings.led_shape'), {self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
+        choice(general, 4, "led_shape", self.t('settings.led_shape'), {self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
             lambda value: self.style("led_shape", value))
-        ttk.Label(general, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=4, column=0, sticky="w", pady=8)
+        ttk.Label(general, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=5, column=0, sticky="w", pady=8)
         self.ratio = tk.StringVar(root)
         ratio = ttk.Spinbox(general, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
                             command=self.set_ratio, width=10)
-        ratio.grid(row=4, column=1, sticky="w", padx=(14, 0))
+        ratio.grid(row=5, column=1, sticky="w", padx=(14, 0))
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
         self.info = tk.BooleanVar(root)
         ttk.Checkbutton(general, text=self.t('settings.show_output_information'), variable=self.info,
-                        command=lambda: self.layout("info_enabled", self.info.get())).grid(row=5, column=0, sticky="w", pady=8)
-        choice(general, 6, "info_position", self.t('settings.information_position'), {self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
+                        command=lambda: self.layout("info_enabled", self.info.get())).grid(row=6, column=0, sticky="w", pady=8)
+        choice(general, 7, "info_position", self.t('settings.information_position'), {self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
         self.limit_to_20khz = tk.BooleanVar(root)
         ttk.Checkbutton(general, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
-                            row=7, column=0, columnspan=2, sticky="w", pady=8)
+                            row=8, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Label(general, text=self.t('settings.layout_help'),
-                  wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=16)
+                  wraplength=500).grid(row=9, column=0, columnspan=2, sticky="w", pady=16)
+
+        choice(general, 0, "channel_mode", self.t("settings.channel_mode"), {
+            self.t("settings.stereo_separate"): "stereo",
+            self.t("settings.stereo_mix"): "stereo_mix"},
+            lambda value: self.layout("channel_mode", value))
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -311,6 +316,8 @@ class _Dialog:
                      state.layout[key] if key in state.layout else state.style[key])
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
+        self.combos["channel_layout"][0].configure(
+            state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
         self.confirm_keyboard_exit.set(state.layout["confirm_keyboard_exit"])
         self.info.set(state.layout["info_enabled"])

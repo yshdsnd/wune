@@ -131,5 +131,8 @@
   "exit.dont_ask": "Don't ask again when exiting",
   "exit.cancel": "Cancel",
   "exit.confirm": "Exit",
-  "exit.confirm_setting": "Confirm before quitting with Q / Esc"
+  "exit.confirm_setting": "Confirm before quitting with Q / Esc",
+  "settings.channel_mode": "Channel display",
+  "settings.stereo_separate": "Stereo (separate L/R)",
+  "settings.stereo_mix": "Stereo Mix (combined)"
 }

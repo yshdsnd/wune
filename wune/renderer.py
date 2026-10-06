@@ -27,7 +27,8 @@ class LedBarRenderer:
         self.user_presets = {}
         if cfg.gauge_style not in ("flat", "box"):
             raise ValueError("gauge_style must be flat or box")
-        self.channels = cfg.channels
+        self.channels = cfg.display_channels
+        self._channel_mode = cfg.channel_mode
         self._layout = None
         self._led_cache = {}
         self._grid_key = None
@@ -65,6 +66,14 @@ class LedBarRenderer:
 
     def resize(self, surf):
         """Refresh geometry/surfaces without resetting levels, peaks or presets."""
+        if self.channels != self.cfg.display_channels or self._channel_mode != self.cfg.channel_mode:
+            self.channels = self.cfg.display_channels
+            self._channel_mode = self.cfg.channel_mode
+            self._layout = None
+            self._peaks = PeakEnvelope((self.channels, self.cfg.bars), self.cfg.peak_hold_ms,
+                                       self.cfg.peak_fall_per_second * self.cfg.leds_per_bar)
+            self.peak_pos = self._peaks.positions
+            self.peak_hold = self._peaks.remaining
         layout = calculate_layout(surf.get_size(), self.cfg)
         size_changed = self.trail is None or self.trail.get_size() != surf.get_size()
         self.surf = surf
@@ -236,7 +245,8 @@ class LedBarRenderer:
         unit_y = y0 - unit.get_height() - self.cfg.db_unit_offset  # ←ここはお好みのマージン
 
         # L/R は dB より“さらに上”に置く
-        label = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
+        label = ("MIX" if self.cfg.channel_mode == "stereo_mix" else
+                 "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}"))
         ts_lr = self.font_channel.render(label, True, self.cfg.theme.edge_text)
         lr_x  = x_right - ts_lr.get_width()
         lr_y  = unit_y - ts_lr.get_height() - 2  # ← dBの上に来る
@@ -367,7 +377,8 @@ class LedBarRenderer:
 
     def draw_horizontal_db_scale(self, ch):
         plot = self.plots[ch]
-        name = "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}")
+        name = ("MIX" if self.cfg.channel_mode == "stereo_mix" else
+                 "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}"))
         label = self.font_channel.render(name, True, self.cfg.theme.edge_text)
         self.surf.blit(label, (plot.left, plot.top - label.get_height() - 12))
         if not self.cfg.show_db_scale:
