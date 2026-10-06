@@ -3,7 +3,12 @@ from dataclasses import FrozenInstanceError
 import time
 import unittest
 
-from wune.now_playing import MetadataProvider, NowPlaying, NowPlayingCoordinator
+from wune.now_playing import (
+    MetadataProvider,
+    NowPlaying,
+    NowPlayingCoordinator,
+    create_default_coordinator,
+)
 
 
 class DummyProvider(MetadataProvider):
@@ -238,6 +243,13 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
 
         self.assertTrue(p.stopped)
         self.assertIsNone(coordinator.current)
+
+    def test_create_default_coordinator(self):
+        coord = create_default_coordinator()
+        self.assertIsInstance(coord, NowPlayingCoordinator)
+        # Should gracefully return None when no providers or no media playing
+        self.assertIsNone(coord.update())
+
 
 
 if __name__ == "__main__":
