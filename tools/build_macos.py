@@ -148,7 +148,7 @@ def main(argv=None):
     # 6. Apply ad-hoc code signing to the .app bundle
     subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(app_target)], check=True)
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app_target)], check=True)
-    collect_notices(bundle_dir, work / "work" / "Wune" / "license-inputs.json")
+    collect_notices(bundle_dir, work / "work" / "Wune-macos" / "license-inputs.json")
     collect_sources(bundle_dir, ROOT / "build" / "license-sources")
 
     # 7. Execute isolated smoke test

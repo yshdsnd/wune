@@ -65,7 +65,7 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 ## 最終候補と公開
 
 1. リリース準備の変更をmainへ取り込む。
-2. ActionsのWindows packageをmainで手動実行し、versionを1.1.0、release_identityをオンにする。
+2. ActionsのWindows packageとmacOS packageを同じmainコミットで手動実行し、versionを1.1.0、release_identityをオンにする。
 3. 候補ZIP・SHA-256と同梱ファイルを確認し、下記の実機確認を完了する。
 4. 確認したコミットにv1.1.0タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
 5. タグ版ZIPのSHA-256・識別情報・ライセンスを再確認し、リリース本文を記入して公開する。
