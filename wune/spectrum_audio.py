@@ -1,15 +1,15 @@
 # wune/spectrum_audio.py
 from __future__ import annotations
-from contextlib import ExitStack
+from dataclasses import replace
 
 import numpy as np
-import soundcard as sc
+from .capture import CaptureBackend, create_capture_backend
 from .config import Config
 
 from .ballistics import LevelEnvelope
 
 class AudioSpectrum:
-    """Windows WASAPI loopback → Hann/rFFT → calibrated band power → display levels."""
+    """PCM capture → Hann/rFFT → calibrated band power → display levels."""
     def __init__(
         self,
         cfg: Config,
@@ -17,19 +17,35 @@ class AudioSpectrum:
         channels: int = 2,
         samplerate: int | None = None,
         blocksize: int | None = None,
+        capture_backend: CaptureBackend | None = None,
     ):
         self.cfg = cfg
         self.bars = int(bars)
         self.channels_req = int(channels)
-        self._speaker = self._select_output()
-        requested_rate = cfg.sample_rate if samplerate is None else samplerate
-        if requested_rate is None:
-            from .soundcard_compat import output_sample_rate
-            requested_rate = output_sample_rate(self._speaker)
-        self.sr = int(requested_rate)
-        if self.sr <= 0:
-            raise ValueError("Sample rate must be positive.")
         self.nfft = int(cfg.block_size if blocksize is None else blocksize)
+        if self.nfft < 3 or self.bars < 1 or self.channels_req < 1:
+            raise ValueError("FFT size, bars and channels must be positive (FFT size >= 3)")
+        if cfg.db_max <= cfg.db_min:
+            raise ValueError("db_max must be greater than db_min")
+        capture_cfg = cfg if samplerate is None else replace(cfg, sample_rate=samplerate)
+        self.capture = (capture_backend if capture_backend is not None
+                        else create_capture_backend(capture_cfg, blocksize=self.nfft))
+        self._closed = False
+        try:
+            self.sr = int(self.capture.sample_rate)
+            if self.sr <= 0:
+                raise ValueError("Sample rate must be positive.")
+            self.channels_eff = int(self.capture.channels)
+            if self.channels_eff < 1:
+                raise ValueError("Capture channels must be positive.")
+            self.device = self.capture.device_name
+            self._initialize_analysis()
+        except BaseException:
+            self.close()
+            raise
+
+    def _initialize_analysis(self):
+        cfg = self.cfg
         self.last_rms = 0.0
         self.gated = False
 
@@ -54,11 +70,6 @@ class AudioSpectrum:
         # ビジュアルエンベロープの作成
         self._vis_env = LevelEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms)
 
-        # Open last so initialization errors cannot leave capture running.
-        self._capture_context = ExitStack()
-        self.stream = self._open_loopback()
-
-
     # --- public API ----------------------------------------------------------
     def set_range(self, fmin: float, fmax: float) -> None:
         """外側（Configなど）から周波数レンジを合わせる用。"""
@@ -79,7 +90,7 @@ class AudioSpectrum:
         1フレームぶん処理して (channels,bars) の 0..1 を返す。
         固定の正弦波フルスケール基準で表示レベルに変換する。
         """
-        data = self.stream.record(numframes=self.nfft)     # shape: (nfft, C)
+        data = self.capture.record(self.nfft)     # shape: (nfft, C)
         if data.ndim == 1:
             data = data[:, None]
 
@@ -138,36 +149,9 @@ class AudioSpectrum:
         return out
 
     def close(self) -> None:
-        self._capture_context.close()
-
-    def _select_output(self):
-        """Resolve once so rate detection and recording use the same endpoint."""
-        from .soundcard_compat import prepare_soundcard
-        prepare_soundcard()
-        speaker = (sc.default_speaker() if self.cfg.output_device is None
-                   else sc.get_speaker(self.cfg.output_device))
-        if speaker is None:
-            raise RuntimeError("No Windows playback device is available.")
-        if speaker.channels < 2:
-            raise RuntimeError("Select a stereo Windows playback device for loopback.")
-        return speaker
-
-    def _open_loopback(self):
-        """Capture the render endpoint, never a microphone or an output player."""
-        speaker = self._speaker
-        # Resolve by endpoint ID: names can also match ordinary microphones.
-        loopback = sc.get_microphone(id=speaker.id, include_loopback=True)
-        if not loopback.isloopback:
-            raise RuntimeError("The selected playback endpoint has no loopback capture.")
-        self.device = speaker.name
-        self.channels_eff = 2
-        # Shared mode leaves normal playback running. Avoid SoundCard's known
-        # single-channel WASAPI issue even when the display is configured mono.
-        recorder = loopback.recorder(
-            samplerate=self.sr, channels=[0, 1], blocksize=self.nfft,
-            exclusive_mode=False,
-        )
-        return self._capture_context.enter_context(recorder)
+        if not self._closed:
+            self._closed = True
+            self.capture.close()
 
     def _rebuild_bins(self) -> None:
         """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
