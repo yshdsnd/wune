@@ -31,3 +31,5 @@ jobs:
           python -m unittest discover -s tests -p 'test_macos_windows.py'
           python -m unittest discover -s tests -p 'test_settings_dialog.py'
           python -m unittest discover -s tests -p 'test_settings.py'
+      - name: Test smart idle and interaction wakeup
+        run: python -m unittest discover -s tests -p 'test_smart_idle.py'
