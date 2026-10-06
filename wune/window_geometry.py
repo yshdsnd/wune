@@ -32,9 +32,68 @@ def work_areas():
         if user32.EnumDisplayMonitors(None, None, visit, 0) and found:
             return [rect for primary, rect in sorted(found, key=lambda item: not item[0])]
         warnings.warn("Monitor detection failed; using the primary desktop size", RuntimeWarning)
+    elif sys.platform == "darwin":
+        try:
+            import ctypes as ct
+            from ctypes import c_uint32, c_double, Structure, POINTER
+
+            class CGPoint(Structure):
+                _fields_ = [("x", c_double), ("y", c_double)]
+
+            class CGSize(Structure):
+                _fields_ = [("width", c_double), ("height", c_double)]
+
+            class CGRect(Structure):
+                _fields_ = [("origin", CGPoint), ("size", CGSize)]
+
+            cg = ct.cdll.LoadLibrary("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
+            cg.CGGetActiveDisplayList.restype = c_uint32
+            cg.CGGetActiveDisplayList.argtypes = [c_uint32, POINTER(c_uint32), POINTER(c_uint32)]
+            cg.CGGetOnlineDisplayList.restype = c_uint32
+            cg.CGGetOnlineDisplayList.argtypes = [c_uint32, POINTER(c_uint32), POINTER(c_uint32)]
+            cg.CGDisplayBounds.restype = CGRect
+            cg.CGDisplayBounds.argtypes = [c_uint32]
+            cg.CGMainDisplayID.restype = c_uint32
+            cg.CGMainDisplayID.argtypes = []
+
+            main_id = cg.CGMainDisplayID()
+            max_displays = 16
+            displays = (c_uint32 * max_displays)()
+            count = c_uint32(0)
+            if cg.CGGetActiveDisplayList(max_displays, displays, ct.byref(count)) != 0 or count.value == 0:
+                count.value = 0
+                if cg.CGGetOnlineDisplayList(max_displays, displays, ct.byref(count)) != 0:
+                    count.value = 0
+
+            if count.value > 0:
+                areas = []
+                for i in range(min(count.value, max_displays)):
+                    d_id = displays[i]
+                    bounds = cg.CGDisplayBounds(d_id)
+                    rect = (int(bounds.origin.x), int(bounds.origin.y),
+                            int(bounds.size.width), int(bounds.size.height))
+                    if rect[2] > 0 and rect[3] > 0:
+                        areas.append((d_id == main_id, rect))
+                if areas:
+                    return [rect for is_main, rect in sorted(areas, key=lambda item: not item[0])]
+            if main_id:
+                bounds = cg.CGDisplayBounds(main_id)
+                if bounds.size.width > 0 and bounds.size.height > 0:
+                    return [(int(bounds.origin.x), int(bounds.origin.y),
+                             int(bounds.size.width), int(bounds.size.height))]
+        except Exception as error:
+            warnings.warn(f"Monitor detection failed ({error}); using the primary desktop size", RuntimeWarning)
     import pygame as pg
-    width, height = pg.display.get_desktop_sizes()[0]
-    return [(0, 0, width, height)]
+    try:
+        if not pg.display.get_init():
+            pg.display.init()
+        sizes = pg.display.get_desktop_sizes()
+        if sizes:
+            width, height = sizes[0]
+            return [(0, 0, width, height)]
+    except Exception:
+        pass
+    return [(0, 0, 1920, 1080)]
 
 
 def restore_geometry(cfg, saved, areas):

@@ -1,5 +1,6 @@
 """Non-modal application menu drawn in the spectrum's existing event loop."""
 import pygame as pg
+import sys
 from .i18n import Translator
 
 
@@ -13,8 +14,9 @@ class ApplicationMenu:
 
     def items(self, language, fullscreen):
         t = Translator(language)
-        return (("settings", t("menu.settings"), "F2"),
-                ("fullscreen", t("menu.exit_fullscreen" if fullscreen else "menu.enter_fullscreen"), "Alt+Enter"),
+        mac = sys.platform == "darwin"
+        return (("settings", t("menu.settings"), "Cmd+," if mac else "F2"),
+                ("fullscreen", t("menu.exit_fullscreen" if fullscreen else "menu.enter_fullscreen"), "Cmd+F" if mac else "Alt+Enter"),
                 ("exit", t("menu.exit"), "Q" if fullscreen else "Q / Esc"))
 
     @staticmethod

@@ -1,8 +1,9 @@
-"""Wune: Windows WASAPI loopback with an LED spectrum display.
+"""Wune: System audio capture with an LED spectrum display.
 
 Menu button/right-click: Settings, fullscreen, Exit.
 ESC: leave fullscreen or ask to quit; Q: ask to quit, Alt+Enter (also F11): fullscreen, Space: pause, I: input information,
 T or left-click the preset badge: next visual preset.
+macOS: Command+F toggles fullscreen; Command+, opens settings.
 """
 # main.py
 import pygame as pg
@@ -24,6 +25,8 @@ def main(argv=None):
     App(cfg, settings_store=store, saved_geometry=geometry).run()
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
     try:
         main()
     except Exception as ex:

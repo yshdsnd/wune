@@ -5,6 +5,7 @@ import pygame as pg
 from copy import deepcopy
 import warnings
 import os
+import sys
 
 from .config import Config
 from .application_menu import ApplicationMenu
@@ -221,17 +222,19 @@ class App:
             while True:
                 action, state = dialog.events.get_nowait()
                 if action == "ready":
-                    from .settings_window import SettingsWindow
-                    try:
-                        self._settings_window = SettingsWindow(state)
-                        owner = pg.display.get_wm_info().get("window")
-                        self._settings_window.bind(owner)
-                        self._settings_window.position(owner)
-                    except OSError as error:
-                        warnings.warn(f"Cannot attach settings window: {error}", RuntimeWarning)
+                    if sys.platform == "win32":
+                        from .settings_window import SettingsWindow
+                        try:
+                            self._settings_window = SettingsWindow(state)
+                            owner = pg.display.get_wm_info().get("window")
+                            self._settings_window.bind(owner)
+                            self._settings_window.position(owner)
+                        except OSError as error:
+                            warnings.warn(f"Cannot attach settings window: {error}", RuntimeWarning)
                     dialog.focus()
                     continue
                 if action == "closed":
+                    dialog.close()
                     self.cancel_settings()
                     self.settings_dialog = None
                     self._settings_window = None
@@ -259,7 +262,12 @@ class App:
                         self._settings_closing = True
                     dialog.reply(True, "status.applied", close=action == "save")
         except Empty:
-            pass
+            if getattr(dialog, "worker_failed", False) is True:
+                warnings.warn("Settings process exited unexpectedly; reverting preview", RuntimeWarning)
+                dialog.close()
+                self.cancel_settings()
+                self.settings_dialog = None
+                self._settings_window = None
 
     def resize_window(self, size):
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
@@ -304,6 +312,13 @@ class App:
                 self.renderer.next_preset()
                 self.resize_window(self.screen.get_size())
         elif event.type == pg.KEYDOWN:
+            mac_cmd = sys.platform == "darwin" and bool(getattr(event, "mod", 0) & pg.KMOD_META)
+            if mac_cmd and event.key == pg.K_COMMA:
+                self.execute_command("settings")
+                return
+            if mac_cmd and event.key == pg.K_f:
+                self.execute_command("fullscreen")
+                return
             if event.key in (pg.K_ESCAPE, pg.K_q):
                 if getattr(event, "repeat", False):
                     return
