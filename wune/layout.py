@@ -76,6 +76,25 @@ def fit_window_size(size, cfg):
     return clamp_window_size((width, height), cfg)
 
 
+def channel_mode_window_size(size, previous_cfg, cfg):
+    """Keep LED scale when adding/removing the second spectrum.
+
+    Fitting two plots inside the old single-plot window would shrink both
+    axes on every round trip. Instead, rebuild the window around the same
+    LED height, including the new number of rows/columns and their margins.
+    """
+    led_h = calculate_layout(clamp_window_size(size, previous_cfg), previous_cfg).led_height
+    led_w = max(1, round(led_h * cfg.led_aspect_ratio))
+    gap = max(1, round(led_h / 4))
+    nx, ny = grid_counts(cfg)
+    plot_w = nx * led_w + (nx - 1) * gap
+    plot_h = ny * led_h + (ny - 1) * gap
+    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
+    height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    return clamp_window_size((width, height), cfg)
+
+
 def calculate_layout(size, cfg):
     width, height = size
     if tuple(size) != clamp_window_size(size, cfg):

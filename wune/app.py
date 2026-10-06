@@ -13,7 +13,7 @@ from .exit_confirmation import ExitConfirmation
 from .build_identity import window_title
 from .i18n import Translator
 from .icons import set_app_id, pygame_icon
-from .layout import clamp_window_size, fit_window_size
+from .layout import clamp_window_size, fit_window_size, channel_mode_window_size
 from .monitor_identity import connected_monitors, matching_monitor, current_monitor_identity
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
@@ -191,10 +191,13 @@ class App:
         previous.background = deepcopy(state.background)
         previous.layout["confirm_keyboard_exit"] = state.layout["confirm_keyboard_exit"]
         presentation_only = previous == state
+        previous_cfg = deepcopy(self.cfg)
         previous_mode = self.cfg.channel_mode
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
         if self.cfg.channel_mode != previous_mode:
+            if size is None and not self._fullscreen:
+                size = channel_mode_window_size(self.screen.get_size(), previous_cfg, self.cfg)
             self.spectrum.set_display_mode(self.cfg.channel_mode)
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
         pg.display.set_caption(window_title(self.cfg.language))

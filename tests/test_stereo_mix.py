@@ -9,12 +9,35 @@ import numpy as np
 
 from wune.appearance import AppearanceDraft, AppearanceState
 from wune.config import Config
-from wune.layout import calculate_layout, minimum_window_size, fit_window_size
+from wune.layout import calculate_layout, minimum_window_size, fit_window_size, channel_mode_window_size
 from wune.settings import SettingsStore
 from wune.spectrum_audio import AudioSpectrum
 
 
 class StereoMixTests(unittest.TestCase):
+    def test_repeated_mode_switch_preserves_scale_and_restores_window_size(self):
+        for orientation in ("frequency_horizontal", "frequency_vertical"):
+            for arrangement in ("vertical", "horizontal"):
+                for ratio in (0.5, 2, 2.8):
+                    stereo = Config(spectrum_orientation=orientation,
+                                    channel_layout=arrangement, led_aspect_ratio=ratio)
+                    mix = replace(stereo, channel_mode="stereo_mix")
+                    for start in ((1280, 800), (2200, 1600), minimum_window_size(stereo)):
+                        size = original = fit_window_size(start, stereo)
+                        height = calculate_layout(size, stereo).led_height
+                        for _ in range(5):
+                            size = fit_window_size(channel_mode_window_size(size, stereo, mix), mix)
+                            self.assertEqual(calculate_layout(size, mix).led_height, height)
+                            size = fit_window_size(channel_mode_window_size(size, mix, stereo), stereo)
+                            self.assertEqual(size, original)
+
+    def test_manual_resize_in_mix_becomes_the_new_scale(self):
+        stereo = Config()
+        mix = replace(stereo, channel_mode="stereo_mix")
+        resized = fit_window_size((960, 500), mix)
+        expanded = channel_mode_window_size(resized, mix, stereo)
+        self.assertEqual(channel_mode_window_size(expanded, stereo, mix), resized)
+
     def make_spectrum(self, mode="stereo", channels=2):
         cfg = Config(channel_mode=mode, channels=channels, output_floor=0)
         backend = Mock(sample_rate=48000, channels=2, device_name="test")

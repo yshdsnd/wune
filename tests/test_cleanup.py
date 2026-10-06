@@ -304,6 +304,33 @@ class AudioCleanupTests(unittest.TestCase):
 
 
 class AppCleanupTests(unittest.TestCase):
+    def test_mode_preview_uses_scale_preserving_size_and_cancel_uses_saved_size(self):
+        from wune.appearance import AppearanceState, AppearanceDraft
+        from wune.layout import fit_window_size
+        self.app.renderer.preset_name = "CLASSIC"
+        self.app.renderer.user_presets = {}
+        original = fit_window_size((1280, 800), self.app.cfg)
+        self.app.screen.get_size.return_value = original
+        self.app._appearance_baseline = AppearanceState.capture(self.app.cfg, "CLASSIC", {})
+        self.app._appearance_size = original
+        draft = AppearanceDraft(self.app._appearance_baseline)
+        # Model the drawable size changing after the native window resize.
+        def resize(size):
+            self.app.screen.get_size.return_value = size
+        with patch.object(self.app, "resize_window", side_effect=resize) as resized:
+            for _ in range(5):
+                draft.state.layout["channel_mode"] = "stereo_mix"
+                self.app.preview_appearance(draft.snapshot())
+                self.assertEqual(resized.call_args.args[0][0], original[0])
+                self.assertLess(resized.call_args.args[0][1], original[1])
+                draft.state.layout["channel_mode"] = "stereo"
+                self.app.preview_appearance(draft.snapshot())
+                self.assertEqual(resized.call_args.args[0], original)
+            draft.state.layout["channel_mode"] = "stereo_mix"
+            self.app.preview_appearance(draft.snapshot())
+            self.app.cancel_settings()
+            self.assertEqual(resized.call_args.args[0], original)
+
     def test_mix_preview_and_cancel_change_display_without_restarting_capture(self):
         from wune.appearance import AppearanceState, AppearanceDraft
         self.app.renderer.preset_name = "CLASSIC"
