@@ -25,3 +25,9 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_capture*.py'
           python -m unittest discover -s tests -p 'test_tap_macos.py'
+
+      - name: Test macOS settings process and window integration
+        run: |
+          python -m unittest discover -s tests -p 'test_macos_windows.py'
+          python -m unittest discover -s tests -p 'test_settings_dialog.py'
+          python -m unittest discover -s tests -p 'test_settings.py'

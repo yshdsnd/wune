@@ -1,4 +1,4 @@
-"""Tk owns its own thread; pygame/audio only receive immutable draft snapshots.
+"""Tk owns a Windows thread or a macOS child process; pygame/audio only receive immutable draft snapshots.
 
 Native color/name dialogs can run their modal loops without blocking capture.
 No Tk widget or pygame object crosses the queues.
@@ -7,6 +7,7 @@ from dataclasses import replace
 from queue import Empty, Queue
 from threading import Thread
 import sys
+import multiprocessing as mp
 
 from .appearance import AppearanceDraft, COLOR_FIELDS
 from .ballistics import MOTION_LIMITS
@@ -32,46 +33,100 @@ MOTION_LABELS = {
 COLOR_LABELS = {key: "color." + key for key in COLOR_FIELDS}
 
 
+def _run_dialog(state, path, events, commands):
+    root = dialog = None
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        dialog = _Dialog(root, AppearanceDraft(state), path, events, commands)
+        root.update_idletasks()
+        # Only Windows transfers a native handle for ownership. Mac Tk lives
+        # on the child process's main thread and is activated by that process.
+        events.put(("ready", root.winfo_id() if sys.platform == "win32" else None))
+        root.mainloop()
+    except Exception as error:
+        events.put(("error", str(error)))
+    finally:
+        if root is not None:
+            try:
+                root.destroy()
+            except Exception:
+                pass
+        dialog = root = None
+        import gc
+        gc.collect()
+        events.put(("closed", None))
+
+
+def _focus_dialog(root):
+    root.deiconify()
+    root.lift()
+    if sys.platform == "darwin":
+        # Activate the settings process rather than the pygame process.
+        import ctypes as ct
+        try:
+            class ProcessSerialNumber(ct.Structure):
+                _fields_ = [("high", ct.c_uint32), ("low", ct.c_uint32)]
+            api = ct.CDLL("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices")
+            api.SetFrontProcessWithOptions.argtypes = [ct.POINTER(ProcessSerialNumber), ct.c_uint32]
+            api.SetFrontProcessWithOptions.restype = ct.c_int32
+            api.SetFrontProcessWithOptions(ct.byref(ProcessSerialNumber(0, 2)), 1)
+        except (OSError, AttributeError):
+            pass
+    root.focus_force()
+
+
 class SettingsDialog:
     def __init__(self, state, path):
-        self.events = Queue()
-        self.commands = Queue()
-        self.thread = Thread(target=self._run, args=(state, str(path)), daemon=True, name="Wune settings")
-        self.thread.start()
-
-    def _run(self, state, path):
-        root = dialog = None
+        self._process = sys.platform == "darwin"
+        self._closed = False
+        if self._process:
+            context = mp.get_context("spawn")
+            self.events, self.commands = context.Queue(), context.Queue()
+            worker = context.Process
+        else:
+            self.events, self.commands = Queue(), Queue()
+            worker = Thread
+        self.thread = worker(target=_run_dialog,
+                             args=(state, str(path), self.events, self.commands),
+                             daemon=True, name="Wune settings")
         try:
-            import tkinter as tk
-            root = tk.Tk()
-            root.withdraw()
-            dialog = _Dialog(root, AppearanceDraft(state), path, self.events, self.commands)
-            root.update_idletasks()
-            self.events.put(("ready", root.winfo_id()))
-            root.mainloop()
-        except Exception as error:
-            self.events.put(("error", str(error)))
-        finally:
-            if root is not None:
-                try:
-                    root.destroy()
-                except Exception:
-                    pass
-            # Tcl objects must be finalized on the thread that created them.
-            dialog = root = None
-            import gc
-            gc.collect()
-            self.events.put(("closed", None))
+            self.thread.start()
+        except BaseException:
+            self._release_queues()
+            raise
+
+    @property
+    def worker_failed(self):
+        return self._process and self.thread.exitcode not in (None, 0)
+
+    def _release_queues(self):
+        if self._process:
+            for queue in (self.events, self.commands):
+                queue.cancel_join_thread()
+                queue.close()
 
     def focus(self):
-        self.commands.put(("focus", None))
+        if not self._closed:
+            self.commands.put(("focus", None))
 
     def close(self):
-        self.commands.put(("close", None))
-        self.thread.join(timeout=1.0)
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self.commands.put(("close", None))
+            self.thread.join(timeout=1.0)
+            if self._process and self.thread.is_alive():
+                self.thread.terminate()
+                self.thread.join(timeout=1.0)
+        finally:
+            self._release_queues()
 
     def reply(self, success, message="", close=False):
-        self.commands.put(("reply", (success, message, close)))
+        if not self._closed:
+            self.commands.put(("reply", (success, message, close)))
 
 
 class _Dialog:
@@ -444,9 +499,7 @@ class _Dialog:
                     self.root.destroy()
                     return
                 if action == "focus":
-                    self.root.deiconify()
-                    self.root.lift()
-                    self.root.focus_force()
+                    _focus_dialog(self.root)
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:

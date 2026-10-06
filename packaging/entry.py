@@ -28,7 +28,7 @@ def launch():
     except Exception:
         traceback.print_exc()
         stream.flush()
-        if "--package-smoke-test" not in sys.argv:
+        if "--package-smoke-test" not in sys.argv and sys.platform == "win32":
             # Also works if pygame/Tk failed before the application opened.
             import ctypes
             ctypes.windll.user32.MessageBoxW(
@@ -40,4 +40,6 @@ def launch():
 
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
     raise SystemExit(launch())
