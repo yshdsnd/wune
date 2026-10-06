@@ -11,6 +11,8 @@ it does not assign a new license to the owner's supplied design.
 - `Wune.ico`: 16, 24, 32, 48, 64, 96, 128 and 256 px RGBA frames.
   The 16–32 px frames use the text-free version; 48 px and larger include Wune.
   Windows Tk and the packaged executable use this ICO.
+- `Wune.icns`: Apple Icon Image format bundle containing standard resolutions
+  from 16x16 to 1024x1024 for macOS application bundle icon (`Wune.app`).
 
 The design keeps the glossy dark rounded square, cyan rim and green/yellow/red
 LED spectrum. The small variant simplifies the spectrum to seven columns.

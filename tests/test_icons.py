@@ -8,6 +8,12 @@ from wune.icons import ASSETS, pygame_icon, set_tk_icon
 
 
 class IconTests(unittest.TestCase):
+    def test_icns_header_matches_file_length(self):
+        data = (ASSETS / "Wune.icns").read_bytes()
+        self.assertEqual(data[:4], b"icns")
+        self.assertEqual(struct.unpack_from(">I", data, 4)[0], len(data))
+        self.assertGreater(len(data), 1000)
+
     def test_ico_has_decodable_rgba_images_at_all_windows_sizes(self):
         data = (ASSETS / "Wune.ico").read_bytes()
         reserved, kind, count = struct.unpack_from("<HHH", data)

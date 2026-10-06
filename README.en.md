@@ -2,7 +2,7 @@
 
 [日本語](README.md) / **English**
 
-Wune is an LED audio spectrum analyzer for Windows, inspired by compact stereo systems from the 1980s and 1990s.
+Wune is an LED audio spectrum analyzer for Windows and macOS, inspired by compact stereo systems from the 1980s and 1990s.
 Watch the left and right channels respond while listening to music through your usual speakers or headphones.
 Customize the colors, LED shapes, layout, and response to the beat in Settings.
 
@@ -10,45 +10,28 @@ Customize the colors, LED shapes, layout, and response to the beat in Settings.
 
 Display example rendered by the current application using demo data; it is not a measurement of audio hardware.
 
-## Download
+## Download and installation
 
-Download the Windows ZIP from **[GitHub Releases](https://github.com/yshdsnd/wune/releases)**.
-Look for **Wune-vX.Y.Z-win64.zip**, where X.Y.Z is the version number.
-The “Source code” downloads automatically provided by GitHub are not the packaged application.
+Choose an OS-specific ZIP from [GitHub Releases](https://github.com/yshdsnd/wune/releases). The automatic “Source code” archives are not packaged applications.
 
-## Get started
+- Windows: `Wune-vX.Y.Z-win64.zip` — [Windows installation guide](INSTALL_WINDOWS.en.md)
+- Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS installation guide](INSTALL_MACOS.en.md)
 
-1. Right-click the ZIP and choose **Extract All** to extract it to a folder of your choice.
-2. Open the **Wune** folder inside the extracted files.
-3. Play audio through your speakers or headphones using your usual music app.
-4. Double-click **Wune.exe**.
-
-**You do not need to install Python or run Wune as an administrator for normal use.**
-Extract the entire ZIP rather than launching the application from inside it.
-The **_internal** folder must remain next to Wune.exe. Do not move the EXE on its own.
-To launch Wune from your desktop, create a shortcut to Wune.exe.
-
-Wune captures audio from the default Windows output device selected at startup. It does not play audio or change your output device.
-The information bar shows the device name, capture sample rate, and channel count.
-Restart Wune after changing the output device or its sample rate in Windows.
-
-### Update or uninstall
-
-To update, close Wune, extract the new ZIP into a separate folder, and launch it.
-Settings are stored in your user profile and carry over when you change the application folder.
-After checking that the new version works, delete the old application folder and update any shortcuts.
-
-To uninstall, close Wune and delete the extracted application folder and any shortcuts.
-If you also want to remove settings and logs, delete their folder described below.
+No Python installation is needed. The guides also cover updates, removal, and initial audio permissions.
+This main branch is developing the v1.1.0 integration; some controls differ from the released v1.0.1.
 
 ## Controls
+
+Choose a solid color or local PNG/JPEG image in the Background tab. Fit shows the entire image; Fill crops centrally to fill the display. Image paths are saved without copying or modifying the original. Missing images fall back to the theme background. Transparent windows and video backgrounds are not supported.
+
 
 Click the main window before using keyboard shortcuts.
 
 | Action | Function |
 | --- | --- |
-| F2 | Open Settings |
-| F11 | Toggle fullscreen / windowed mode |
+| F2 (also Command+, on Mac) | Open Settings |
+| Alt+Enter / F11 (also Command+F on Mac) | Toggle fullscreen / windowed mode |
+| Top-left menu or right-click | Settings, fullscreen, and exit |
 | Space | Pause / resume the display; music playback continues |
 | T, or left-click the theme name at the top right | Switch to the next color theme |
 | I | Show / hide the output information bar |
@@ -73,6 +56,7 @@ Press **F2** to open Settings. Preview changes in the main display while music c
 | --- | --- |
 | Layout and LEDs | Language, frequency / level orientation, stacked or side-by-side L/R channels, LED rendering / shape / aspect ratio, information bar, and a 20 kHz display limit |
 | Themes and colors | Select, create, duplicate, rename, or delete color themes; edit individual colors |
+| Background | Solid color / image, Fit / Fill |
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
 
 “LED aspect ratio (width/height)” controls the shape: higher values make LEDs wider relative to their height. Resize the window to change the overall display size.
@@ -89,7 +73,8 @@ Editing a built-in theme creates a user copy, preserving the original colors.
 
 On exit, Wune saves the normal-window size and position and the confirmed display, theme, and motion settings, then restores them at the next launch.
 
-If Wune exits in fullscreen, it starts fullscreen on the same monitor only when its Windows monitor identity is uniquely found again. If the monitor is missing, ambiguous, or cannot be identified, Wune starts windowed. Port or driver changes can also change the identity and cause a windowed fallback. Leaving fullscreen restores the saved normal-window position and size.
+On Windows, if Wune exits in fullscreen, it starts fullscreen on the same monitor only when its Windows monitor identity is uniquely found again. If the monitor is missing, ambiguous, or cannot be identified, Wune starts windowed. Port or driver changes can also change the identity and cause a windowed fallback. Leaving fullscreen restores the saved normal-window position and size.
+Mac does not restore fullscreen on the same monitor; it starts windowed.
 If you quit with Settings still open, unapplied previews are not saved.
 
 ### Switch between English and Japanese
@@ -101,7 +86,7 @@ The standard Windows color picker follows the Windows display language.
 
 ## Settings location and reset
 
-Paste the following into the File Explorer address bar:
+On Windows, paste the following into File Explorer. On Mac, use Finder → Go to Folder with `~/Library/Application Support/Wune`:
 
 ~~~text
 %LOCALAPPDATA%\Wune
@@ -110,7 +95,7 @@ Paste the following into the File Explorer address bar:
 | File | Contents |
 | --- | --- |
 | settings.json | Display settings, user themes, normal-window geometry, and fullscreen monitor identity |
-| Wune.log | Startup and runtime log for the packaged EXE; overwritten at each launch |
+| Wune.log | Startup and runtime log for the packaged app; overwritten at each launch |
 
 The Settings window also shows the save path at the bottom. To back up your settings, close Wune and copy settings.json.
 
@@ -127,10 +112,11 @@ This deletes the existing settings file; back it up first if needed.
 
 ## Supported environment and limitations
 
-- **Tested: Windows 11 (64-bit), using the x64 package.**
+- Previous releases were tested on Windows 11 x64 and macOS 27 Apple Silicon. The integrated v1.1.0 candidate still needs hardware validation.
+- Mac packages target Apple Silicon arm64. Core Audio Process Tap requires macOS 14.2 or later; this does not imply hardware verification on every supported OS version.
 - An output device capable of stereo audio playback is required.
-- Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows, macOS, Linux, or FreeBSD.
-- Audio is captured from the default Windows output device through WASAPI loopback. Microphone input and direct audio-file loading are not supported.
+- Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows, Intel Mac, Linux, or FreeBSD.
+- Audio is captured from the startup default output through WASAPI on Windows and Core Audio Process Tap on Mac. Microphone input and direct audio-file loading are not supported.
 - Output-device and sample-rate changes are not followed automatically while Wune is running.
 - Capture uses channels 0 and 1. Full surround downmixing and mono-only devices are not supported.
 - The Settings window does not include audio-device selection or band-count controls.
@@ -144,7 +130,7 @@ This deletes the existing settings file; back it up first if needed.
 | --- | --- |
 | Wune will not start or closes immediately | Extract the entire ZIP and check that _internal is next to the EXE. Check any error message and Wune.log |
 | The spectrum does not move | Resume with Space if paused. Check that audio is playing and that the information bar names the same output device used by your playback app |
-| The display stops after switching to headphones or another output | Check the Windows output device and restart Wune |
+| The display stops after switching to headphones or another output | Check the OS output device and restart Wune |
 | F2 or other shortcuts do not work | Click the main window first. Check whether Settings is open behind another window |
 | Settings revert or are not saved | Use Save, or Apply followed by a normal exit. Check the save path and log; back up and reset settings if necessary |
 | Only the Settings window stays in the previous language | Save or apply the language, then close and reopen Settings |
@@ -152,7 +138,7 @@ This deletes the existing settings file; back it up first if needed.
 For unresolved problems or feature suggestions, please use **[GitHub Issues](https://github.com/yshdsnd/wune/issues)**.
 For bug reports, include:
 
-- Wune version (ZIP filename or the bundled build-info.json) and Windows version
+- Wune version (ZIP filename or the bundled build-info.json) and OS version
 - Audio output device name, sample rate shown in the information bar, and steps to reproduce
 - Expected and actual behavior, with screenshots if useful
 - Any error message and Wune.log captured immediately after the problem
@@ -169,7 +155,7 @@ See the **[packaging guide (Japanese)](docs/packaging.md)** for building the dis
 
 Wune uses NumPy, pygame / SDL, SoundCard / CFFI, and Python / Tcl / Tk, and is packaged with PyInstaller.
 The distribution ZIP includes third-party licenses and notices in the licenses folder.
-Its inventory.json lists the actual bundled components and DLLs, and sources/ contains the corresponding sources for rebuilding.
+Its inventory.json records bundled components; sources/ contains corresponding rebuild sources. Windows checks individual DLLs; Mac records hashes of the signed app files, collected inputs, and package notices.
 See the **[bundled software notes (Japanese)](packaging/licenses/README.md)** for third-party provenance and redistribution terms.
 The custom icon's provenance and creation notes are in the **[icon documentation](https://github.com/yshdsnd/wune/blob/main/wune/assets/README.md)**.
 
