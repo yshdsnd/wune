@@ -61,6 +61,8 @@ class App:
 
         self.running = True
         self.paused = False
+        self._idle_frames = 0
+        self._redraw_requested = True
         self.levels = np.zeros((cfg.channels, cfg.bars), dtype=np.float32)
         self.update_info_text()
 
@@ -182,6 +184,7 @@ class App:
         self.settings_dialog = SettingsDialog(state, path)
 
     def preview_appearance(self, state, size=None):
+        self._redraw_requested = True
         from .appearance import AppearanceState
         previous = AppearanceState.capture(self.cfg, self.renderer.preset_name, self.renderer.user_presets)
         previous.layout["language"] = state.layout["language"]
@@ -270,6 +273,7 @@ class App:
                 self._settings_window = None
 
     def resize_window(self, size):
+        self._redraw_requested = True
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
             self.toggle_fullscreen()
             return
@@ -366,7 +370,9 @@ class App:
         try:
             while self.running:
                 dt = self.clock.tick(self.cfg.fps) / 1000.0
+                had_events = False
                 for event in pg.event.get():
+                    had_events = True
                     self.handle_event(event)
                 if not self.running:
                     break
@@ -374,6 +380,17 @@ class App:
 
                 if not self.paused:
                     self.levels = self.spectrum.step(dt)
+                # Keep capture and event/settings polling at their normal cadence.
+                # Wait for both the envelope and peak animation to finish, then
+                # allow 30 draws for the trail to settle before skipping frames.
+                silent = not np.any(self.levels) and not np.any(self.renderer.peak_pos)
+                interactive = (had_events or self._redraw_requested or self.paused
+                               or self.settings_dialog is not None
+                               or self.menu.anchor is not None
+                               or self.exit_confirmation.active)
+                self._idle_frames = self._idle_frames + 1 if silent and not interactive else 0
+                if self._idle_frames > 30 and self._idle_frames % 60 != 0:
+                    continue
                 # Pause reuses the last levels and freezes peak timers.
                 self.update_info_text()
                 self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
@@ -384,6 +401,7 @@ class App:
                 self.exit_confirmation.draw(self.screen, self.renderer.font_small,
                                             self.cfg.language, self.cfg.theme)
                 pg.display.flip()
+                self._redraw_requested = False
             self.cancel_settings()
             # Apply the explicit exit choice after reverting any uncommitted settings preview.
             if self._disable_exit_confirmation:
