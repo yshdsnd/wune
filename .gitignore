@@ -6,3 +6,6 @@ __pycache__/
 .venv-package/
 build/
 dist/
+
+# Core Audio Tap library generated when running from source on macOS
+/wune/libwune_tap.dylib
