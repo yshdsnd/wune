@@ -521,4 +521,3 @@ class _Dialog:
         except Empty:
             pass
         self.root.after(30, self.poll)
-

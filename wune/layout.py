@@ -118,4 +118,3 @@ def calculate_layout(size, cfg):
         y = group_y + row * (packed_h + cfg.channel_gap) + header
         plots.append((x, y, plot_w, plot_h))
     return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)
-

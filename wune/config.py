@@ -95,4 +95,3 @@ class Config:
         return min(maximum, policy_max, cap, samplerate * 0.5 * 0.999)
 
 CFG = Config()
-

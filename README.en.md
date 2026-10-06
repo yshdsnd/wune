@@ -167,4 +167,3 @@ The custom icon's provenance and creation notes are in the **[icon documentation
 
 Wune itself is provided under the **[BSD 2-Clause License](LICENSE)**.
 Bundled third-party software retains its own licenses; Wune's license does not replace them.
-

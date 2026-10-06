@@ -168,4 +168,3 @@ class AppearanceDraft:
     def reset_motion(self):
         defaults = Config()
         self.state.motion = {key: getattr(defaults, key) for key in MOTION_LIMITS}
-

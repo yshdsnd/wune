@@ -142,7 +142,20 @@ class AudioSpectrum:
         """Band energy in sine-peak-equivalent dBFS, without temporal processing.
 
         Sum linear power before taking the log. No per-frame or historical
-        gain reference: scaling input…172 tokens truncated…stereo;
+        gain reference: scaling input by A shifts every band by 20*log10(A).
+        A tone split across band boundaries shares its energy between them.
+        """
+        count = 2 if self._channel_mode == "stereo_mix" else self.channels_req
+        powers = []
+        for ch in range(count):
+            spec = np.fft.rfft(self.window * data[:, ch])
+            power = np.abs(spec)**2 * self._power_scale
+            # DC is excluded by the band mapping; Nyquist has no negative twin.
+            if self.nfft % 2 == 0:
+                power[-1] *= 0.5
+            powers.append(power)
+        if self._channel_mode == "stereo_mix":
+            # Equal-power mean preserves identical/opposite-phase stereo;
             # a single active side measures 10*log10(1/2) = -3.0103 dB.
             powers = [(powers[0] + powers[1]) * 0.5]
         out = np.zeros((len(powers), self.bars), dtype=np.float32)
@@ -191,4 +204,3 @@ class AudioSpectrum:
         # 各バーのビン配列（hi は排他）
         self._bin_idx = [np.arange(int(lo), int(hi), dtype=np.int32)
                         for lo, hi in zip(starts, stops)]
-

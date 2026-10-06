@@ -170,4 +170,3 @@ WuneはNumPy、pygame／SDL、SoundCard／CFFI、Python／Tcl・Tkを利用し�
 
 Wune本体は **[BSD 2-Clause License](LICENSE)** で提供します。
 同梱する第三者ソフトウェアにはそれぞれ独自のライセンスが適用され、Wuneのライセンスで置き換わるものではありません。
-

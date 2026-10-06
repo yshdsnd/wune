@@ -541,4 +541,3 @@ class LedBarRenderer:
         tw, th = text.get_size()
         overlay.blit(text, ((self.width - tw)//2, (self.height - th)//2))
         self.surf.blit(overlay, (0, 0))
-

@@ -168,4 +168,3 @@ class DialogTests(unittest.TestCase):
         self.dialog.reset()
         self.assertFalse(self.events.get_nowait()[1].layout["limit_to_20khz"])
         self.assertFalse(self.dialog.limit_to_20khz.get())
-

@@ -179,4 +179,3 @@ class SettingsStore:
         self._document = {}
         self.user_presets = {}
         return Config(), {}
-

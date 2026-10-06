@@ -420,4 +420,3 @@ class App:
                 self.spectrum.close()
             finally:
                 pg.quit()
-
