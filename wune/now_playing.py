@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import sys
 import threading
 from typing import Callable, Sequence
 
@@ -295,3 +296,19 @@ class NowPlayingCoordinator:
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.stop()
+
+
+def create_default_coordinator() -> NowPlayingCoordinator:
+    """Create a coordinator configured with platform-appropriate metadata providers."""
+    providers: list[MetadataProvider] = []
+    if sys.platform == "win32":
+        try:
+            from .now_playing_windows import WindowsGsmtcProvider
+
+            provider = WindowsGsmtcProvider()
+            if provider.is_available():
+                providers.append(provider)
+        except Exception:
+            pass
+    return NowPlayingCoordinator(providers=providers)
+
