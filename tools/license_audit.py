@@ -152,8 +152,7 @@ def collect_sources(bundle, cache):
     for spec in specs:
         source = cache / spec["filename"]
         if not source.exists():
-            with urllib.request.urlopen(spec["url"], timeout=120) as response:
-                source.write_bytes(response.read())
+            download_source(spec, source)
         if sha256(source) != spec["sha256"]:
             raise RuntimeError(f"Source archive checksum mismatch: {source}")
         copy_required(source, target / source.name)
@@ -163,9 +162,32 @@ def collect_sources(bundle, cache):
             for source in sorted((ROOT / name).rglob("*")):
                 if source.is_file() and "__pycache__" not in source.parts:
                     archive.write(source, source.relative_to(ROOT))
-        for name in ("LICENSE", "README.md", "README.en.md", "Wune.spec", "main.py", "requirements.txt", "requirements-build.txt",
+        for name in ("LICENSE", "README.md", "README.en.md", "Wune.spec", "Wune-macos.spec",
+                     "INSTALL_WINDOWS.md", "INSTALL_WINDOWS.en.md", "INSTALL_MACOS.md", "INSTALL_MACOS.en.md",
+                     "main.py", "requirements.txt", "requirements-build.txt",
                      ".gitattributes", ".gitignore"):
             archive.write(ROOT / name, name)
+
+
+def download_source(spec, target):
+    """Try explicit mirrors, accepting only the already reviewed source bytes."""
+    failures = []
+    for url in [spec["url"], *spec.get("mirrors", [])]:
+        print(f"Fetching corresponding source: {url}", flush=True)
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                data = response.read()
+        except OSError as error:
+            failures.append(f"{url}: {error}")
+            continue
+        if hashlib.sha256(data).hexdigest() != spec["sha256"]:
+            raise RuntimeError(f"Source archive checksum mismatch: {url}")
+        # A failed transfer never leaves an incomplete cached archive.
+        temporary = target.with_suffix(target.suffix + ".part")
+        temporary.write_bytes(data)
+        temporary.replace(target)
+        return
+    raise RuntimeError("Cannot download corresponding source: " + "; ".join(failures))
 
 
 def verify_archive(archive, bundle):

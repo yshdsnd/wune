@@ -1,27 +1,14 @@
-Wune — Windows x64 portable package
+Wune — Windows / macOS
 
-Extract the entire ZIP, then open Wune.exe. Keep _internal beside Wune.exe.
-Python and administrator privileges are not required for normal use.
+日本語: README.md / English: README.en.md
+導入 / Installation: INSTALL.md / INSTALL.en.md
 
-Menu button or right-click: Settings / Fullscreen / Exit
-F2: Settings / Alt+Enter (also F11): Fullscreen / Space: Pause / T: Theme / I: Information
-Esc: Leave fullscreen; otherwise ask to quit. Q: Ask to quit.
-Close button / Menu Exit: Quit immediately.
-Exit confirmation can be re-enabled in Settings > Layout and LEDs.
+Windows: Extract the entire folder, then run Wune.exe. Keep _internal beside it.
+macOS: Copy Wune.app to Applications. See INSTALL for initial security/audio permission.
 
-Settings: %LOCALAPPDATA%\Wune\settings.json
-Startup diagnostics: %LOCALAPPDATA%\Wune\Wune.log
-User guides: README.en.md (English) / README.md (日本語).
-docs/ contains the preview and developer guides.
-Download updates: https://github.com/yshdsnd/wune/releases
-Report issues: https://github.com/yshdsnd/wune/issues
+Settings and logs:
+Windows: %LOCALAPPDATA%\Wune
+macOS: ~/Library/Application Support/Wune
 
-Wune: BSD 2-Clause (LICENSE). Third-party terms: licenses/README.md.
-Component inventory: licenses/inventory.json. Corresponding sources: licenses/sources/.
-
-ZIP全体を展開し、Wune.exeを起動してください。_internalを削除・移動しないでください。
-Pythonのインストールや通常利用時の管理者権限は不要です。
-F2で設定画面を開けます。詳しい説明は同梱のREADME.mdをご覧ください。
-設定・ログは上記のユーザー別フォルダーに保存されます。
-更新版は上記Releasesから入手できます。不具合・要望はIssuesへお願いします。
-設定を初期化する場合は、終了後にsettings.jsonを別の場所へ移動してから起動してください。
+LICENSE: Wune BSD 2-Clause. Third-party notices and corresponding sources: licenses/
+Build identity: build-info.json

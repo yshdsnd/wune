@@ -44,6 +44,12 @@ class AudioCleanupTests(unittest.TestCase):
         self.modules.start()
         sys.modules.pop("wune.spectrum_audio", None)
         self.audio = importlib.import_module("wune.spectrum_audio")
+        # These cases verify WASAPI behavior against fake SoundCard endpoints,
+        # independently of the host running the cross-platform test suite.
+        from wune.capture import WasapiLoopbackBackend
+        factory = patch.object(self.audio, "create_capture_backend", WasapiLoopbackBackend)
+        factory.start()
+        self.addCleanup(factory.stop)
 
     def tearDown(self):
         sys.modules.pop("wune.spectrum_audio", None)
@@ -809,7 +815,7 @@ class AppCleanupTests(unittest.TestCase):
         self.prepare_settings_session()
         self.pg.display.get_wm_info.return_value = {"window": 456}
         self.app.settings_dialog.events.put(("ready", 123))
-        with patch("wune.settings_window.SettingsWindow") as native:
+        with patch("wune.app.sys.platform", "win32"), patch("wune.settings_window.SettingsWindow") as native:
             self.app.poll_settings()
             native.assert_called_once_with(123)
             native.return_value.bind.assert_called_once_with(456)

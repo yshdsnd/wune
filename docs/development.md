@@ -1,6 +1,6 @@
 # 開発・ソースからの実行
 
-[利用者向けREADME](../README.md) / [Windowsパッケージの作成](packaging.md)
+[利用者向けREADME](../README.md) / [パッケージの作成](packaging.md)
 
 ## 環境と起動
 
@@ -169,3 +169,21 @@ version 1の選択中テーマのLED設定は独立設定へ引き継ぎ、次�
 音声制御のテストでは実機入力の代替を使います。自動テストだけでは音声経路の動作確認はできません。
 配布ビルドは依存物を同梱したEXEを別フォルダーで起動して検証します。
 実機での再生・停止、出力先・レート、メニューボタンと右クリック、F2、Alt+Enter（F11も互換対応）、テーマ、設定保存と再起動も確認してください。
+
+## macOS開発
+
+Apple Silicon、Tkinterを含むPython 3.13.14とXcode Command Line Toolsを使用します。
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python main.py
+```
+
+Core Audio補助ライブラリはソース起動時に未生成ならコンパイルします。配布ビルドでは毎回再生成します。
+システムオーディオの許可は[Mac導入ガイド](../INSTALL_MACOS.md)を参照してください。
+Windows向け音声設定の説明はWASAPIに適用され、Macは[音声バックエンド](audio-backends.md)の条件に従います。
+Macの設定は `~/Library/Application Support/Wune/settings.json` に保存されます。
+Macの設定画面はspawnプロセス、Windowsは専用スレッドで動作します。
+
+次期リリースはv1.1.0、開発本線はmainです。[統合記録](integration-v1.1.0.md)を参照してください。

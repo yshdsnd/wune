@@ -6,6 +6,26 @@ from queue import Queue
 import sys
 
 
+def check_macos_settings(cfg):
+    """Exercise the frozen spawn entry, not Tk in the pygame process."""
+    from .appearance import AppearanceState
+    from .settings import settings_path
+    from .settings_dialog import SettingsDialog
+    dialog = SettingsDialog(AppearanceState.capture(cfg, "CLASSIC", {}), settings_path())
+    try:
+        action, payload = dialog.events.get(timeout=30)
+        if action != "ready":
+            raise RuntimeError(f"Settings process failed: {action}: {payload}")
+        dialog.reply(True, close=True)
+        action, payload = dialog.events.get(timeout=15)
+        if action != "closed":
+            raise RuntimeError(f"Settings process did not close: {action}: {payload}")
+    finally:
+        dialog.close()
+    if dialog.thread.is_alive() or dialog.thread.exitcode != 0:
+        raise RuntimeError("Settings process did not exit cleanly")
+
+
 def run(report):
     if not getattr(sys, "frozen", False):
         raise RuntimeError("Run the smoke test through the packaged Wune.exe")
@@ -27,14 +47,22 @@ def run(report):
     prepare_soundcard()  # Includes metadata, CFFI, WASAPI headers and COM loading.
     import soundcard
     bundle = Path(sys._MEIPASS).resolve()
+    bundle_root = bundle.parent if sys.platform == "darwin" and bundle.name == "Frameworks" else bundle
     for module in (np, pg, tk, soundcard):
-        if not Path(module.__file__).resolve().is_relative_to(bundle):
+        if not Path(module.__file__).resolve().is_relative_to(bundle_root):
             raise RuntimeError(f"Dependency escaped the bundle: {module.__name__}")
     if settings_path().resolve().is_relative_to(Path(sys.executable).parent.resolve()):
         raise RuntimeError("Settings must live outside the application directory")
     np.fft.rfft(np.zeros(4096))
-    if not ASSETS.resolve().is_relative_to(bundle) or not (ASSETS / "Wune.ico").is_file():
+    if not ASSETS.resolve().is_relative_to(bundle_root) or not (ASSETS / "Wune.ico").is_file():
         raise RuntimeError("Missing bundled icon resources")
+    if sys.platform == "darwin":
+        import ctypes
+        from .tap_macos import _ensure_dylib
+        dylib = Path(_ensure_dylib()).resolve()
+        if not dylib.is_relative_to(bundle_root) or not (ASSETS / "Wune.icns").is_file():
+            raise RuntimeError("Missing bundled macOS audio/icon resources")
+        ctypes.CDLL(str(dylib))  # Load only: never request audio permission in CI.
     set_app_id()
     pg.display.init()
     pg.display.set_icon(pygame_icon())
@@ -69,6 +97,9 @@ def run(report):
         prompt.draw(renderer.surf, renderer.font_small, language, cfg.theme)
         if Translator(language)("app.paused") == "app.paused":
             raise RuntimeError("Missing locale data")
+        if sys.platform == "darwin":
+            check_macos_settings(cfg)
+            continue
         root = tk.Tk()
         root.withdraw()
         try:

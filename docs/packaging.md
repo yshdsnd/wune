@@ -1,4 +1,4 @@
-# Windowsパッケージの作成
+# Windows・macOSパッケージの作成
 
 配布形式はPyInstallerのonedirをZIP化したWindows x64版です。
 `Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、README、Wune本体のLICENSE、依存物のライセンス、
@@ -12,7 +12,7 @@ Windows x64とPython 3.13.14 x64を使い、専用の仮想環境で実行しま
 ```powershell
 python -m venv .venv-package
 .venv-package\Scripts\python -m pip install -r requirements-build.txt
-.venv-package\Scripts\python tools/build_windows.py --version 1.0.0-rc.1
+.venv-package\Scripts\python tools/build_windows.py --version 1.1.0-rc.1
 ```
 
 テスト、PyInstaller、別フォルダーへコピーしたEXEの依存物チェック、ZIPとSHA-256作成を順に行います。
@@ -65,29 +65,37 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 ## 最終候補と公開
 
 1. リリース準備の変更をmainへ取り込む。
-2. ActionsのWindows packageをmainで手動実行し、versionを1.0.0、release_identityをオンにする。
+2. ActionsのWindows packageとmacOS packageを同じmainコミットで手動実行し、versionを1.1.0、release_identityをオンにする。
 3. 候補ZIP・SHA-256と同梱ファイルを確認し、下記の実機確認を完了する。
-4. 確認したコミットにv1.0.0タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
+4. 確認したコミットにv1.1.0タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
 5. タグ版ZIPのSHA-256・識別情報・ライセンスを再確認し、リリース本文を記入して公開する。
 
 実機確認が未完了の候補を、確認済みとしてタグ付け・公開しないこと。
 
-## v1.0公開まで
+## 実機確認
 
-- [x] Wune本体をBSD 2-Clauseとし、リポジトリ直下のLICENSEを毎回ZIPへ同梱する。
-- [x] Issue #58：同梱コンポーネント・DLLの一覧、通知、対応ソースをビルド工程で照合する。
-- [ ] 最終候補ZIPの`licenses/inventory.json`を再確認し、依存物変更があればライセンス監査を更新する。
-- [x] 日英READMEの公開準備中の注記を除去し、動作確認済み環境をWindows 11 x64と記載する。
-- [ ] README更新後のコミットから候補ZIPを再ビルドする（README.md、docs/内の画像とガイドを同梱）。
-- [ ] Pythonや開発用パッケージのないWindows環境で、展開・ダブルクリック起動・実際のWASAPI入力を確認する。
-- [ ] メニューボタンと右クリック、F2、テーマ変更、保存と再起動、Alt+Enter／F11、英日表示、初期化、EXE・タイトルバー・タスクバーのアイコンを確認する。
-- [ ] 候補ZIP内のREADMEと相対リンク・画像、フォルダー構成、設定／ログ保存先を実物と再照合する。
-- [ ] v1.0タグ作成前に上記の利用者向け手順を最終レビューする。タグから再ビルドされたZIPも同じ手順で最終確認する。
-- [ ] draft Releaseの本文、バージョン、ZIP・SHA-256、READMEのダウンロード案内を確認して公開する。
-
-CIの依存物チェックは、実機での音声入力やPython未導入環境の操作確認の代わりにはなりません。
-コード署名・インストーラー・単一EXE化はこの初期パッケージの対象外です。
+両OSで再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限も確認します。CIの非録音テストはこれらの代わりにはなりません。
 
 参考: [PyInstaller spec files](https://pyinstaller.org/en/stable/spec-files.html)、
 [windowedの標準入出力](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html)、
 [GitHub Release upload](https://cli.github.com/manual/gh_release_upload)。
+
+## macOS Apple Silicon版
+
+Python 3.13.14（Tk対応）、Xcode Command Line Toolsを用意します。
+
+```sh
+python3 -m venv .venv-package
+.venv-package/bin/python -m pip install -r requirements-build.txt
+.venv-package/bin/python tools/build_macos.py --version 1.1.0-rc.1
+```
+
+arm64専用です。Core Audioライブラリをソースから再生成し、全テスト、PyInstaller、アドホック署名・検証、移動後のアプリ起動チェックを実行します。チェックは音声権限を要求せず、ライブラリ読み込み、背景・メニュー・確認画面、日本語／英語、設定保存、実際の設定用子プロセスを検証します。
+
+出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド、LICENSE、licenses、build-info.jsonを含みます。全OSのガイドも元のファイル名で同梱し、相対リンクを維持します。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
+
+Macの `licenses/inventory.json` は署名後アプリのファイルハッシュ、PyInstaller収集元、依存wheelの通知を記録します。Windows専用のDLLハッシュ照合をMacへ流用しません。Macのネイティブ依存物の最終ライセンス確認はリリース確認項目として残ります。通知と対応ソースはZIP内の実データでも照合します。
+
+MacはDeveloper ID署名・公証済みではありません。初回起動は[導入ガイド](../INSTALL_MACOS.md)の手順で許可します。
+
+Actionsの **macOS package** は `macos-15` のApple Siliconで実行し、artifact `Wune-macos` に保存します。Windowsと同様、PR・手動実行は公開せず、タグ時のみReleaseに添付します。同名assetは上書きしません。v1.1.0公開前には両ワークフローを同じコミットから実行し、実機確認を終えてからタグ・公開へ進みます。
