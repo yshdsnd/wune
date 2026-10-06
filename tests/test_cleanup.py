@@ -304,6 +304,25 @@ class AudioCleanupTests(unittest.TestCase):
 
 
 class AppCleanupTests(unittest.TestCase):
+    def test_mix_preview_and_cancel_change_display_without_restarting_capture(self):
+        from wune.appearance import AppearanceState, AppearanceDraft
+        self.app.renderer.preset_name = "CLASSIC"
+        self.app.renderer.user_presets = {}
+        baseline = AppearanceState.capture(self.app.cfg, "CLASSIC", {})
+        self.app._appearance_baseline = baseline
+        self.app._appearance_size = (1280, 800)
+        draft = AppearanceDraft(baseline)
+        draft.state.layout["channel_mode"] = "stereo_mix"
+        spectrum = self.app.spectrum
+        self.app.preview_appearance(draft.snapshot())
+        spectrum.set_display_mode.assert_called_with("stereo_mix")
+        self.assertEqual(self.app.levels.shape, (1, 64))
+        self.app.cancel_settings()
+        spectrum.set_display_mode.assert_called_with("stereo")
+        self.assertEqual(self.app.levels.shape, (2, 64))
+        self.assertIs(self.app.spectrum, spectrum)
+        spectrum.close.assert_not_called()
+
     def test_language_preview_and_cancel_preserve_audio_and_levels(self):
         from wune.appearance import AppearanceState, AppearanceDraft
         self.app.renderer.preset_name = "CLASSIC"
@@ -942,3 +961,4 @@ class AppCleanupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -63,7 +63,7 @@ class App:
         self.paused = False
         self._idle_frames = 0
         self._redraw_requested = True
-        self.levels = np.zeros((cfg.channels, cfg.bars), dtype=np.float32)
+        self.levels = np.zeros((cfg.display_channels, cfg.bars), dtype=np.float32)
         self.update_info_text()
 
     def _set_mode(self, size, flags, *, display=None):
@@ -191,8 +191,12 @@ class App:
         previous.background = deepcopy(state.background)
         previous.layout["confirm_keyboard_exit"] = state.layout["confirm_keyboard_exit"]
         presentation_only = previous == state
+        previous_mode = self.cfg.channel_mode
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
+        if self.cfg.channel_mode != previous_mode:
+            self.spectrum.set_display_mode(self.cfg.channel_mode)
+            self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
         pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
         if presentation_only and size is None:
@@ -416,3 +420,4 @@ class App:
                 self.spectrum.close()
             finally:
                 pg.quit()
+

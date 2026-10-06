@@ -65,12 +65,23 @@ class AudioSpectrum:
         self._rebuild_bins()
 
         # 出力スムージングの状態
-        self._out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
+        self._channel_mode = self.cfg.channel_mode
+        self._out = np.zeros((1 if self._channel_mode == "stereo_mix" else self.channels_req, self.bars), dtype=np.float32)
 
         # ビジュアルエンベロープの作成
         self._vis_env = LevelEnvelope(attack_ms=self.cfg.vis_attack_ms, release_ms=self.cfg.vis_release_ms)
 
     # --- public API ----------------------------------------------------------
+    def set_display_mode(self, mode: str) -> None:
+        """Reset display history only; keep the capture device and FFT mapping."""
+        if mode not in ("stereo", "stereo_mix"):
+            raise ValueError("Invalid channel display mode")
+        if mode != self._channel_mode:
+            self._channel_mode = mode
+            count = 1 if mode == "stereo_mix" else self.channels_req
+            self._out = np.zeros((count, self.bars), dtype=np.float32)
+            self._vis_env.y = None
+
     def set_range(self, fmin: float, fmax: float) -> None:
         """外側（Configなど）から周波数レンジを合わせる用。"""
         fmin = max(1.0, float(fmin))
@@ -108,12 +119,13 @@ class AudioSpectrum:
             return self._animate(np.zeros_like(self._out), dt)
 
         C_in = data.shape[1]
+        input_channels = 2 if self._channel_mode == "stereo_mix" else self.channels_req
 
         # 入力chが要求と違う場合に対処（足りなければ繰り返し、余れば先頭だけ）
-        if C_in < self.channels_req:
-            data = np.repeat(data, repeats=self.channels_req, axis=1)[:, : self.channels_req]
-        elif C_in > self.channels_req:
-            data = data[:, : self.channels_req]
+        if C_in < input_channels:
+            data = np.repeat(data, repeats=input_channels, axis=1)[:, :input_channels]
+        elif C_in > input_channels:
+            data = data[:, :input_channels]
 
         norm = self._map_levels(data)
 
@@ -130,16 +142,11 @@ class AudioSpectrum:
         """Band energy in sine-peak-equivalent dBFS, without temporal processing.
 
         Sum linear power before taking the log. No per-frame or historical
-        gain reference: scaling input by A shifts every band by 20*log10(A).
-        A tone split across band boundaries shares its energy between them.
-        """
-        out = np.zeros((self.channels_req, self.bars), dtype=np.float32)
-        for ch in range(self.channels_req):
-            spec = np.fft.rfft(self.window * data[:, ch])
-            power = np.abs(spec)**2 * self._power_scale
-            # DC is excluded by the band mapping; Nyquist has no negative twin.
-            if self.nfft % 2 == 0:
-                power[-1] *= 0.5
+        gain reference: scaling input…172 tokens truncated…stereo;
+            # a single active side measures 10*log10(1/2) = -3.0103 dB.
+            powers = [(powers[0] + powers[1]) * 0.5]
+        out = np.zeros((len(powers), self.bars), dtype=np.float32)
+        for ch, power in enumerate(powers):
             for band, indices in enumerate(self._bin_idx):
                 energy = float(np.sum(power[indices]))
                 db = 10.0 * np.log10(max(energy, 1e-20))
@@ -184,3 +191,4 @@ class AudioSpectrum:
         # 各バーのビン配列（hi は排他）
         self._bin_idx = [np.arange(int(lo), int(hi), dtype=np.int32)
                         for lo, hi in zip(starts, stops)]
+

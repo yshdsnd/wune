@@ -9,6 +9,16 @@ from wune.settings_dialog import _Dialog
 
 
 class DialogTests(unittest.TestCase):
+    def test_channel_mode_preview_and_apply(self):
+        self.dialog.layout("channel_mode", "stereo_mix")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["channel_mode"], "stereo_mix")
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertEqual(state.layout["channel_mode"], "stereo_mix")
+
     def test_background_picker_preview_reset_and_cancel(self):
         with patch("tkinter.filedialog.askopenfilename", return_value="C:/Pictures/example.png"):
             self.dialog.choose_background()
@@ -158,3 +168,4 @@ class DialogTests(unittest.TestCase):
         self.dialog.reset()
         self.assertFalse(self.events.get_nowait()[1].layout["limit_to_20khz"])
         self.assertFalse(self.dialog.limit_to_20khz.get())
+

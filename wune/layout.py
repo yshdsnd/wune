@@ -18,12 +18,12 @@ def _dimensions(cfg):
         raise ValueError("spectrum_orientation must be frequency_horizontal or frequency_vertical")
     if cfg.channel_layout not in ("vertical", "horizontal"):
         raise ValueError("channel_layout must be vertical or horizontal")
-    if cfg.channels < 1 or cfg.bars < 1 or cfg.leds_per_bar < 1:
+    if cfg.display_channels < 1 or cfg.bars < 1 or cfg.leds_per_bar < 1:
         raise ValueError("channels, bars and leds_per_bar must be positive")
     if cfg.led_gap < 0 or cfg.bar_gap < 0 or cfg.channel_gap < 0:
         raise ValueError("layout gaps must be non-negative")
-    cols = cfg.channels if cfg.channel_layout == "horizontal" else 1
-    rows = 1 if cfg.channel_layout == "horizontal" else cfg.channels
+    cols = cfg.display_channels if cfg.channel_layout == "horizontal" else 1
+    rows = 1 if cfg.channel_layout == "horizontal" else cfg.display_channels
     margin = max(16, cfg.margin_tb)
     left = max(40, cfg.margin_lr)
     header = max(44, cfg.header_reserved)
@@ -112,9 +112,10 @@ def calculate_layout(size, cfg):
     packed_h = header + plot_h + scale
     group_x = (width - (cols * packed_w + (cols-1)*cfg.channel_gap)) // 2
     group_y = top + (bottom-top - (rows*packed_h + (rows-1)*cfg.channel_gap)) // 2
-    for ch in range(cfg.channels):
+    for ch in range(cfg.display_channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
         x = group_x + col * (packed_w + cfg.channel_gap) + left
         y = group_y + row * (packed_h + cfg.channel_gap) + header
         plots.append((x, y, plot_w, plot_h))
     return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)
+

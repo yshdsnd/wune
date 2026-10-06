@@ -59,6 +59,7 @@ class Config:
 
     # ---- ステレオ分割 ----
     channels: int = 2           # 1=mono, 2=stereo
+    channel_mode: str = "stereo"  # stereo or stereo_mix; capture remains stereo.
     channel_layout: str = "vertical"  # "vertical" or "horizontal"
     spectrum_orientation: str = "frequency_horizontal"  # or "frequency_vertical"
     channel_gap: int = 24       # チャンネル間の余白(px)
@@ -82,6 +83,10 @@ class Config:
     block_size: int = 4096
     output_floor: float = 0.05   # Display-only cutoff; envelope state is retained.
 
+    @property
+    def display_channels(self) -> int:
+        return 1 if self.channel_mode == "stereo_mix" else self.channels
+
     def spectrum_upper_hz(self, samplerate: float, *, requested_max_hz=None) -> float:
         """Display policy, limited by the requested range and Nyquist safety."""
         policy_max = 20_000.0 if samplerate <= 48_000 else 40_000.0
@@ -90,3 +95,4 @@ class Config:
         return min(maximum, policy_max, cap, samplerate * 0.5 * 0.999)
 
 CFG = Config()
+

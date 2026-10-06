@@ -60,6 +60,12 @@ Press **F2** to open Settings. Preview changes in the main display while music c
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
 
 “LED aspect ratio (width/height)” controls the shape: higher values make LEDs wider relative to their height. Resize the window to change the overall display size.
+Under Layout and LEDs → Channel display, choose separate L/R or Stereo Mix.
+Stereo Mix averages left/right power into one spectrum, so opposite-phase signals do not cancel.
+Audio on only one side appears about 3 dB lower than the same audio on both sides.
+Switching keeps capture running and supports preview, Save, Apply, and Cancel.
+L/R arrangement is disabled while mixing and retained for returning to separate channels.
+
 Themes store colors only. LED shapes, layout, and motion are separate settings.
 Editing a built-in theme creates a user copy, preserving the original colors.
 
@@ -161,3 +167,4 @@ The custom icon's provenance and creation notes are in the **[icon documentation
 
 Wune itself is provided under the **[BSD 2-Clause License](LICENSE)**.
 Bundled third-party software retains its own licenses; Wune's license does not replace them.
+
