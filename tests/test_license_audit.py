@@ -108,6 +108,42 @@ class LicenseAuditTests(unittest.TestCase):
         for record in json.loads((audit.SUPPLEMENT / "provenance.json").read_text()):
             self.assertEqual(audit.sha256(audit.SUPPLEMENT / record["path"]), record["sha256"])
 
+    def test_audit_native_files_recognizes_winrt_extensions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory)
+            (bundle / "licenses").mkdir()
+            (bundle / "licenses/native-libraries.json").write_text("{}")
+            (bundle / "_internal" / "winrt").mkdir(parents=True)
+            notice = bundle / "licenses/pywinrt/LICENSE.txt"
+            notice.parent.mkdir(parents=True)
+            notice.write_text("pywinrt notice")
+            components = {
+                "winrt-Windows.Media.Control": {"notices": ["licenses/pywinrt/LICENSE.txt"]},
+                "winrt-runtime": {"notices": ["licenses/pywinrt/LICENSE.txt"]},
+            }
+            pyd1 = bundle / "_internal/winrt/_winrt_windows_media_control.cp313-win_amd64.pyd"
+            pyd1.write_bytes(b"media control binary")
+            pyd2 = bundle / "_internal/winrt/_winrt.cp313-win_amd64.pyd"
+            pyd2.write_bytes(b"runtime binary")
+            results = audit.audit_native_files(bundle, components)
+            self.assertEqual(len(results), 2)
+            self.assertEqual({r["component"] for r in results}, {"winrt-Windows.Media.Control", "winrt-runtime"})
+
+    def test_audit_native_files_recognizes_msvcp140(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory)
+            (bundle / "licenses").mkdir()
+            (bundle / "licenses/native-libraries.json").write_text("{}")
+            (bundle / "_internal").mkdir()
+            (bundle / "licenses/Python").mkdir(parents=True)
+            (bundle / "licenses/Python/LICENSE.txt").write_text("python license")
+            (bundle / "licenses/README.md").write_text("licenses readme")
+            dll = bundle / "_internal/msvcp140.dll"
+            dll.write_bytes(b"msvcp140 binary")
+            results = audit.audit_native_files(bundle, {})
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["component"], "Microsoft runtime")
+
 
 if __name__ == "__main__":
     unittest.main()

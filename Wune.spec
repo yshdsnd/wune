@@ -12,7 +12,16 @@ a = Analysis(
     [str(root / "packaging" / "entry.py")],
     pathex=[str(root)],
     binaries=[], datas=datas,
-    hiddenimports=["pygame._sdl2.video", "_cffi_backend", "soundcard.mediafoundation"],
+    hiddenimports=[
+        "pygame._sdl2.video",
+        "_cffi_backend",
+        "soundcard.mediafoundation",
+        "winrt",
+        "winrt.system",
+        "winrt.windows.foundation",
+        "winrt.windows.foundation.collections",
+        "winrt.windows.media.control",
+    ],
     hookspath=[], runtime_hooks=[], excludes=[], noarchive=False,
 )
 # Replace pygame's historical fallback font with a source-matched GNU FreeFont.

@@ -15,7 +15,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SUPPLEMENT = ROOT / "packaging" / "licenses"
-MICROSOFT_DLL = r"(?:vcruntime140(?:_1)?|ucrtbase|api-ms-win-[a-z0-9-]+|msvcp140-[a-f0-9]+)\.dll"
+MICROSOFT_DLL = r"(?:vcruntime140(?:_1)?|ucrtbase|api-ms-win-[a-z0-9-]+|msvcp140(?:-[a-f0-9]+)?)\.dll"
 
 
 def sha256(path):
@@ -86,10 +86,14 @@ def collect_notices(bundle, inputs):
     components = {}
     pinned = {}
     for requirements in (ROOT / "requirements.txt", ROOT / "requirements-build.txt"):
-        for line in requirements.read_text(encoding="utf-8").splitlines():
-            if "==" in line:
-                package, version = line.split("==")
-                pinned[package.lower()] = version
+        for raw_line in requirements.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or line.startswith("-"):
+                continue
+            spec = line.split(";", 1)[0].strip()
+            if "==" in spec:
+                package, version = spec.split("==", 1)
+                pinned[package.strip().lower()] = version.strip()
     for name, dist in sorted(selected.items()):
         if pinned.get(name.lower()) != dist.version:
             raise RuntimeError(f"Unreviewed bundled package/version: {name} {dist.version}")
@@ -100,6 +104,10 @@ def collect_notices(bundle, inputs):
                 dest = target / name / relative
                 copy_required(Path(dist.locate_file(file)), dest)
                 notices.append(dest.relative_to(bundle).as_posix())
+        if not notices and name.lower().startswith("winrt-"):
+            dest = target / name / "LICENSE.txt"
+            copy_required(SUPPLEMENT / "pywinrt" / "LICENSE.txt", dest)
+            notices.append(dest.relative_to(bundle).as_posix())
         if not notices:
             raise RuntimeError(f"No license/notice text found for bundled package {name}")
         components[name] = {"version": dist.version, "notices": sorted(notices)}
@@ -209,7 +217,7 @@ def audit_native_files(bundle, components):
     native = json.loads((bundle / "licenses" / "native-libraries.json").read_text(encoding="utf-8"))
     binaries = []
     python_extensions = set("_asyncio _bz2 _ctypes _decimal _hashlib _lzma _multiprocessing "
-                            "_overlapped _queue _socket _ssl _tkinter _wmi pyexpat select unicodedata".split())
+                            "_overlapped _queue _socket _ssl _tkinter _uuid _wmi pyexpat select unicodedata".split())
     for file in sorted((bundle / "_internal").rglob("*")):
         if file.suffix.lower() not in (".dll", ".pyd", ".ttf"):
             continue
@@ -227,6 +235,16 @@ def audit_native_files(bundle, components):
             owner, notices = "numpy", components["numpy"]["notices"]
         elif key.startswith("_cffi_backend.") and key.endswith(".pyd"):
             owner, notices = "cffi", components["cffi"]["notices"]
+        elif file.suffix.lower() == ".pyd" and (relative.startswith("_internal/winrt/") or key.startswith(("_winrt.", "_winrt_"))):
+            owner = None
+            for dist_name in ("winrt-Windows.Media.Control", "winrt-Windows.Foundation.Collections", "winrt-Windows.Foundation", "winrt-runtime"):
+                marker = dist_name.lower().replace("-", "_").replace(".", "_")
+                if marker in key:
+                    owner = dist_name
+                    break
+            if owner is None:
+                owner = "winrt-runtime"
+            notices = components[owner]["notices"]
         elif key in {name + ".pyd" for name in python_extensions} or key == "python313.dll":
             owner, notices = "Python", components["Python"]["notices"]
         elif key in ("libcrypto-3.dll", "libssl-3.dll", "libffi-8.dll"):

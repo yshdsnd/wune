@@ -304,5 +304,11 @@
     "url": "https://raw.githubusercontent.com/python/cpython-source-deps/tk-8.6.15.0/license.terms",
     "member": "license.terms",
     "sha256": "2cde822b93ca16ae535c954b7dfe658b4ad10df2a193628d1b358f1765e8b198"
+  },
+  {
+    "path": "pywinrt/LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/pywinrt/pywinrt/v3.2.1/LICENSE",
+    "member": "LICENSE",
+    "sha256": "6e898069e8b3c6d8d23dc70ac7067cc2b7c9db14c36df873026758db82c0891d"
   }
 ]
