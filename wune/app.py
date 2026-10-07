@@ -198,6 +198,8 @@ class App:
         presentation_only = previous == state
         previous_cfg = deepcopy(self.cfg)
         previous_mode = self.cfg.channel_mode
+        previous_layout = self.cfg.channel_layout
+        previous_orientation = self.cfg.spectrum_orientation
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
         if self.cfg.channel_mode != previous_mode:
@@ -205,6 +207,9 @@ class App:
                 size = channel_mode_window_size(self.screen.get_size(), previous_cfg, self.cfg)
             self.spectrum.set_display_mode(self.cfg.channel_mode)
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
+        elif self.cfg.channel_layout != previous_layout or self.cfg.spectrum_orientation != previous_orientation:
+            if size is None and not self._fullscreen:
+                size = fit_window_size(self.screen.get_size(), self.cfg)
         pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
         self.update_now_playing_text()
@@ -222,7 +227,18 @@ class App:
         self.renderer.user_presets = deepcopy(state.user_presets)
         self.renderer.preset_name = state.preset.name
         self.renderer._led_cache.clear()
-        self.resize_window(size or self.screen.get_size())
+        if size is not None:
+            self.resize_window(size)
+        else:
+            self._redraw_requested = True
+            if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
+                self.toggle_fullscreen()
+            else:
+                clamped = clamp_window_size(self.screen.get_size(), self.cfg)
+                if not self._fullscreen and self.screen.get_size() != clamped:
+                    self._set_mode(clamped, pg.RESIZABLE)
+                    self._windowed_size = clamped
+                self.renderer.resize(self.screen)
 
     def cancel_settings(self):
         if self._appearance_baseline is not None:
@@ -327,7 +343,7 @@ class App:
         elif event.type == pg.MOUSEBUTTONDOWN:
             if self.settings_dialog is None and event.button == 1 and self.renderer.badge_contains(event.pos):
                 self.renderer.next_preset()
-                self.resize_window(self.screen.get_size())
+                self._redraw_requested = True
         elif event.type == pg.KEYDOWN:
             mac_cmd = sys.platform == "darwin" and bool(getattr(event, "mod", 0) & pg.KMOD_META)
             if mac_cmd and event.key == pg.K_COMMA:
@@ -354,11 +370,19 @@ class App:
             elif event.key == pg.K_i:
                 if self.settings_dialog is None:
                     self.cfg.info_enabled = not self.cfg.info_enabled
-                    self.resize_window(self.screen.get_size())
+                    if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
+                        self.toggle_fullscreen()
+                    else:
+                        clamped = clamp_window_size(self.screen.get_size(), self.cfg)
+                        if not self._fullscreen and self.screen.get_size() != clamped:
+                            self._set_mode(clamped, pg.RESIZABLE)
+                            self._windowed_size = clamped
+                        self._redraw_requested = True
+                        self.renderer.resize(self.screen)
             elif event.key == pg.K_t:
                 if self.settings_dialog is None:
                     self.renderer.next_preset()
-                    self.resize_window(self.screen.get_size())
+                    self._redraw_requested = True
             elif event.key == pg.K_F2:
                 self.execute_command("settings")
 
