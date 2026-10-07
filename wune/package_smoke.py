@@ -75,6 +75,10 @@ def run(report):
         if not dylib.is_relative_to(bundle_root) or not (ASSETS / "Wune.icns").is_file():
             raise RuntimeError("Missing bundled macOS audio/icon resources")
         ctypes.CDLL(str(dylib))  # Load only: never request audio permission in CI.
+        from .now_playing_macos import MacAppleMusicProvider
+        provider = MacAppleMusicProvider()
+        if not provider.is_available():
+            raise RuntimeError("MacAppleMusicProvider reported unavailable in packaged macOS bundle")
     set_app_id()
     pg.display.init()
     pg.display.set_icon(pygame_icon())

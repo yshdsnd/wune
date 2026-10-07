@@ -2,6 +2,7 @@
 from dataclasses import FrozenInstanceError
 import time
 import unittest
+from unittest.mock import patch
 
 from wune.now_playing import (
     MetadataProvider,
@@ -249,6 +250,13 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
         self.assertIsInstance(coord, NowPlayingCoordinator)
         # Should gracefully return None when no providers or no media playing
         self.assertIsNone(coord.update())
+
+    def test_default_coordinator_factory_on_darwin(self):
+        with patch("sys.platform", "darwin"):
+            with patch("wune.now_playing_macos.MacAppleMusicProvider.is_available", return_value=True):
+                coord = create_default_coordinator()
+                self.assertIsInstance(coord, NowPlayingCoordinator)
+                self.assertTrue(any(p.name == "mac_apple_music" for p in coord._providers))
 
 
 class NowPlayingRendererTests(unittest.TestCase):

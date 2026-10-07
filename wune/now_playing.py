@@ -310,5 +310,14 @@ def create_default_coordinator() -> NowPlayingCoordinator:
                 providers.append(provider)
         except Exception:
             pass
+    elif sys.platform == "darwin":
+        try:
+            from .now_playing_macos import MacAppleMusicProvider
+
+            provider = MacAppleMusicProvider()
+            if provider.is_available():
+                providers.append(provider)
+        except Exception:
+            pass
     return NowPlayingCoordinator(providers=providers)
 
