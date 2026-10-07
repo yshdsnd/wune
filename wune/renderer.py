@@ -124,6 +124,17 @@ class LedBarRenderer:
 
 
 
+    def now_playing_rect(self) -> pg.Rect | None:
+        if not self.cfg.show_now_playing:
+            return None
+        h = max(24, self.cfg.info_height)
+        pad = 16
+        w = max(40, self.width - pad * 2)
+        top = 50
+        if self.cfg.info_enabled and self.cfg.info_position == "top" and self._layout and self._layout.info_rect:
+            top = self._layout.info_rect[1] + self._layout.info_rect[3] + 6
+        return pg.Rect(pad, top, w, h)
+
     def draw_panel(self):
         self.background.draw(self.surf, self.cfg)
         # 枠線
@@ -138,19 +149,19 @@ class LedBarRenderer:
             pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
             pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)
             self.surf.blit(text, (bx+pad, by+2))
-        # 再生中の曲情報表示（上部ヘッダー）
-        if self.cfg.show_now_playing and self.now_playing_text:
-            btn_rect = ApplicationMenu.button_rect(self.font_small, self.cfg.language)
-            left = btn_rect.right + 16
-            badge_r = self.badge_rect()
-            right = (badge_r.left - 16) if badge_r is not None else (self.width - 24)
-            available = right - left
-            if available > 40:
-                fitted = self._fit_text(self.now_playing_text, self.font_small, available)
-                if fitted:
-                    text_surf = self.font_small.render(fitted, True, self.cfg.theme.edge_text)
-                    ty = 14 + (btn_rect.height - text_surf.get_height()) // 2
-                    self.surf.blit(text_surf, (left, ty))
+        # 再生中の曲情報バー（メニューの下）
+        if self.cfg.show_now_playing:
+            bar_rect = self.now_playing_rect()
+            if bar_rect is not None:
+                ih = bar_rect.height
+                pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=8)
+                pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
+                text_str = self.now_playing_text
+                if text_str:
+                    fitted = self._fit_text(text_str, self.font_small, bar_rect.width - 20)
+                    if fitted:
+                        text_surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
+                        self.surf.blit(text_surf, (bar_rect.x + 10, bar_rect.y + (ih - text_surf.get_height()) // 2))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
             bar_rect = pg.Rect(self._layout.info_rect)

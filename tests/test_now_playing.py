@@ -267,22 +267,59 @@ class NowPlayingRendererTests(unittest.TestCase):
         surf = pg.Surface((800, 600))
         renderer = LedBarRenderer(surf, cfg)
 
-        # Baseline: empty text
+        self.assertIsNotNone(renderer.now_playing_rect())
+
+        # Baseline: empty text (frame drawn, no text)
         renderer.now_playing_text = ""
         renderer.draw_panel()
         baseline_bytes = pg.image.tobytes(surf, "RGB")
 
         # Set track text
-        renderer.now_playing_text = "Sample Track - Sample Artist"
+        renderer.now_playing_text = "Nowplaying:  Sample Track - Sample Artist"
         renderer.draw_panel()
         with_text_bytes = pg.image.tobytes(surf, "RGB")
         self.assertNotEqual(baseline_bytes, with_text_bytes)
 
-        # Disabled setting
+        # Disabled setting: frame removed
         cfg.show_now_playing = False
+        self.assertIsNone(renderer.now_playing_rect())
         renderer.draw_panel()
         disabled_bytes = pg.image.tobytes(surf, "RGB")
-        self.assertEqual(baseline_bytes, disabled_bytes)
+        self.assertNotEqual(baseline_bytes, disabled_bytes)
+
+    def test_app_update_now_playing_text_format(self):
+        from unittest.mock import Mock
+        from wune.app import App
+        from wune.config import Config
+        from wune.now_playing import NowPlaying
+
+        mock_screen = Mock()
+        mock_screen.get_size.return_value = (800, 600)
+
+        app = Mock(spec=App)
+        app.cfg = Config(show_now_playing=True)
+        app.renderer = Mock()
+        app.now_playing = Mock()
+
+        # Track with artist
+        app.now_playing.current = NowPlaying(title="Song", artist="Artist")
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Nowplaying:  Song - Artist")
+
+        # Track without artist
+        app.now_playing.current = NowPlaying(title="Song Alone")
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Nowplaying:  Song Alone")
+
+        # No track playing
+        app.now_playing.current = None
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Nowplaying:  -")
+
+        # Disabled setting
+        app.cfg.show_now_playing = False
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "")
 
     def test_renderer_long_text_truncated_safely(self):
         import pygame as pg
@@ -293,7 +330,7 @@ class NowPlayingRendererTests(unittest.TestCase):
         surf = pg.Surface((800, 600))
         renderer = LedBarRenderer(surf, cfg)
 
-        renderer.now_playing_text = "A" * 1000
+        renderer.now_playing_text = "Nowplaying:  " + "A" * 1000
         renderer.draw_panel()
 
 

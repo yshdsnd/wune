@@ -384,7 +384,11 @@ class App:
             self.renderer.now_playing_text = ""
             return
         current = self.now_playing.current if hasattr(self, "now_playing") and self.now_playing is not None else None
-        self.renderer.now_playing_text = current.display_text() if current else ""
+        track_info = current.display_text() if current else ""
+        if track_info:
+            self.renderer.now_playing_text = f"Nowplaying:  {track_info}"
+        else:
+            self.renderer.now_playing_text = "Nowplaying:  -"
 
 
     def run(self):
