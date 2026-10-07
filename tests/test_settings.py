@@ -147,8 +147,12 @@ class GeometryTests(unittest.TestCase):
         cfg = Config()
         size, position = restore_geometry(cfg, dict(width=800, height=600, x=-1500, y=100),
                                           [(0, 0, 1920, 1040), (-1920, 0, 1920, 1080)])
-        self.assertEqual(size, (759, 522))
+        self.assertEqual(size, (759, 558))
         self.assertEqual(position, (-1500, 100))
+        cfg_no_np = Config(show_now_playing=False)
+        size_no_np, _ = restore_geometry(cfg_no_np, dict(width=800, height=600, x=-1500, y=100),
+                                         [(0, 0, 1920, 1040), (-1920, 0, 1920, 1080)])
+        self.assertEqual(size_no_np, (759, 522))
 
     def test_removed_monitor_and_oversized_window_are_recovered(self):
         cfg = Config()
@@ -168,5 +172,8 @@ class GeometryTests(unittest.TestCase):
     def test_transposed_fit_stays_on_selected_screen(self):
         cfg = Config(bars=32, spectrum_orientation="frequency_vertical", channel_layout="horizontal")
         size, pos = restore_geometry(cfg, dict(width=960, height=1800, x=100, y=100), [(0, 0, 1920, 1040)])
-        self.assertEqual(size, (916, 504))
+        self.assertEqual(size, (916, 540))
         self.assertEqual(pos, (100, 100))
+        cfg_no_np = Config(bars=32, spectrum_orientation="frequency_vertical", channel_layout="horizontal", show_now_playing=False)
+        size_no_np, _ = restore_geometry(cfg_no_np, dict(width=960, height=1800, x=100, y=100), [(0, 0, 1920, 1040)])
+        self.assertEqual(size_no_np, (916, 504))

@@ -333,6 +333,39 @@ class NowPlayingRendererTests(unittest.TestCase):
         renderer.now_playing_text = "Now playing:  " + "A" * 1000
         renderer.draw_panel()
 
+    def test_layout_reserves_space_for_now_playing_and_shifts_spectrum(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.layout import calculate_layout, minimum_window_size
+
+        cfg_without = Config(show_now_playing=False)
+        cfg_with = Config(show_now_playing=True)
+        size = (1280, 800)
+
+        layout_without = calculate_layout(size, cfg_without)
+        layout_with = calculate_layout(size, cfg_with)
+
+        self.assertIsNone(layout_without.now_playing_rect)
+        self.assertIsNotNone(layout_with.now_playing_rect)
+
+        np_rect = pg.Rect(layout_with.now_playing_rect)
+        # Menu button is at y=14..44; frame must be below it
+        self.assertGreaterEqual(np_rect.top, 44)
+        self.assertEqual(np_rect.height, cfg_with.info_height)
+
+        # Plots must be shifted down when now_playing is enabled
+        self.assertGreater(layout_with.plots[0][1], layout_without.plots[0][1])
+
+        # Channel label "L" is drawn above plots[0] (group_y = plots[0].y - header)
+        # Verify that the channel area (including L label) is strictly below now_playing_rect
+        header = max(44, cfg_with.header_reserved)
+        channel_label_top = layout_with.plots[0][1] - header
+        self.assertGreater(channel_label_top, np_rect.bottom)
+
+        # Spectrum plot rects must never intersect now_playing_rect
+        for plot in layout_with.plots:
+            self.assertFalse(np_rect.colliderect(pg.Rect(plot)))
+
 
 if __name__ == "__main__":
     unittest.main()

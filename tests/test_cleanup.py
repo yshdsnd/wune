@@ -512,7 +512,8 @@ class AppCleanupTests(unittest.TestCase):
         self.assertTrue(self.app._fullscreen)
         self.app.toggle_fullscreen()
         self.assertFalse(self.app._fullscreen)
-        self.pg.display.set_mode.assert_called_with((950, 600), self.pg.RESIZABLE)
+        from wune.layout import fit_window_size
+        self.pg.display.set_mode.assert_called_with(fit_window_size((960, 600), self.app.cfg), self.pg.RESIZABLE)
         self.assertEqual(self.app.renderer.resize.call_count, 2)
 
     def test_info_toggle_exits_fullscreen_if_it_no_longer_fits(self):
