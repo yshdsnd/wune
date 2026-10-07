@@ -130,7 +130,7 @@ class LedBarRenderer:
         h = max(24, self.cfg.info_height)
         pad = 16
         w = max(40, self.width - pad * 2)
-        top = 50
+        top = 48
         if self.cfg.info_enabled and self.cfg.info_position == "top" and self._layout and self._layout.info_rect:
             top = self._layout.info_rect[1] + self._layout.info_rect[3] + 6
         return pg.Rect(pad, top, w, h)
@@ -158,10 +158,13 @@ class LedBarRenderer:
                 pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
                 text_str = self.now_playing_text
                 if text_str:
-                    fitted = self._fit_text(text_str, self.font_small, bar_rect.width - 20)
+                    text_x = max(bar_rect.x + 12, (self.plots[0].x + 20) if self.plots else (bar_rect.x + 12))
+                    available_w = max(20, (bar_rect.right - 12) - text_x)
+                    fitted = self._fit_text(text_str, self.font_small, available_w)
                     if fitted:
                         text_surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
-                        self.surf.blit(text_surf, (bar_rect.x + 10, bar_rect.y + (ih - text_surf.get_height()) // 2))
+                        ty = bar_rect.y + (ih - text_surf.get_height()) // 2
+                        self.surf.blit(text_surf, (text_x, ty))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
             bar_rect = pg.Rect(self._layout.info_rect)
