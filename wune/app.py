@@ -64,7 +64,12 @@ class App:
         self._idle_frames = 0
         self._redraw_requested = True
         self.levels = np.zeros((cfg.display_channels, cfg.bars), dtype=np.float32)
+        from .now_playing import create_default_coordinator
+        self.now_playing = create_default_coordinator()
+        self.now_playing.add_listener(lambda _: setattr(self, "_redraw_requested", True))
+        self.now_playing.start()
         self.update_info_text()
+        self.update_now_playing_text()
 
     def _set_mode(self, size, flags, *, display=None):
         pg.display.set_icon(self._icon)
@@ -193,6 +198,8 @@ class App:
         presentation_only = previous == state
         previous_cfg = deepcopy(self.cfg)
         previous_mode = self.cfg.channel_mode
+        previous_layout = self.cfg.channel_layout
+        previous_orientation = self.cfg.spectrum_orientation
         previous_cap = self.cfg.limit_to_20khz
         state.apply(self.cfg)
         if self.cfg.channel_mode != previous_mode:
@@ -200,8 +207,12 @@ class App:
                 size = channel_mode_window_size(self.screen.get_size(), previous_cfg, self.cfg)
             self.spectrum.set_display_mode(self.cfg.channel_mode)
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
+        elif self.cfg.channel_layout != previous_layout or self.cfg.spectrum_orientation != previous_orientation:
+            if size is None and not self._fullscreen:
+                size = fit_window_size(self.screen.get_size(), self.cfg)
         pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
+        self.update_now_playing_text()
         if presentation_only and size is None:
             return
         if self.cfg.limit_to_20khz != previous_cap:
@@ -216,7 +227,18 @@ class App:
         self.renderer.user_presets = deepcopy(state.user_presets)
         self.renderer.preset_name = state.preset.name
         self.renderer._led_cache.clear()
-        self.resize_window(size or self.screen.get_size())
+        if size is not None:
+            self.resize_window(size)
+        else:
+            self._redraw_requested = True
+            if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
+                self.toggle_fullscreen()
+            else:
+                clamped = clamp_window_size(self.screen.get_size(), self.cfg)
+                if not self._fullscreen and self.screen.get_size() != clamped:
+                    self._set_mode(clamped, pg.RESIZABLE)
+                    self._windowed_size = clamped
+                self.renderer.resize(self.screen)
 
     def cancel_settings(self):
         if self._appearance_baseline is not None:
@@ -321,7 +343,7 @@ class App:
         elif event.type == pg.MOUSEBUTTONDOWN:
             if self.settings_dialog is None and event.button == 1 and self.renderer.badge_contains(event.pos):
                 self.renderer.next_preset()
-                self.resize_window(self.screen.get_size())
+                self._redraw_requested = True
         elif event.type == pg.KEYDOWN:
             mac_cmd = sys.platform == "darwin" and bool(getattr(event, "mod", 0) & pg.KMOD_META)
             if mac_cmd and event.key == pg.K_COMMA:
@@ -348,11 +370,19 @@ class App:
             elif event.key == pg.K_i:
                 if self.settings_dialog is None:
                     self.cfg.info_enabled = not self.cfg.info_enabled
-                    self.resize_window(self.screen.get_size())
+                    if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
+                        self.toggle_fullscreen()
+                    else:
+                        clamped = clamp_window_size(self.screen.get_size(), self.cfg)
+                        if not self._fullscreen and self.screen.get_size() != clamped:
+                            self._set_mode(clamped, pg.RESIZABLE)
+                            self._windowed_size = clamped
+                        self._redraw_requested = True
+                        self.renderer.resize(self.screen)
             elif event.key == pg.K_t:
                 if self.settings_dialog is None:
                     self.renderer.next_preset()
-                    self.resize_window(self.screen.get_size())
+                    self._redraw_requested = True
             elif event.key == pg.K_F2:
                 self.execute_command("settings")
 
@@ -372,6 +402,18 @@ class App:
         device = spectrum.device if spectrum.device is not None else t("app.default_output")
         self.renderer.info_text = t("app.output", device=device, rate=spectrum.sr / 1000,
                                     channels=spectrum.channels_eff)
+
+    def update_now_playing_text(self):
+        if not self.cfg.show_now_playing:
+            self.renderer.now_playing_text = ""
+            return
+        current = self.now_playing.current if hasattr(self, "now_playing") and self.now_playing is not None else None
+        track_info = current.display_text() if current else ""
+        if track_info:
+            self.renderer.now_playing_text = f"Now playing:  {track_info}"
+        else:
+            self.renderer.now_playing_text = "Now playing:  -"
+
 
     def run(self):
         try:
@@ -400,6 +442,7 @@ class App:
                     continue
                 # Pause reuses the last levels and freezes peak timers.
                 self.update_info_text()
+                self.update_now_playing_text()
                 self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
                 if self.paused:
                     self.renderer.draw_pause_overlay()
@@ -415,8 +458,11 @@ class App:
                 self.cfg.confirm_keyboard_exit = False
             self.save_settings()
         finally:
+            if hasattr(self, "now_playing") and self.now_playing is not None:
+                self.now_playing.stop()
             if self._settings_window is not None:
                 self._settings_window.detach()
+
             if self.settings_dialog is not None:
                 self.settings_dialog.close()
             try:

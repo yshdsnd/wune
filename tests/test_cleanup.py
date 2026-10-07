@@ -331,6 +331,41 @@ class AppCleanupTests(unittest.TestCase):
             self.app.cancel_settings()
             self.assertEqual(resized.call_args.args[0], original)
 
+    def test_bar_toggles_preserve_window_size(self):
+        from wune.appearance import AppearanceState, AppearanceDraft
+        self.app.renderer.preset_name = "CLASSIC"
+        self.app.renderer.user_presets = {}
+        original_size = (1280, 800)
+        self.app.screen.get_size.return_value = original_size
+        self.app._windowed_size = original_size
+        self.app._appearance_baseline = AppearanceState.capture(self.app.cfg, "CLASSIC", {})
+        self.app._appearance_size = original_size
+        draft = AppearanceDraft(self.app._appearance_baseline)
+
+        # Repeatedly toggle show_now_playing
+        for _ in range(5):
+            draft.state.layout["show_now_playing"] = False
+            self.app.preview_appearance(draft.snapshot())
+            self.assertEqual(self.app.screen.get_size(), original_size)
+            self.assertEqual(self.app._windowed_size, original_size)
+
+            draft.state.layout["show_now_playing"] = True
+            self.app.preview_appearance(draft.snapshot())
+            self.assertEqual(self.app.screen.get_size(), original_size)
+            self.assertEqual(self.app._windowed_size, original_size)
+
+        # Repeatedly toggle info_enabled
+        for _ in range(5):
+            draft.state.layout["info_enabled"] = False
+            self.app.preview_appearance(draft.snapshot())
+            self.assertEqual(self.app.screen.get_size(), original_size)
+            self.assertEqual(self.app._windowed_size, original_size)
+
+            draft.state.layout["info_enabled"] = True
+            self.app.preview_appearance(draft.snapshot())
+            self.assertEqual(self.app.screen.get_size(), original_size)
+            self.assertEqual(self.app._windowed_size, original_size)
+
     def test_mix_preview_and_cancel_change_display_without_restarting_capture(self):
         from wune.appearance import AppearanceState, AppearanceDraft
         self.app.renderer.preset_name = "CLASSIC"
@@ -512,7 +547,8 @@ class AppCleanupTests(unittest.TestCase):
         self.assertTrue(self.app._fullscreen)
         self.app.toggle_fullscreen()
         self.assertFalse(self.app._fullscreen)
-        self.pg.display.set_mode.assert_called_with((950, 600), self.pg.RESIZABLE)
+        from wune.layout import fit_window_size
+        self.pg.display.set_mode.assert_called_with(fit_window_size((960, 600), self.app.cfg), self.pg.RESIZABLE)
         self.assertEqual(self.app.renderer.resize.call_count, 2)
 
     def test_info_toggle_exits_fullscreen_if_it_no_longer_fits(self):
@@ -524,6 +560,25 @@ class AppCleanupTests(unittest.TestCase):
         self.assertTrue(self.app.cfg.info_enabled)
         self.assertFalse(self.app._fullscreen)
         self.pg.display.set_mode.assert_called_with(self.app._windowed_size, self.pg.RESIZABLE)
+
+    def test_info_key_toggle_in_windowed_mode_preserves_window_size(self):
+        original_size = (1280, 800)
+        self.app.screen.get_size.return_value = original_size
+        self.app._windowed_size = original_size
+        self.app._fullscreen = False
+        self.pg.display.set_mode.reset_mock()
+
+        # Toggle OFF
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_i))
+        self.assertFalse(self.app.cfg.info_enabled)
+        self.assertEqual(self.app._windowed_size, original_size)
+        self.pg.display.set_mode.assert_not_called()
+
+        # Toggle ON
+        self.app.handle_event(types.SimpleNamespace(type=self.pg.KEYDOWN, key=self.pg.K_i))
+        self.assertTrue(self.app.cfg.info_enabled)
+        self.assertEqual(self.app._windowed_size, original_size)
+        self.pg.display.set_mode.assert_not_called()
 
     def test_resize_clamps_window_without_reopening_audio(self):
         from wune.layout import minimum_window_size

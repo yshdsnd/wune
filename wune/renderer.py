@@ -62,7 +62,9 @@ class LedBarRenderer:
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
+        self.now_playing_text = ""
         self.resize(surf)
+
 
     def resize(self, surf):
         """Refresh geometry/surfaces without resetting levels, peaks or presets."""
@@ -122,6 +124,14 @@ class LedBarRenderer:
 
 
 
+    def now_playing_rect(self) -> pg.Rect | None:
+        if not self.cfg.show_now_playing:
+            return None
+        if self._layout and self._layout.now_playing_rect:
+            return pg.Rect(self._layout.now_playing_rect)
+        rect = calculate_layout(self.surf.get_size(), self.cfg).now_playing_rect
+        return pg.Rect(rect) if rect else None
+
     def draw_panel(self):
         self.background.draw(self.surf, self.cfg)
         # 枠線
@@ -136,6 +146,21 @@ class LedBarRenderer:
             pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
             pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)
             self.surf.blit(text, (bx+pad, by+2))
+        # 再生中の曲情報バー（メニューの下）
+        if self.cfg.show_now_playing:
+            bar_rect = self.now_playing_rect()
+            if bar_rect is not None:
+                ih = bar_rect.height
+                pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=8)
+                pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
+                text_str = self.now_playing_text
+                if text_str:
+                    available_w = max(20, bar_rect.width - 20)
+                    fitted = self._fit_text(text_str, self.font_small, available_w)
+                    if fitted:
+                        text_surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
+                        ty = bar_rect.y + (ih - text_surf.get_height()) // 2
+                        self.surf.blit(text_surf, (bar_rect.x + 10, ty))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
             bar_rect = pg.Rect(self._layout.info_rect)

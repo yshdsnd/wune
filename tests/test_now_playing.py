@@ -251,6 +251,122 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
         self.assertIsNone(coord.update())
 
 
+class NowPlayingRendererTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import pygame as pg
+
+        pg.font.init()
+
+    def test_renderer_now_playing_drawing(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.renderer import LedBarRenderer
+
+        cfg = Config(show_now_playing=True)
+        surf = pg.Surface((800, 600))
+        renderer = LedBarRenderer(surf, cfg)
+
+        self.assertIsNotNone(renderer.now_playing_rect())
+
+        # Baseline: empty text (frame drawn, no text)
+        renderer.now_playing_text = ""
+        renderer.draw_panel()
+        baseline_bytes = pg.image.tobytes(surf, "RGB")
+
+        # Set track text
+        renderer.now_playing_text = "Now playing:  Sample Track - Sample Artist"
+        renderer.draw_panel()
+        with_text_bytes = pg.image.tobytes(surf, "RGB")
+        self.assertNotEqual(baseline_bytes, with_text_bytes)
+
+        # Disabled setting: frame removed
+        cfg.show_now_playing = False
+        self.assertIsNone(renderer.now_playing_rect())
+        renderer.draw_panel()
+        disabled_bytes = pg.image.tobytes(surf, "RGB")
+        self.assertNotEqual(baseline_bytes, disabled_bytes)
+
+    def test_app_update_now_playing_text_format(self):
+        from unittest.mock import Mock
+        from wune.app import App
+        from wune.config import Config
+        from wune.now_playing import NowPlaying
+
+        mock_screen = Mock()
+        mock_screen.get_size.return_value = (800, 600)
+
+        app = Mock(spec=App)
+        app.cfg = Config(show_now_playing=True)
+        app.renderer = Mock()
+        app.now_playing = Mock()
+
+        # Track with artist
+        app.now_playing.current = NowPlaying(title="Song", artist="Artist")
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  Song - Artist")
+
+        # Track without artist
+        app.now_playing.current = NowPlaying(title="Song Alone")
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  Song Alone")
+
+        # No track playing
+        app.now_playing.current = None
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  -")
+
+        # Disabled setting
+        app.cfg.show_now_playing = False
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "")
+
+    def test_renderer_long_text_truncated_safely(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.renderer import LedBarRenderer
+
+        cfg = Config(show_now_playing=True)
+        surf = pg.Surface((800, 600))
+        renderer = LedBarRenderer(surf, cfg)
+
+        renderer.now_playing_text = "Now playing:  " + "A" * 1000
+        renderer.draw_panel()
+
+    def test_layout_reserves_space_for_now_playing_and_shifts_spectrum(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.layout import calculate_layout, minimum_window_size
+
+        cfg_without = Config(show_now_playing=False)
+        cfg_with = Config(show_now_playing=True)
+        size = (1280, 800)
+
+        layout_without = calculate_layout(size, cfg_without)
+        layout_with = calculate_layout(size, cfg_with)
+
+        self.assertIsNone(layout_without.now_playing_rect)
+        self.assertIsNotNone(layout_with.now_playing_rect)
+
+        np_rect = pg.Rect(layout_with.now_playing_rect)
+        # Menu button is at y=14..44; frame must be below it
+        self.assertGreaterEqual(np_rect.top, 44)
+        self.assertEqual(np_rect.height, cfg_with.info_height)
+
+        # Plots must be shifted down when now_playing is enabled
+        self.assertGreater(layout_with.plots[0][1], layout_without.plots[0][1])
+
+        # Channel label "L" is drawn above plots[0] (group_y = plots[0].y - header)
+        # Verify that the channel area (including L label) is strictly below now_playing_rect
+        header = max(44, cfg_with.header_reserved)
+        channel_label_top = layout_with.plots[0][1] - header
+        self.assertGreater(channel_label_top, np_rect.bottom)
+
+        # Spectrum plot rects must never intersect now_playing_rect
+        for plot in layout_with.plots:
+            self.assertFalse(np_rect.colliderect(pg.Rect(plot)))
+
 
 if __name__ == "__main__":
     unittest.main()
+

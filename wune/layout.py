@@ -11,6 +11,7 @@ class SpectrumLayout:
     led_height: int
     info_rect: tuple | None
     led_gap: int
+    now_playing_rect: tuple | None = None
 
 
 def _dimensions(cfg):
@@ -32,7 +33,8 @@ def _dimensions(cfg):
         left = max(72, cfg.margin_lr)
         scale = max(30, cfg.scale_reserved) if cfg.show_db_scale else 0
     info = max(28, cfg.info_height) + 12 if cfg.info_enabled else 0
-    return cols, rows, margin, left, header, scale, info
+    now_playing = max(28, cfg.info_height) + 8 if cfg.show_now_playing else 0
+    return cols, rows, margin, left, header, scale, info, now_playing
 
 
 def grid_counts(cfg):
@@ -42,7 +44,7 @@ def grid_counts(cfg):
 
 
 def minimum_window_size(cfg):
-    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    cols, rows, margin, left, header, scale, info, now_playing = _dimensions(cfg)
     ratio = cfg.led_aspect_ratio
     if not math.isfinite(ratio) or ratio <= 0:
         raise ValueError("led_aspect_ratio must be finite and positive")
@@ -53,7 +55,7 @@ def minimum_window_size(cfg):
     plot_w = nx * w + (nx - 1) * gap
     plot_h = ny * h + (ny - 1) * gap
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
-    height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return max(480, width), height
 
 
@@ -69,10 +71,10 @@ def fit_window_size(size, cfg):
     """
     size = clamp_window_size(size, cfg)
     layout = calculate_layout(size, cfg)
-    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    cols, rows, margin, left, header, scale, info, now_playing = _dimensions(cfg)
     _, _, plot_w, plot_h = layout.plots[0]
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
-    height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return clamp_window_size((width, height), cfg)
 
 
@@ -89,9 +91,9 @@ def channel_mode_window_size(size, previous_cfg, cfg):
     nx, ny = grid_counts(cfg)
     plot_w = nx * led_w + (nx - 1) * gap
     plot_h = ny * led_h + (ny - 1) * gap
-    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    cols, rows, margin, left, header, scale, info, now_playing = _dimensions(cfg)
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
-    height = 2 * margin + 40 + info + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return clamp_window_size((width, height), cfg)
 
 
@@ -99,9 +101,13 @@ def calculate_layout(size, cfg):
     width, height = size
     if tuple(size) != clamp_window_size(size, cfg):
         raise ValueError("Drawable area is smaller than the minimum spectrum layout")
-    cols, rows, margin, left, header, scale, info = _dimensions(cfg)
+    cols, rows, margin, left, header, scale, info, now_playing = _dimensions(cfg)
     top = margin + 40
     bottom = height - margin
+    now_playing_rect = None
+    if now_playing:
+        now_playing_rect = (16, margin + 36, width - 32, max(28, cfg.info_height))
+        top += now_playing
     info_rect = None
     if info:
         if cfg.info_position == "top":
@@ -136,4 +142,4 @@ def calculate_layout(size, cfg):
         x = group_x + col * (packed_w + cfg.channel_gap) + left
         y = group_y + row * (packed_h + cfg.channel_gap) + header
         plots.append((x, y, plot_w, plot_h))
-    return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap)
+    return SpectrumLayout(tuple(plots), bar_w, gap, led_h, info_rect, gap, now_playing_rect)

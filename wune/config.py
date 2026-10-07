@@ -40,6 +40,7 @@ class Config:
 
     # テーマ切り替えバッジ
     show_badge: bool = True
+    show_now_playing: bool = True
     
     # 周波数スケール（表示用）
     show_freq_scale: bool = True
