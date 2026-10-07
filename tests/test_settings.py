@@ -40,6 +40,13 @@ class SettingsTests(unittest.TestCase):
             loaded, _ = SettingsStore(self.path).load(Config())
             self.assertEqual(loaded.confirm_keyboard_exit, enabled)
 
+    def test_now_playing_preference_survives_restart_and_reenable(self):
+        for enabled in (False, True):
+            self.assertTrue(self.store.save(Config(show_now_playing=enabled), (1280, 800), (0, 0), "CLASSIC"))
+            loaded, _ = SettingsStore(self.path).load(Config())
+            self.assertEqual(loaded.show_now_playing, enabled)
+
+
     def test_saved_peak_hold_values_survive_restart(self):
         for hold_ms in (0, 120, 200, 875.5, 5000):
             with self.subTest(hold_ms=hold_ms):

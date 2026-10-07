@@ -237,13 +237,17 @@ class _Dialog:
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(row=6, column=0, sticky="w", pady=8)
         choice(general, 7, "info_position", self.t('settings.information_position'), {self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
+        self.show_now_playing = tk.BooleanVar(root)
+        ttk.Checkbutton(general, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
+                        command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
+                            row=8, column=0, columnspan=2, sticky="w", pady=8)
         self.limit_to_20khz = tk.BooleanVar(root)
         ttk.Checkbutton(general, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
-                            row=8, column=0, columnspan=2, sticky="w", pady=8)
+                            row=9, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Label(general, text=self.t('settings.layout_help'),
-                  wraplength=500).grid(row=9, column=0, columnspan=2, sticky="w", pady=16)
+                  wraplength=500).grid(row=10, column=0, columnspan=2, sticky="w", pady=16)
 
         choice(general, 0, "channel_mode", self.t("settings.channel_mode"), {
             self.t("settings.stereo_separate"): "stereo",
@@ -321,6 +325,7 @@ class _Dialog:
         self.background_path.set(state.background["background_path"])
         self.confirm_keyboard_exit.set(state.layout["confirm_keyboard_exit"])
         self.info.set(state.layout["info_enabled"])
+        self.show_now_playing.set(state.layout.get("show_now_playing", True))
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")

@@ -168,3 +168,14 @@ class DialogTests(unittest.TestCase):
         self.dialog.reset()
         self.assertFalse(self.events.get_nowait()[1].layout["limit_to_20khz"])
         self.assertFalse(self.dialog.limit_to_20khz.get())
+
+    def test_now_playing_preview_and_default_reset(self):
+        self.dialog.show_now_playing.set(False)
+        self.dialog.layout("show_now_playing", self.dialog.show_now_playing.get())
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertFalse(state.layout["show_now_playing"])
+        self.dialog.reset()
+        self.assertTrue(self.events.get_nowait()[1].layout["show_now_playing"])
+        self.assertTrue(self.dialog.show_now_playing.get())
+

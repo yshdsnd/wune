@@ -62,7 +62,9 @@ class LedBarRenderer:
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
+        self.now_playing_text = ""
         self.resize(surf)
+
 
     def resize(self, surf):
         """Refresh geometry/surfaces without resetting levels, peaks or presets."""
@@ -136,6 +138,19 @@ class LedBarRenderer:
             pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
             pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)
             self.surf.blit(text, (bx+pad, by+2))
+        # 再生中の曲情報表示（上部ヘッダー）
+        if self.cfg.show_now_playing and self.now_playing_text:
+            btn_rect = ApplicationMenu.button_rect(self.font_small, self.cfg.language)
+            left = btn_rect.right + 16
+            badge_r = self.badge_rect()
+            right = (badge_r.left - 16) if badge_r is not None else (self.width - 24)
+            available = right - left
+            if available > 40:
+                fitted = self._fit_text(self.now_playing_text, self.font_small, available)
+                if fitted:
+                    text_surf = self.font_small.render(fitted, True, self.cfg.theme.edge_text)
+                    ty = 14 + (btn_rect.height - text_surf.get_height()) // 2
+                    self.surf.blit(text_surf, (left, ty))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
             bar_rect = pg.Rect(self._layout.info_rect)

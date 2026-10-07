@@ -251,6 +251,52 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
         self.assertIsNone(coord.update())
 
 
+class NowPlayingRendererTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import pygame as pg
+
+        pg.font.init()
+
+    def test_renderer_now_playing_drawing(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.renderer import LedBarRenderer
+
+        cfg = Config(show_now_playing=True)
+        surf = pg.Surface((800, 600))
+        renderer = LedBarRenderer(surf, cfg)
+
+        # Baseline: empty text
+        renderer.now_playing_text = ""
+        renderer.draw_panel()
+        baseline_bytes = pg.image.tobytes(surf, "RGB")
+
+        # Set track text
+        renderer.now_playing_text = "Sample Track - Sample Artist"
+        renderer.draw_panel()
+        with_text_bytes = pg.image.tobytes(surf, "RGB")
+        self.assertNotEqual(baseline_bytes, with_text_bytes)
+
+        # Disabled setting
+        cfg.show_now_playing = False
+        renderer.draw_panel()
+        disabled_bytes = pg.image.tobytes(surf, "RGB")
+        self.assertEqual(baseline_bytes, disabled_bytes)
+
+    def test_renderer_long_text_truncated_safely(self):
+        import pygame as pg
+        from wune.config import Config
+        from wune.renderer import LedBarRenderer
+
+        cfg = Config(show_now_playing=True)
+        surf = pg.Surface((800, 600))
+        renderer = LedBarRenderer(surf, cfg)
+
+        renderer.now_playing_text = "A" * 1000
+        renderer.draw_panel()
+
 
 if __name__ == "__main__":
     unittest.main()
+

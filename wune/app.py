@@ -64,7 +64,12 @@ class App:
         self._idle_frames = 0
         self._redraw_requested = True
         self.levels = np.zeros((cfg.display_channels, cfg.bars), dtype=np.float32)
+        from .now_playing import create_default_coordinator
+        self.now_playing = create_default_coordinator()
+        self.now_playing.add_listener(lambda _: setattr(self, "_redraw_requested", True))
+        self.now_playing.start()
         self.update_info_text()
+        self.update_now_playing_text()
 
     def _set_mode(self, size, flags, *, display=None):
         pg.display.set_icon(self._icon)
@@ -202,6 +207,7 @@ class App:
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
         pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
+        self.update_now_playing_text()
         if presentation_only and size is None:
             return
         if self.cfg.limit_to_20khz != previous_cap:
@@ -373,6 +379,14 @@ class App:
         self.renderer.info_text = t("app.output", device=device, rate=spectrum.sr / 1000,
                                     channels=spectrum.channels_eff)
 
+    def update_now_playing_text(self):
+        if not self.cfg.show_now_playing:
+            self.renderer.now_playing_text = ""
+            return
+        current = self.now_playing.current if hasattr(self, "now_playing") and self.now_playing is not None else None
+        self.renderer.now_playing_text = current.display_text() if current else ""
+
+
     def run(self):
         try:
             while self.running:
@@ -400,6 +414,7 @@ class App:
                     continue
                 # Pause reuses the last levels and freezes peak timers.
                 self.update_info_text()
+                self.update_now_playing_text()
                 self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
                 if self.paused:
                     self.renderer.draw_pause_overlay()
@@ -415,8 +430,11 @@ class App:
                 self.cfg.confirm_keyboard_exit = False
             self.save_settings()
         finally:
+            if hasattr(self, "now_playing") and self.now_playing is not None:
+                self.now_playing.stop()
             if self._settings_window is not None:
                 self._settings_window.detach()
+
             if self.settings_dialog is not None:
                 self.settings_dialog.close()
             try:

@@ -45,6 +45,7 @@
   "settings.ellipse": "楕円",
   "settings.led_aspect_ratio_width_height": "LEDの縦横比（幅÷高さ）",
   "settings.show_output_information": "入力情報を表示",
+  "settings.show_now_playing": "再生中の曲情報を表示",
   "settings.information_position": "情報欄の位置",
   "settings.bottom": "下",
   "settings.top": "上",

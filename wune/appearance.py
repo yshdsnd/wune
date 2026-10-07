@@ -11,7 +11,7 @@ from .ballistics import MOTION_LIMITS, valid_motion
 
 
 BUILTINS = {p.name: p for p in PRESETS}
-LAYOUT_FIELDS = ("confirm_keyboard_exit", "language", "spectrum_orientation", "channel_mode", "channel_layout", "info_enabled", "info_position", "limit_to_20khz")
+LAYOUT_FIELDS = ("confirm_keyboard_exit", "language", "spectrum_orientation", "channel_mode", "channel_layout", "info_enabled", "info_position", "limit_to_20khz", "show_now_playing")
 STYLE_FIELDS = ("gauge_style", "led_shape", "led_aspect_ratio")
 BACKGROUND_FIELDS = ("background_mode", "background_path", "background_sizing")
 COLOR_FIELDS = tuple(f.name for f in fields(Theme) if not f.name.startswith("th_"))

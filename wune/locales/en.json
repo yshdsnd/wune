@@ -45,6 +45,7 @@
   "settings.ellipse": "Ellipse",
   "settings.led_aspect_ratio_width_height": "LED aspect ratio (width/height)",
   "settings.show_output_information": "Show output information",
+  "settings.show_now_playing": "Show Now Playing track information",
   "settings.information_position": "Information position",
   "settings.bottom": "Bottom",
   "settings.top": "Top",
