@@ -71,5 +71,6 @@ app = BUNDLE(
         "LSMinimumSystemVersion": "14.2",
         "NSAudioCaptureUsageDescription": "Wune needs permission to capture system audio to display real-time spectrum visualization.",
         "NSMicrophoneUsageDescription": "Wune needs microphone access to visualize sound input.",
+        "NSAppleEventsUsageDescription": "Wune queries Apple Music to display current track metadata in the Now Playing visualizer.",
     },
 )
