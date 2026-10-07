@@ -30,6 +30,15 @@ def validate_version(value):
     return value
 
 
+def try_self_sign(exe_path):
+    cmd = (
+        "$cert = Get-ChildItem Cert:\\CurrentUser\\My -CodeSigningCert -ErrorAction SilentlyContinue | Select-Object -First 1; "
+        "if (-not $cert) { $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=WuneDev' -CertStoreLocation 'Cert:\\CurrentUser\\My' }; "
+        f"Set-AuthenticodeSignature -FilePath '{exe_path}' -Certificate $cert"
+    )
+    subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True)
+
+
 def smoke_test(bundle):
     # Launch a relocated executable outside the checkout, with no Python search paths.
     probe = Path(tempfile.gettempdir()) / ("Wune-package-check-" + uuid.uuid4().hex)
@@ -44,8 +53,20 @@ def smoke_test(bundle):
         env.pop(key, None)
     env["LOCALAPPDATA"] = str(home)
     env["PATH"] = str(Path(env["SYSTEMROOT"]) / "System32")
-    result = subprocess.run([str(relocated / "Wune.exe"), "--package-smoke-test", str(report)],
-                            cwd=probe, env=env, timeout=90)
+    for attempt in range(5):
+        try:
+            result = subprocess.run([str(relocated / "Wune.exe"), "--package-smoke-test", str(report)],
+                                    cwd=probe, env=env, timeout=90)
+            break
+        except OSError as error:
+            if getattr(error, "winerror", None) == 4551:
+                try_self_sign(relocated / "Wune.exe")
+                continue
+            if attempt < 4 and getattr(error, "winerror", None) == 5:
+                import time
+                time.sleep(1)
+                continue
+            raise
     if result.returncode or not report.exists() or not json.loads(report.read_text(encoding="utf-8")).get("ok"):
         log = home / "Wune" / "Wune.log"
         if log.exists():

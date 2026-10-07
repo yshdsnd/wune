@@ -48,7 +48,12 @@ def run(report):
     import soundcard
     bundle = Path(sys._MEIPASS).resolve()
     bundle_root = bundle.parent if sys.platform == "darwin" and bundle.name == "Frameworks" else bundle
-    for module in (np, pg, tk, soundcard):
+    modules = [np, pg, tk, soundcard]
+    if sys.platform == "win32":
+        import winrt.system
+        import winrt.windows.media.control
+        modules.extend([winrt.system, winrt.windows.media.control])
+    for module in modules:
         if not Path(module.__file__).resolve().is_relative_to(bundle_root):
             raise RuntimeError(f"Dependency escaped the bundle: {module.__name__}")
     if settings_path().resolve().is_relative_to(Path(sys.executable).parent.resolve()):
@@ -56,6 +61,13 @@ def run(report):
     np.fft.rfft(np.zeros(4096))
     if not ASSETS.resolve().is_relative_to(bundle_root) or not (ASSETS / "Wune.ico").is_file():
         raise RuntimeError("Missing bundled icon resources")
+    if sys.platform == "win32":
+        from .now_playing_windows import WINRT_AVAILABLE, WindowsGsmtcProvider
+        if not WINRT_AVAILABLE:
+            raise RuntimeError("PyWinRT failed to load in packaged Windows bundle")
+        provider = WindowsGsmtcProvider()
+        if not provider.is_available():
+            raise RuntimeError("WindowsGsmtcProvider reported unavailable in packaged Windows bundle")
     if sys.platform == "darwin":
         import ctypes
         from .tap_macos import _ensure_dylib

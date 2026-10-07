@@ -66,11 +66,22 @@ class DialogTests(unittest.TestCase):
         except tk.TclError as error:
             self.skipTest(f"No Tk display: {error}")
         self.root.withdraw()
-        self.addCleanup(self.root.destroy)
         self.events, self.commands = Queue(), Queue()
         self.dialog = _Dialog(self.root, AppearanceDraft(AppearanceState.capture(Config(), "CLASSIC", {})),
                               "test/settings.json", self.events, self.commands)
         self.root.update_idletasks()
+
+    def tearDown(self):
+        self.dialog = None
+        if hasattr(self, "root") and self.root:
+            try:
+                self.root.update_idletasks()
+            except Exception:
+                pass
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
 
     def test_color_picker_previews_and_creates_user_copy(self):
         with patch("tkinter.colorchooser.askcolor", return_value=((12, 34, 56), "#0c2238")):

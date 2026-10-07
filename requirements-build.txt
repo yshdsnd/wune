@@ -10,3 +10,8 @@ packaging==26.3
 altgraph==0.17.5
 pefile==2024.8.26
 pywin32-ctypes==0.2.3
+typing_extensions==4.16.0; sys_platform == 'win32'
+winrt-runtime==3.2.1; sys_platform == 'win32'
+winrt-Windows.Foundation==3.2.1; sys_platform == 'win32'
+winrt-Windows.Foundation.Collections==3.2.1; sys_platform == 'win32'
+winrt-Windows.Media.Control==3.2.1; sys_platform == 'win32'

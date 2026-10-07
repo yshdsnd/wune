@@ -28,6 +28,8 @@ new native libraries or changed SDL/font bytes stop the build.
 | GNU FreeFont FreeSansBold, release 20120503 (pygame fallback only) | FreeFont/; GPL-3.0-or-later with font embedding exception |
 | NumPy 2.5.3, OpenBLAS, LAPACK, GCC runtime and embedded algorithms | numpy/; complete wheel license tree, including GCC runtime exception |
 | SoundCard 0.4.6, CFFI 2.1.1, pycparser 3.0 | SoundCard/, cffi/, pycparser/; BSD/MIT-family terms |
+| PyWinRT (winrt-runtime, winrt-Windows.*) 3.2.1 | winrt-*/ and pywinrt/; MIT License |
+| typing_extensions 4.16.0 | typing_extensions/; Python Software Foundation License Agreement |
 | setuptools 84.0.0 and its vendored packages, packaging 26.3 | setuptools/ and packaging/; nested notices include MPL-2.0-covered validate-pyproject code |
 | PyInstaller 6.22.3 bootloader/loader and runtime hooks | pyinstaller/; GPL with bootloader exception and Apache-2.0 runtime hooks |
 | Microsoft VC runtime / Universal CRT / API-set runtime DLLs | Python/LICENSE.txt, Windows binary build additional conditions; terms below |

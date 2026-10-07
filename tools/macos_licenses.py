@@ -34,10 +34,14 @@ def collect_notices(bundle, inputs):
             selected[dist.metadata["Name"]] = dist
     pinned = {}
     for requirements in (ROOT / "requirements.txt", ROOT / "requirements-build.txt"):
-        for line in requirements.read_text(encoding="utf-8").splitlines():
-            if "==" in line:
-                name, version = line.split("==")
-                pinned[name.lower()] = version
+        for raw_line in requirements.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or line.startswith("-"):
+                continue
+            spec = line.split(";", 1)[0].strip()
+            if "==" in spec:
+                name, version = spec.split("==", 1)
+                pinned[name.strip().lower()] = version.strip()
     components = {}
     for name, dist in sorted(selected.items()):
         if pinned.get(name.lower()) != dist.version:
@@ -49,6 +53,10 @@ def collect_notices(bundle, inputs):
                 dest = target / name / relative
                 copy_required(Path(dist.locate_file(file)), dest)
                 notices.append(dest.relative_to(bundle).as_posix())
+        if not notices and name.lower().startswith("winrt-"):
+            dest = target / name / "LICENSE.txt"
+            copy_required(SUPPLEMENT / "pywinrt" / "LICENSE.txt", dest)
+            notices.append(dest.relative_to(bundle).as_posix())
         if not notices:
             raise RuntimeError(f"Missing bundled package notices: {name}")
         components[name] = {"version": dist.version, "notices": sorted(notices)}
