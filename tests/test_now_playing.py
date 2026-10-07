@@ -275,7 +275,7 @@ class NowPlayingRendererTests(unittest.TestCase):
         baseline_bytes = pg.image.tobytes(surf, "RGB")
 
         # Set track text
-        renderer.now_playing_text = "Nowplaying:  Sample Track - Sample Artist"
+        renderer.now_playing_text = "Now playing:  Sample Track - Sample Artist"
         renderer.draw_panel()
         with_text_bytes = pg.image.tobytes(surf, "RGB")
         self.assertNotEqual(baseline_bytes, with_text_bytes)
@@ -304,17 +304,17 @@ class NowPlayingRendererTests(unittest.TestCase):
         # Track with artist
         app.now_playing.current = NowPlaying(title="Song", artist="Artist")
         App.update_now_playing_text(app)
-        self.assertEqual(app.renderer.now_playing_text, "Nowplaying:  Song - Artist")
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  Song - Artist")
 
         # Track without artist
         app.now_playing.current = NowPlaying(title="Song Alone")
         App.update_now_playing_text(app)
-        self.assertEqual(app.renderer.now_playing_text, "Nowplaying:  Song Alone")
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  Song Alone")
 
         # No track playing
         app.now_playing.current = None
         App.update_now_playing_text(app)
-        self.assertEqual(app.renderer.now_playing_text, "Nowplaying:  -")
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  -")
 
         # Disabled setting
         app.cfg.show_now_playing = False
@@ -330,7 +330,7 @@ class NowPlayingRendererTests(unittest.TestCase):
         surf = pg.Surface((800, 600))
         renderer = LedBarRenderer(surf, cfg)
 
-        renderer.now_playing_text = "Nowplaying:  " + "A" * 1000
+        renderer.now_playing_text = "Now playing:  " + "A" * 1000
         renderer.draw_panel()
 
 
