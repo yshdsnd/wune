@@ -1,6 +1,7 @@
 import argparse
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -24,6 +25,22 @@ class PackagingTests(unittest.TestCase):
         from wune.package_smoke import run
         with self.assertRaisesRegex(RuntimeError, "packaged Wune.exe"):
             run(Path("must-not-be-created.json"))
+
+    def test_windows_smoke_test_reraises_sac_error_when_retries_exhausted(self):
+        sac_error = OSError("Smart App Control blocked execution")
+        sac_error.winerror = 4551
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bundle = Path(tmp_dir) / "bundle"
+            bundle.mkdir()
+            (bundle / "Wune.exe").touch()
+            with patch.dict("os.environ", {"SYSTEMROOT": r"C:\Windows"}), \
+                 patch.object(self.builder.subprocess, "run", side_effect=sac_error) as mock_run, \
+                 patch.object(self.builder, "try_self_sign") as mock_sign:
+                with self.assertRaises(OSError) as cm:
+                    self.builder.smoke_test(bundle)
+                self.assertIs(cm.exception, sac_error)
+                self.assertEqual(mock_run.call_count, 5)
+                self.assertEqual(mock_sign.call_count, 4)
 
     def mac_builder(self):
         path = Path(__file__).resolve().parents[1] / "tools" / "build_macos.py"

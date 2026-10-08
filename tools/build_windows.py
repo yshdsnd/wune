@@ -52,14 +52,14 @@ def smoke_test(bundle):
     for key in ("PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV"):
         env.pop(key, None)
     env["LOCALAPPDATA"] = str(home)
-    env["PATH"] = str(Path(env["SYSTEMROOT"]) / "System32")
+    env["PATH"] = str(Path(env.get("SYSTEMROOT", r"C:\Windows")) / "System32")
     for attempt in range(5):
         try:
             result = subprocess.run([str(relocated / "Wune.exe"), "--package-smoke-test", str(report)],
                                     cwd=probe, env=env, timeout=90)
             break
         except OSError as error:
-            if getattr(error, "winerror", None) == 4551:
+            if attempt < 4 and getattr(error, "winerror", None) == 4551:
                 try_self_sign(relocated / "Wune.exe")
                 continue
             if attempt < 4 and getattr(error, "winerror", None) == 5:
