@@ -40,7 +40,14 @@ class WindowsGsmtcProvider(MetadataProvider):
         self._manager: Any = manager
         self._on_change = on_change
         self._session_token: Any = None
+        self._subscribed_session: Any = None
+        self._media_props_token: Any = None
+        self._playback_info_token: Any = None
         self._started = False
+
+    def set_on_change(self, on_change: Callable[[], None] | None) -> None:
+        """Set or update the change notification callback."""
+        self._on_change = on_change
 
     @property
     def name(self) -> str:
@@ -60,12 +67,17 @@ class WindowsGsmtcProvider(MetadataProvider):
             return
         self._started = True
         try:
-            if self._manager is None and WINRT_AVAILABLE:
-                self._manager = asyncio.run(_SessionManager.request_async())
-            if self._manager is not None and hasattr(self._manager, "add_current_session_changed"):
-                self._session_token = self._manager.add_current_session_changed(
-                    self._handle_session_changed
-                )
+            if self._manager is None and WINRT_AVAILABLE and _SessionManager is not None:
+                async def _request_manager():
+                    return await _SessionManager.request_async()
+
+                self._manager = asyncio.run(_request_manager())
+            if self._manager is not None:
+                if hasattr(self._manager, "add_current_session_changed"):
+                    self._session_token = self._manager.add_current_session_changed(
+                        self._handle_session_changed
+                    )
+                self._sync_session_subscriptions()
         except Exception:
             pass
 
@@ -74,6 +86,7 @@ class WindowsGsmtcProvider(MetadataProvider):
             return
         self._started = False
         try:
+            self._unsubscribe_session_events()
             if self._manager is not None and self._session_token is not None:
                 if hasattr(self._manager, "remove_current_session_changed"):
                     self._manager.remove_current_session_changed(self._session_token)
@@ -84,12 +97,71 @@ class WindowsGsmtcProvider(MetadataProvider):
             if self._custom_manager is None:
                 self._manager = None
 
-    def _handle_session_changed(self, sender: Any, args: Any) -> None:
+    def _sync_session_subscriptions(self) -> None:
+        """Subscribe to track/playback changes on the currently active media session."""
+        if self._manager is None:
+            return
+        try:
+            current_session = self._manager.get_current_session()
+        except Exception:
+            current_session = None
+
+        if current_session == self._subscribed_session:
+            return
+
+        self._unsubscribe_session_events()
+
+        if current_session is not None:
+            self._subscribed_session = current_session
+            try:
+                if hasattr(current_session, "add_media_properties_changed"):
+                    self._media_props_token = current_session.add_media_properties_changed(
+                        self._handle_media_changed
+                    )
+            except Exception:
+                self._media_props_token = None
+            try:
+                if hasattr(current_session, "add_playback_info_changed"):
+                    self._playback_info_token = current_session.add_playback_info_changed(
+                        self._handle_playback_changed
+                    )
+            except Exception:
+                self._playback_info_token = None
+
+    def _unsubscribe_session_events(self) -> None:
+        """Unsubscribe from previous active media session events."""
+        session = self._subscribed_session
+        if session is not None:
+            if self._media_props_token is not None and hasattr(session, "remove_media_properties_changed"):
+                try:
+                    session.remove_media_properties_changed(self._media_props_token)
+                except Exception:
+                    pass
+            if self._playback_info_token is not None and hasattr(session, "remove_playback_info_changed"):
+                try:
+                    session.remove_playback_info_changed(self._playback_info_token)
+                except Exception:
+                    pass
+        self._subscribed_session = None
+        self._media_props_token = None
+        self._playback_info_token = None
+
+    def _notify_change(self) -> None:
         if self._on_change is not None:
             try:
                 self._on_change()
             except Exception:
                 pass
+
+    def _handle_session_changed(self, sender: Any = None, args: Any = None) -> None:
+        self._sync_session_subscriptions()
+        self._notify_change()
+
+    def _handle_media_changed(self, sender: Any = None, args: Any = None) -> None:
+        self._notify_change()
+
+    def _handle_playback_changed(self, sender: Any = None, args: Any = None) -> None:
+        self._notify_change()
 
     def get_now_playing(self) -> NowPlaying | None:
         if not self.is_available():
@@ -103,17 +175,19 @@ class WindowsGsmtcProvider(MetadataProvider):
         if self._manager is None:
             if self._custom_manager is not None:
                 self._manager = self._custom_manager
-            elif WINRT_AVAILABLE:
+            elif WINRT_AVAILABLE and _SessionManager is not None:
                 self._manager = await _SessionManager.request_async()
 
         if self._manager is None:
             return None
 
+        self._sync_session_subscriptions()
+
         session = self._manager.get_current_session()
         if session is None:
             return None
 
-        is_playing = True
+        is_playing = False
         if hasattr(session, "get_playback_info"):
             try:
                 playback_info = session.get_playback_info()
@@ -124,7 +198,7 @@ class WindowsGsmtcProvider(MetadataProvider):
                     else:
                         is_playing = bool(getattr(playback_info, "is_playing", status == 4))
             except Exception:
-                pass
+                is_playing = False
 
         props = None
         if hasattr(session, "try_get_media_properties_async"):
