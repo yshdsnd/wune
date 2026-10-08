@@ -124,6 +124,8 @@
   "app.title": "{identity} — F2: 設定",
   "app.output": "出力: {device} | {rate:.1f} kHz | {channels} ch",
   "app.default_output": "既定の出力",
+  "app.now_playing": "Now playing:  {track}",
+  "app.now_playing_empty": "Now playing:  -",
   "app.paused": "一時停止",
   "status.applied": "適用しました。正常終了時にも保存します。",
   "error.save": "保存できませんでした。保存先の権限やJSON形式を確認してください。変更はまだプレビュー中です。",

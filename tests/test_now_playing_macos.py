@@ -50,7 +50,7 @@ class MacAppleMusicProviderTests(unittest.TestCase):
 
     def test_get_now_playing_missing_artist_or_album(self):
         provider = MacAppleMusicProvider(
-            runner=lambda _: "playing|||Streaming Stream||||||"
+            runner=lambda _: '{"state":"playing","title":"Streaming Stream","artist":"","album":""}'
         )
         now_playing = provider.get_now_playing()
         self.assertIsNotNone(now_playing)
@@ -59,11 +59,50 @@ class MacAppleMusicProviderTests(unittest.TestCase):
         self.assertEqual(now_playing.album, "")
         self.assertTrue(now_playing.is_playing)
 
-    def test_get_now_playing_empty_title_returns_none(self):
+    def test_get_now_playing_artist_only_supported(self):
+        """Issue 114 #7: Artist-only tracks (e.g. streaming/radio) should not be dropped."""
         provider = MacAppleMusicProvider(
-            runner=lambda _: "playing||||||Artist Only|||Album"
+            runner=lambda _: '{"state":"playing","title":"","artist":"Artist Only","album":"Album"}'
+        )
+        now_playing = provider.get_now_playing()
+        self.assertIsNotNone(now_playing)
+        self.assertEqual(now_playing.title, "")
+        self.assertEqual(now_playing.artist, "Artist Only")
+        self.assertEqual(now_playing.album, "Album")
+        self.assertTrue(now_playing.has_metadata)
+
+    def test_get_now_playing_empty_metadata_returns_none(self):
+        provider = MacAppleMusicProvider(
+            runner=lambda _: '{"state":"playing","title":"","artist":"","album":""}'
         )
         self.assertIsNone(provider.get_now_playing())
+
+    def test_get_now_playing_delimiter_in_track_title_preserved_via_json(self):
+        """Issue 114 #7: Titles containing '|||' or quotes/newlines must not break fields."""
+        import json
+        payload = json.dumps({
+            "state": "playing",
+            "title": "Song Title ||| Special Edition",
+            "artist": "Artist Name ||| Co-Artist",
+            "album": 'Album "Quoted"',
+        })
+        provider = MacAppleMusicProvider(runner=lambda _: payload)
+        now_playing = provider.get_now_playing()
+        self.assertIsNotNone(now_playing)
+        self.assertEqual(now_playing.title, "Song Title ||| Special Edition")
+        self.assertEqual(now_playing.artist, "Artist Name ||| Co-Artist")
+        self.assertEqual(now_playing.album, 'Album "Quoted"')
+
+    def test_get_now_playing_legacy_delimiter_fallback(self):
+        """Backward compatibility: legacy '|||' format is still parsed if runner emits it."""
+        provider = MacAppleMusicProvider(
+            runner=lambda _: "playing|||Legacy Song|||Legacy Artist|||Legacy Album"
+        )
+        now_playing = provider.get_now_playing()
+        self.assertIsNotNone(now_playing)
+        self.assertEqual(now_playing.title, "Legacy Song")
+        self.assertEqual(now_playing.artist, "Legacy Artist")
+        self.assertEqual(now_playing.album, "Legacy Album")
 
     def test_get_now_playing_runner_exception_handled_gracefully(self):
         def bad_runner(_):
@@ -75,10 +114,21 @@ class MacAppleMusicProviderTests(unittest.TestCase):
     def test_default_osascript_runner_returns_stdout_on_success(self):
         mock_result = MagicMock()
         mock_result.returncode = 0
-        mock_result.stdout = "playing|||Song|||Artist|||Album\n"
-        with patch("subprocess.run", return_value=mock_result):
+        mock_result.stdout = '{"state":"playing","title":"Song","artist":"Artist","album":"Album"}\n'
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
             output = _default_osascript_runner("dummy script")
-            self.assertEqual(output, "playing|||Song|||Artist|||Album")
+            self.assertEqual(output, '{"state":"playing","title":"Song","artist":"Artist","album":"Album"}')
+            # Without JXA markers, -l JavaScript is not appended
+            self.assertEqual(mock_run.call_args[0][0], ["osascript", "-e", "dummy script"])
+
+    def test_default_osascript_runner_adds_jxa_flag_for_javascript(self):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = '{"state":"playing"}'
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            output = _default_osascript_runner("Application('Music').playerState()")
+            self.assertEqual(output, '{"state":"playing"}')
+            self.assertEqual(mock_run.call_args[0][0], ["osascript", "-l", "JavaScript", "-e", "Application('Music').playerState()"])
 
     def test_default_osascript_runner_returns_empty_on_error(self):
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(["osascript"], 1.5)):

@@ -33,6 +33,8 @@ def _dimensions(cfg):
         left = max(72, cfg.margin_lr)
         scale = max(30, cfg.scale_reserved) if cfg.show_db_scale else 0
     info = max(28, cfg.info_height) + 12 if cfg.info_enabled else 0
+    # When show_now_playing is True, reserve a dedicated row below the menu bar
+    # (retained across track changes and playback pause/stop to maintain window size stability).
     now_playing = max(28, cfg.info_height) + 8 if cfg.show_now_playing else 0
     return cols, rows, margin, left, header, scale, info, now_playing
 
