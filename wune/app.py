@@ -410,12 +410,13 @@ class App:
         if not self.cfg.show_now_playing:
             self.renderer.now_playing_text = ""
             return
+        t = Translator(self.cfg.language)
         current = self.now_playing.current if hasattr(self, "now_playing") and self.now_playing is not None else None
         track_info = current.display_text() if current else ""
         if track_info:
-            self.renderer.now_playing_text = f"Now playing:  {track_info}"
+            self.renderer.now_playing_text = t("app.now_playing", track=track_info)
         else:
-            self.renderer.now_playing_text = "Now playing:  -"
+            self.renderer.now_playing_text = t("app.now_playing_empty")
 
 
     def run(self):

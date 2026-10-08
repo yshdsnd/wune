@@ -329,6 +329,61 @@ class NowPlayingRendererTests(unittest.TestCase):
         App.update_now_playing_text(app)
         self.assertEqual(app.renderer.now_playing_text, "")
 
+    def test_app_update_now_playing_text_localization(self):
+        """Issue 114 #8: UI text must be routed through Translator keys.
+
+        Note on intentional styling: In Japanese ('ja'), the prefix is kept as 'Now playing:'
+        rather than translating to '再生中:' to preserve the UI design and atmosphere.
+        """
+        from unittest.mock import Mock
+        from wune.app import App
+        from wune.config import Config
+        from wune.i18n import Translator
+        from wune.now_playing import NowPlaying
+
+        # Verify translation keys exist
+        t_ja = Translator("ja")
+        t_en = Translator("en")
+        self.assertEqual(t_en("app.now_playing", track="Song"), "Now playing:  Song")
+        self.assertEqual(t_en("app.now_playing_empty"), "Now playing:  -")
+        self.assertEqual(t_ja("app.now_playing", track="曲名"), "Now playing:  曲名")
+        self.assertEqual(t_ja("app.now_playing_empty"), "Now playing:  -")
+
+        app = Mock(spec=App)
+        app.renderer = Mock()
+        app.now_playing = Mock()
+
+        # Japanese mode
+        app.cfg = Config(show_now_playing=True, language="ja")
+        app.now_playing.current = NowPlaying(title="曲名", artist="歌手")
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  曲名 - 歌手")
+
+        app.now_playing.current = None
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  -")
+
+        # English mode
+        app.cfg = Config(show_now_playing=True, language="en")
+        app.now_playing.current = NowPlaying(title="Track", artist="Artist")
+        App.update_now_playing_text(app)
+        self.assertEqual(app.renderer.now_playing_text, "Now playing:  Track - Artist")
+
+    def test_fit_text_caching(self):
+        """Additional performance improvement: _fit_text must cache repeated layout lookups."""
+        import pygame as pg
+        from wune.renderer import LedBarRenderer
+
+        font = pg.font.Font(None, 24)
+        if hasattr(LedBarRenderer._fit_text, "cache_clear"):
+            LedBarRenderer._fit_text.cache_clear()
+            res1 = LedBarRenderer._fit_text("Hello World Sample Text", font, 100)
+            hits_before = LedBarRenderer._fit_text.cache_info().hits
+            res2 = LedBarRenderer._fit_text("Hello World Sample Text", font, 100)
+            hits_after = LedBarRenderer._fit_text.cache_info().hits
+            self.assertEqual(res1, res2)
+            self.assertGreater(hits_after, hits_before)
+
     def test_renderer_long_text_truncated_safely(self):
         import pygame as pg
         from wune.config import Config

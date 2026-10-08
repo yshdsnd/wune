@@ -1,6 +1,7 @@
 # renderer.py
 # 描画ルーチン
 
+import functools
 import math
 import sys
 
@@ -146,7 +147,7 @@ class LedBarRenderer:
             pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
             pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)
             self.surf.blit(text, (bx+pad, by+2))
-        # 再生中の曲情報バー（メニューの下）
+        # 再生中の曲情報バー（メニューの下：ウィンドウサイズ維持のため設定ON時は枠を常設）
         if self.cfg.show_now_playing:
             bar_rect = self.now_playing_rect()
             if bar_rect is not None:
@@ -189,6 +190,7 @@ class LedBarRenderer:
         return max(0, min(self.cfg.bars - 1, idx))
 
     @staticmethod
+    @functools.lru_cache(maxsize=128)
     def _fit_text(text, font, width):
         if font.size(text)[0] <= width:
             return text

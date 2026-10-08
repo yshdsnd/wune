@@ -124,6 +124,8 @@
   "app.title": "{identity} — F2: Settings",
   "app.output": "OUTPUT: {device} | {rate:.1f} kHz | {channels} ch",
   "app.default_output": "Default output",
+  "app.now_playing": "Now playing:  {track}",
+  "app.now_playing_empty": "Now playing:  -",
   "app.paused": "PAUSED",
   "status.applied": "Applied. Settings will also be saved on normal exit.",
   "error.save": "Could not save. Check file permissions and JSON format. Changes are still previews.",

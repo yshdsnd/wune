@@ -1,6 +1,7 @@
 """macOS Apple Music metadata provider."""
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from typing import Callable
@@ -8,40 +9,99 @@ from typing import Callable
 from .now_playing import MetadataProvider, NowPlaying
 
 # Script checks if Music process exists before querying, preventing Music.app from launching
-# unintentionally when closed.
-_APPLESCRIPT_QUERY = """
-tell application "System Events"
-    if not (exists (process "Music")) then return ""
-end tell
-tell application "Music"
-    try
-        set pState to player state as string
-        set trackName to ""
-        set trackArtist to ""
-        set trackAlbum to ""
-        try
-            set trackName to name of current track
-        end try
-        try
-            set trackArtist to artist of current track
-        end try
-        try
-            set trackAlbum to album of current track
-        end try
-        if trackName is not "" then
-            return pState & "|||" & trackName & "|||" & trackArtist & "|||" & trackAlbum
-        end if
-    end try
-end tell
-return ""
+# unintentionally when closed. Uses JavaScript for Automation (JXA) with native JSON serialization
+# to prevent delimiter collisions, escaping errors, and support artist-only tracks.
+_JXA_QUERY = """
+(() => {
+    try {
+        const se = Application("System Events");
+        if (!se.processes.byName("Music").exists()) {
+            return "";
+        }
+        const music = Application("Music");
+        const state = String(music.playerState() || "");
+        const track = music.currentTrack;
+        let title = "";
+        let artist = "";
+        let album = "";
+        if (track) {
+            try { title = String(track.name() || ""); } catch (e) {}
+            try { artist = String(track.artist() || ""); } catch (e) {}
+            try { album = String(track.album() || ""); } catch (e) {}
+        }
+        return JSON.stringify({
+            state: state,
+            title: title,
+            artist: artist,
+            album: album
+        });
+    } catch (e) {
+        return "";
+    }
+})()
 """
+
+# Kept for backward compatibility or direct AppleScript runner injection
+_APPLESCRIPT_QUERY = _JXA_QUERY
+
+
+def _parse_track_output(output: str) -> NowPlaying | None:
+    """Parse structured JSON or legacy delimiter-separated runner output."""
+    if not output:
+        return None
+    trimmed = output.strip()
+    if not trimmed:
+        return None
+
+    # 1. Try structured JSON format
+    if trimmed.startswith("{") and trimmed.endswith("}"):
+        try:
+            data = json.loads(trimmed)
+            state_str = str(data.get("state", "")).strip().lower()
+            title = str(data.get("title", "")).strip()
+            artist = str(data.get("artist", "")).strip()
+            album = str(data.get("album", "")).strip()
+            is_playing = state_str == "playing"
+            if title or artist:
+                return NowPlaying(
+                    title=title,
+                    artist=artist,
+                    album=album,
+                    is_playing=is_playing,
+                    source="Apple Music",
+                )
+            return None
+        except Exception:
+            pass
+
+    # 2. Legacy delimiter-based format ("|||")
+    parts = trimmed.split("|||")
+    if len(parts) >= 2:
+        state_str = parts[0].strip().lower()
+        title = parts[1].strip()
+        artist = parts[2].strip() if len(parts) > 2 else ""
+        album = parts[3].strip() if len(parts) > 3 else ""
+        is_playing = state_str == "playing"
+        if title or artist:
+            return NowPlaying(
+                title=title,
+                artist=artist,
+                album=album,
+                is_playing=is_playing,
+                source="Apple Music",
+            )
+    return None
 
 
 def _default_osascript_runner(script: str, timeout: float = 1.5) -> str:
-    """Execute an AppleScript snippet via osascript with a strict timeout."""
+    """Execute an AppleScript or JXA snippet via osascript with a strict timeout."""
     try:
+        cmd = ["osascript"]
+        if "Application(" in script or "JSON.stringify" in script:
+            cmd.extend(["-l", "JavaScript"])
+        cmd.extend(["-e", script])
         result = subprocess.run(
-            ["osascript", "-e", script],
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -93,26 +153,8 @@ class MacAppleMusicProvider(MetadataProvider):
 
         runner = self._runner if self._runner is not None else _default_osascript_runner
         try:
-            output = runner(_APPLESCRIPT_QUERY)
+            output = runner(_JXA_QUERY)
         except Exception:
             return None
 
-        if not output:
-            return None
-
-        parts = output.split("|||")
-        if len(parts) >= 2:
-            state_str = parts[0].strip().lower()
-            title = parts[1].strip()
-            artist = parts[2].strip() if len(parts) > 2 else ""
-            album = parts[3].strip() if len(parts) > 3 else ""
-            is_playing = state_str == "playing"
-            if title:
-                return NowPlaying(
-                    title=title,
-                    artist=artist,
-                    album=album,
-                    is_playing=is_playing,
-                    source="Apple Music",
-                )
-        return None
+        return _parse_track_output(output)
