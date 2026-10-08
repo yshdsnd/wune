@@ -1,11 +1,11 @@
 """Exercise real Tk widgets without opening a user-visible window or audio."""
 from queue import Queue
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from wune.appearance import AppearanceDraft, AppearanceState
 from wune.config import Config
-from wune.settings_dialog import _Dialog
+from wune.settings_dialog import _Dialog, _focus_dialog
 
 
 class DialogTests(unittest.TestCase):
@@ -104,6 +104,10 @@ class DialogTests(unittest.TestCase):
                 self.root.destroy()
             except Exception:
                 pass
+            del self.root
+            self.root = None
+            import gc
+            gc.collect()
 
     def test_color_picker_previews_and_creates_user_copy(self):
         with patch("tkinter.colorchooser.askcolor", return_value=((12, 34, 56), "#0c2238")):
@@ -211,4 +215,45 @@ class DialogTests(unittest.TestCase):
         self.dialog.reset()
         self.assertTrue(self.events.get_nowait()[1].layout["show_now_playing"])
         self.assertTrue(self.dialog.show_now_playing.get())
+
+    def test_focus_dialog_skips_deiconify_when_normal(self):
+        mock_root = MagicMock()
+        mock_root.state.return_value = "normal"
+        with patch("sys.platform", "win32"):
+            _focus_dialog(mock_root)
+        mock_root.deiconify.assert_not_called()
+        mock_root.lift.assert_called_once()
+        mock_root.focus_set.assert_called_once()
+        mock_root.focus_force.assert_not_called()
+
+    def test_focus_dialog_deiconifies_when_not_normal(self):
+        mock_root = MagicMock()
+        mock_root.state.return_value = "withdrawn"
+        with patch("sys.platform", "win32"):
+            _focus_dialog(mock_root)
+        mock_root.deiconify.assert_called_once()
+        mock_root.lift.assert_called_once()
+        mock_root.focus_set.assert_called_once()
+
+    def test_focus_dialog_darwin_forces_focus(self):
+        mock_root = MagicMock()
+        mock_root.state.return_value = "normal"
+        with patch("sys.platform", "darwin"):
+            _focus_dialog(mock_root)
+        mock_root.deiconify.assert_not_called()
+        mock_root.lift.assert_called_once()
+        mock_root.focus_force.assert_called_once()
+        mock_root.focus_set.assert_not_called()
+
+    def test_deactivate_unposts_comboboxes_and_releases_grab(self):
+        combo, _ = self.dialog.combos["language"]
+        combo.tk.eval(f"ttk::combobox::Post {combo._w}")
+        self.root.update_idletasks()
+        popdown = combo.tk.eval(f"ttk::combobox::PopdownWindow {combo._w}")
+        self.assertEqual(self.root.tk.eval(f"winfo ismapped {popdown}"), "1")
+        self.dialog._on_deactivate(MagicMock(widget=self.root))
+        self.assertEqual(self.root.tk.eval(f"winfo ismapped {popdown}"), "0")
+        self.assertEqual(self.root.tk.eval("grab current"), "")
+
+
 

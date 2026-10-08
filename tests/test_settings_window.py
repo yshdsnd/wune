@@ -34,33 +34,53 @@ assert not s.thread.is_alive()
 """], check=True, timeout=20)
 
     def test_native_owner_detach_and_rebind_without_topmost(self):
-        import tkinter as tk
-        owner = tk.Tk()
-        owner.withdraw()
-        child = tk.Toplevel(owner)
-        child.withdraw()
-        child.geometry('600x600')
-        owner.update_idletasks()
-        native = SettingsWindow(child.winfo_id())
-        api = native.api
-        parent = api.GetAncestor(owner.winfo_id(), 2)
-        api.GetWindow.argtypes = [wt.HWND, wt.UINT]
-        api.GetWindow.restype = wt.HWND
-        api.GetWindowLongW.argtypes = [wt.HWND, ct.c_int]
-        api.GetWindowLongW.restype = wt.LONG
-        try:
-            native.bind(parent)
-            native.position(parent)
-            self.assertEqual(api.GetWindow(native.handle, 4), parent)  # GW_OWNER
-            self.assertFalse(api.GetWindowLongW(native.handle, -20) & 8)  # WS_EX_TOPMOST
-            native.detach()
-            self.assertFalse(api.GetWindow(native.handle, 4))
-            native.bind(parent)
-            self.assertEqual(api.GetWindow(native.handle, 4), parent)
-            native.detach()
-            child.destroy()
-            # Delayed close/recreate handling tolerates an already destroyed HWND.
-            native.bind(parent)
-        finally:
-            native.detach()
-            owner.destroy()
+        import subprocess
+        subprocess.run([sys.executable, "-c", """
+import ctypes as ct
+from ctypes import wintypes as wt
+import tkinter as tk
+from wune.settings_window import SettingsWindow
+
+owner = tk.Tk()
+owner.withdraw()
+child = tk.Toplevel(owner)
+child.withdraw()
+child.geometry('600x600')
+owner.update_idletasks()
+native = SettingsWindow(child.winfo_id())
+api = native.api
+parent = api.GetAncestor(owner.winfo_id(), 2)
+api.GetWindow.argtypes = [wt.HWND, wt.UINT]
+api.GetWindow.restype = wt.HWND
+api.GetWindowLongW.argtypes = [wt.HWND, ct.c_int]
+api.GetWindowLongW.restype = wt.LONG
+try:
+    native.bind(parent)
+    native.position(parent)
+    assert api.GetWindow(native.handle, 4) == parent  # GW_OWNER
+    assert not (api.GetWindowLongW(native.handle, -20) & 8)  # WS_EX_TOPMOST
+    native.detach()
+    assert not api.GetWindow(native.handle, 4)
+    native.bind(parent)
+    assert api.GetWindow(native.handle, 4) == parent
+    native.detach()
+    child.destroy()
+    # Delayed close/recreate handling tolerates an already destroyed HWND.
+    native.bind(parent)
+finally:
+    native.detach()
+    owner.destroy()
+"""], check=True, timeout=20)
+
+    def test_bind_detaches_cross_thread_input_queue(self):
+        from unittest.mock import MagicMock
+        native = SettingsWindow.__new__(SettingsWindow)
+        native.api = MagicMock()
+        native.handle = 123
+        native.set_owner = MagicMock(return_value=1)
+        native.api.IsWindow.return_value = True
+        def mock_get_thread(hwnd, byref_pid):
+            return 1001 if hwnd == 456 else 2002
+        native.api.GetWindowThreadProcessId.side_effect = mock_get_thread
+        native.bind(456)
+        native.api.AttachThreadInput.assert_called_once_with(2002, 1001, False)

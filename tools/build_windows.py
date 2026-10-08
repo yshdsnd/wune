@@ -95,7 +95,7 @@ def main(argv=None):
         raise FileExistsError(f"Will not replace an existing package: {archive}")
     work = ROOT / "build" / ("windows-" + uuid.uuid4().hex)
     work.mkdir(parents=True)
-    subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"], cwd=ROOT, check=True)
     # Do not collect unrelated runtime DLLs from tools on the caller's PATH.
     build_env = os.environ.copy()
     build_env["PATH"] = os.pathsep.join((str(Path(sys.executable).parent), sys.base_prefix,

@@ -46,14 +46,19 @@ class IconTests(unittest.TestCase):
         self.assertEqual(icon.get_at((0, 0)).a, 0)
 
     def test_tk_accepts_icon_and_child_window_inherits_default(self):
-        import tkinter as tk
-        root = tk.Tk()
-        root.withdraw()
-        try:
-            set_tk_icon(root)
-            child = tk.Toplevel(root)
-            child.withdraw()
-            root.update_idletasks()
-            child.destroy()
-        finally:
-            root.destroy()
+        import subprocess
+        import sys
+        subprocess.run([sys.executable, "-c", """
+import tkinter as tk
+from wune.icons import set_tk_icon
+root = tk.Tk()
+root.withdraw()
+try:
+    set_tk_icon(root)
+    child = tk.Toplevel(root)
+    child.withdraw()
+    root.update_idletasks()
+    child.destroy()
+finally:
+    root.destroy()
+"""], check=True, timeout=10)
