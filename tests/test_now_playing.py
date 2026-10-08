@@ -566,16 +566,24 @@ class NowPlayingCoreLogicFixesTests(unittest.TestCase):
         coordinator.add_listener(notifications.append)
 
         coordinator.start()
+        worker_thread = coordinator._thread
         # Wait until worker enters get_now_playing()
         self.assertTrue(in_get_event.wait(timeout=2.0))
 
-        # Stop while get_now_playing is pending
-        coordinator.stop()
+        # Stop concurrently while get_now_playing is pending
+        stop_thread = threading.Thread(target=coordinator.stop)
+        stop_thread.start()
+
+        # Brief pause so stop() acquires lock, increments gen, and resets current
+        time.sleep(0.05)
         self.assertIsNone(coordinator.current)
 
-        # Allow delayed provider to finish
+        # Allow delayed provider to finish so worker exits cleanly
         release_event.set()
-        time.sleep(0.1)
+
+        stop_thread.join(timeout=2.0)
+        if worker_thread:
+            worker_thread.join(timeout=2.0)
 
         # Current must remain None and late result must not be published
         self.assertIsNone(coordinator.current)

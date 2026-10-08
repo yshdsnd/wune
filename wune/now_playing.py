@@ -356,6 +356,9 @@ class NowPlayingCoordinator:
                 except Exception:
                     pass
 
+            if self._stop_event.is_set():
+                break
+
             self._update_event.wait(self.poll_interval)
             self._update_event.clear()
 
