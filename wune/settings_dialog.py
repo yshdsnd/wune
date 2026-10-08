@@ -188,7 +188,6 @@ class _Dialog:
             combo.bind("<<ComboboxSelected>>", lambda event: callback(options[variable.get()]))
             self.combos[key] = (combo, options)
 
-        language_options = {self.t("language.auto"): "auto"}
         background = ttk.Frame(notebook, padding=12)
         notebook.add(background, text=self.t("background.tab"))
         background.columnconfigure(1, weight=1)
@@ -205,17 +204,11 @@ class _Dialog:
             row=3, column=0, sticky="w")
         ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
             row=4, column=0, columnspan=2, sticky="w", pady=12)
-        language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
-        choice(general, 10, "language", self.t("settings.language"), language_options,
-               lambda value: self.layout("language", value))
-        ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
-            row=11, column=0, columnspan=2, sticky="w", pady=8)
-        self.confirm_keyboard_exit = tk.BooleanVar()
-        ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
-                        variable=self.confirm_keyboard_exit,
-                        command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
-                            row=12, column=0, columnspan=2, sticky="w", pady=8)
         general.columnconfigure(1, weight=1)
+        choice(general, 0, "channel_mode", self.t("settings.channel_mode"), {
+            self.t("settings.stereo_separate"): "stereo",
+            self.t("settings.stereo_mix"): "stereo_mix"},
+            lambda value: self.layout("channel_mode", value))
         choice(general, 1, "spectrum_orientation", self.t('settings.spectrum_direction'), {
             self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal", self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
             lambda value: self.layout("spectrum_orientation", value))
@@ -249,10 +242,17 @@ class _Dialog:
         ttk.Label(general, text=self.t('settings.layout_help'),
                   wraplength=500).grid(row=10, column=0, columnspan=2, sticky="w", pady=16)
 
-        choice(general, 0, "channel_mode", self.t("settings.channel_mode"), {
-            self.t("settings.stereo_separate"): "stereo",
-            self.t("settings.stereo_mix"): "stereo_mix"},
-            lambda value: self.layout("channel_mode", value))
+        language_options = {self.t("language.auto"): "auto"}
+        language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
+        choice(general, 11, "language", self.t("settings.language"), language_options,
+               lambda value: self.layout("language", value))
+        ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
+            row=12, column=0, columnspan=2, sticky="w", pady=8)
+        self.confirm_keyboard_exit = tk.BooleanVar()
+        ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
+                        variable=self.confirm_keyboard_exit,
+                        command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
+                            row=13, column=0, columnspan=2, sticky="w", pady=8)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -308,7 +308,7 @@ class _Dialog:
         self.refresh()
         root.update_idletasks()
         root.minsize(max(570, root.winfo_reqwidth()), max(560, root.winfo_reqheight()))
-        root.after(30, self.poll)
+        self._poll_id = root.after(30, self.poll)
 
     def refresh(self):
         self.loading = True
@@ -503,11 +503,20 @@ class _Dialog:
                 button.configure(state="disabled")
             self.events.put((action, self.draft.snapshot()))
 
+    def close(self):
+        if hasattr(self, "_poll_id") and self._poll_id is not None:
+            try:
+                self.root.after_cancel(self._poll_id)
+            except Exception:
+                pass
+            self._poll_id = None
+
     def poll(self):
         try:
             while True:
                 action, payload = self.commands.get_nowait()
                 if action == "close":
+                    self.close()
                     self.root.destroy()
                     return
                 if action == "focus":
@@ -515,6 +524,7 @@ class _Dialog:
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:
+                        self.close()
                         self.root.destroy()
                         return
                     self.pending = False
@@ -525,4 +535,4 @@ class _Dialog:
                     self.status.set(self.t(message))
         except Empty:
             pass
-        self.root.after(30, self.poll)
+        self._poll_id = self.root.after(30, self.poll)

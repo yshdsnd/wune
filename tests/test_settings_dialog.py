@@ -10,6 +10,23 @@ from wune.settings_dialog import _Dialog
 
 class DialogTests(unittest.TestCase):
     def test_channel_mode_preview_and_apply(self):
+        general = self.dialog.notebook.nametowidget(self.dialog.notebook.tabs()[0])
+        cells = {}
+        for child in general.winfo_children():
+            info = child.grid_info()
+            if not info:
+                continue
+            row = int(info["row"])
+            col = int(info["column"])
+            span = int(info.get("columnspan", 1))
+            for c in range(col, col + span):
+                key = (row, c)
+                self.assertNotIn(key, cells, f"Grid collision at row {row}, col {c} between {child} and {cells.get(key)}")
+                cells[key] = child
+
+        lang_combo, _ = self.dialog.combos["language"]
+        self.assertEqual(int(lang_combo.grid_info()["row"]), 11)
+
         self.dialog.layout("channel_mode", "stereo_mix")
         action, state = self.events.get_nowait()
         self.assertEqual(action, "preview")
@@ -72,6 +89,11 @@ class DialogTests(unittest.TestCase):
         self.root.update_idletasks()
 
     def tearDown(self):
+        if hasattr(self, "dialog") and self.dialog:
+            try:
+                self.dialog.close()
+            except Exception:
+                pass
         self.dialog = None
         if hasattr(self, "root") and self.root:
             try:
