@@ -66,6 +66,7 @@ class App:
         self.levels = np.zeros((cfg.display_channels, cfg.bars), dtype=np.float32)
         from .now_playing import create_default_coordinator
         self.now_playing = create_default_coordinator()
+        self.now_playing.enabled = bool(self.cfg.show_now_playing)
         self.now_playing.add_listener(lambda _: setattr(self, "_redraw_requested", True))
         self.now_playing.start()
         self.update_info_text()
@@ -404,6 +405,8 @@ class App:
                                     channels=spectrum.channels_eff)
 
     def update_now_playing_text(self):
+        if hasattr(self, "now_playing") and self.now_playing is not None:
+            self.now_playing.enabled = bool(self.cfg.show_now_playing)
         if not self.cfg.show_now_playing:
             self.renderer.now_playing_text = ""
             return

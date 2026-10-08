@@ -375,6 +375,230 @@ class NowPlayingRendererTests(unittest.TestCase):
             self.assertFalse(np_rect.colliderect(pg.Rect(plot)))
 
 
+class MockNonCoroutineAwaitable:
+    """Awaitable with __await__ that is deliberately NOT an asyncio coroutine."""
+
+    def __init__(self, result):
+        self._result = result
+
+    def __await__(self):
+        def _gen():
+            yield
+            return self._result
+
+        return _gen()
+
+
+class MockSessionManager:
+    def __init__(self, current_session=None):
+        self._current_session = current_session
+        self.session_changed_handlers = []
+        self.session_tokens = []
+
+    def get_current_session(self):
+        return self._current_session
+
+    def add_current_session_changed(self, handler):
+        self.session_changed_handlers.append(handler)
+        token = object()
+        self.session_tokens.append(token)
+        return token
+
+    def remove_current_session_changed(self, token):
+        if token in self.session_tokens:
+            idx = self.session_tokens.index(token)
+            self.session_tokens.pop(idx)
+            self.session_changed_handlers.pop(idx)
+
+
+class MockMediaSession:
+    def __init__(self, title="Mock Title", artist="Mock Artist", is_playing=True, fail_playback=False):
+        self.title = title
+        self.artist = artist
+        self.is_playing = is_playing
+        self.fail_playback = fail_playback
+        self.media_changed_handlers = []
+        self.playback_changed_handlers = []
+        self.media_tokens = []
+        self.playback_tokens = []
+
+    def get_playback_info(self):
+        if self.fail_playback:
+            raise RuntimeError("Playback RPC error")
+
+        class Status:
+            pass
+
+        s = Status()
+        s.playback_status = 4 if self.is_playing else 5
+        s.is_playing = self.is_playing
+        return s
+
+    async def try_get_media_properties_async(self):
+        class Props:
+            pass
+
+        p = Props()
+        p.title = self.title
+        p.artist = self.artist
+        p.album_title = "Mock Album"
+        return p
+
+    def add_media_properties_changed(self, handler):
+        self.media_changed_handlers.append(handler)
+        token = object()
+        self.media_tokens.append(token)
+        return token
+
+    def remove_media_properties_changed(self, token):
+        if token in self.media_tokens:
+            idx = self.media_tokens.index(token)
+            self.media_tokens.pop(idx)
+            self.media_changed_handlers.pop(idx)
+
+    def add_playback_info_changed(self, handler):
+        self.playback_changed_handlers.append(handler)
+        token = object()
+        self.playback_tokens.append(token)
+        return token
+
+    def remove_playback_info_changed(self, token):
+        if token in self.playback_tokens:
+            idx = self.playback_tokens.index(token)
+            self.playback_tokens.pop(idx)
+            self.playback_changed_handlers.pop(idx)
+
+
+class NowPlayingCoreLogicFixesTests(unittest.TestCase):
+    """Targeted regression tests for Issue #114 review findings (Point 1, 2, 3, 6)."""
+
+    def test_gsmtc_start_with_non_coroutine_awaitable_and_event_wiring(self):
+        """Issue 114 #1: PyWinRT returns awaitable, not coroutine. Verify start() succeeds and wires events."""
+        import threading
+        from wune import now_playing_windows
+        from wune.now_playing_windows import WindowsGsmtcProvider
+
+        mock_session = MockMediaSession(title="Test Song", artist="Test Artist")
+        mock_mgr = MockSessionManager(current_session=mock_session)
+
+        # Mock _SessionManager.request_async returning non-coroutine awaitable
+        class FakeSessionManagerClass:
+            @classmethod
+            def request_async(cls):
+                return MockNonCoroutineAwaitable(mock_mgr)
+
+        with patch.object(now_playing_windows, "WINRT_AVAILABLE", True):
+            with patch.object(now_playing_windows, "_SessionManager", FakeSessionManagerClass):
+                provider = WindowsGsmtcProvider()
+                changed_events = []
+                provider.set_on_change(lambda: changed_events.append(True))
+                provider.start()
+
+                # Verify manager was obtained successfully through coroutine wrapper
+                self.assertIsNotNone(provider._manager)
+                self.assertEqual(len(mock_mgr.session_changed_handlers), 1)
+                self.assertEqual(len(mock_session.media_changed_handlers), 1)
+                self.assertEqual(len(mock_session.playback_changed_handlers), 1)
+
+                # Fire media changed event and verify provider callback
+                mock_session.media_changed_handlers[0]()
+                self.assertEqual(len(changed_events), 1)
+
+                # Switch session and verify subscription transfer
+                mock_session2 = MockMediaSession(title="Song 2", artist="Artist 2")
+                mock_mgr._current_session = mock_session2
+                mock_mgr.session_changed_handlers[0]()
+
+                self.assertEqual(len(mock_session.media_changed_handlers), 0)
+                self.assertEqual(len(mock_session2.media_changed_handlers), 1)
+
+                # Stop provider and verify cleanup
+                provider.stop()
+                self.assertEqual(len(mock_mgr.session_changed_handlers), 0)
+                self.assertEqual(len(mock_session2.media_changed_handlers), 0)
+
+    def test_disabled_coordinator_suppresses_provider_calls(self):
+        """Issue 114 #2: When disabled, coordinator must never invoke providers."""
+        call_count = [0]
+
+        class CountingProvider(DummyProvider):
+            def get_now_playing(self):
+                call_count[0] += 1
+                return NowPlaying(title="Song", artist="Artist")
+
+        provider = CountingProvider(name="counter")
+        coordinator = NowPlayingCoordinator([provider], poll_interval=0.05, enabled=False)
+
+        # Direct update() call must return None and not query provider
+        self.assertIsNone(coordinator.update())
+        self.assertEqual(call_count[0], 0)
+
+        # Running worker loop must remain idle and not query provider
+        with coordinator:
+            time.sleep(0.15)
+            self.assertEqual(call_count[0], 0)
+            self.assertIsNone(coordinator.current)
+
+            # Enabling coordinator wakes worker and resumes querying
+            coordinator.enabled = True
+            deadline = time.time() + 1.0
+            while call_count[0] == 0 and time.time() < deadline:
+                time.sleep(0.02)
+            self.assertGreater(call_count[0], 0)
+            self.assertIsNotNone(coordinator.current)
+
+    def test_stop_discards_delayed_results_and_prevents_race(self):
+        """Issue 114 #3: Slow provider resolving after stop() must be discarded."""
+        import threading
+
+        in_get_event = threading.Event()
+        release_event = threading.Event()
+        notifications = []
+
+        class SlowProvider(DummyProvider):
+            def get_now_playing(self):
+                in_get_event.set()
+                release_event.wait(timeout=2.0)
+                return NowPlaying(title="Late Song", artist="Late Artist")
+
+        provider = SlowProvider(name="slow")
+        coordinator = NowPlayingCoordinator([provider], poll_interval=0.05)
+        coordinator.add_listener(notifications.append)
+
+        coordinator.start()
+        # Wait until worker enters get_now_playing()
+        self.assertTrue(in_get_event.wait(timeout=2.0))
+
+        # Stop while get_now_playing is pending
+        coordinator.stop()
+        self.assertIsNone(coordinator.current)
+
+        # Allow delayed provider to finish
+        release_event.set()
+        time.sleep(0.1)
+
+        # Current must remain None and late result must not be published
+        self.assertIsNone(coordinator.current)
+        self.assertEqual(notifications, [])
+
+    def test_windows_playback_status_failure_falls_back_to_not_playing(self):
+        """Issue 114 #6: If get_playback_info fails, is_playing must default to False."""
+        from wune.now_playing_windows import WindowsGsmtcProvider
+
+        mock_session = MockMediaSession(title="Valid Song", artist="Valid Artist", fail_playback=True)
+        mock_mgr = MockSessionManager(current_session=mock_session)
+        provider = WindowsGsmtcProvider(manager=mock_mgr)
+
+        np = provider.get_now_playing()
+        self.assertIsNotNone(np)
+        self.assertEqual(np.title, "Valid Song")
+        self.assertFalse(np.is_playing)
+
+        # With only_playing=True coordinator, this track must be filtered out
+        coordinator = NowPlayingCoordinator([provider], only_playing=True)
+        self.assertIsNone(coordinator.update())
+
+
 if __name__ == "__main__":
     unittest.main()
 

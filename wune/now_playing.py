@@ -91,9 +91,11 @@ class NowPlayingCoordinator:
         providers: Sequence[MetadataProvider] | None = None,
         poll_interval: float = 1.0,
         only_playing: bool = True,
+        enabled: bool = True,
     ):
         self.poll_interval = max(0.1, float(poll_interval))
         self.only_playing = bool(only_playing)
+        self._enabled = bool(enabled)
         self._providers: list[MetadataProvider] = []
         self._enabled_names: set[str] = set()
         self._lock = threading.Lock()
@@ -102,11 +104,38 @@ class NowPlayingCoordinator:
 
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        self._update_event = threading.Event()
         self._started = False
+        self._generation = 0
 
         if providers:
             for p in providers:
                 self.register_provider(p)
+
+    @property
+    def enabled(self) -> bool:
+        """Return True if now playing retrieval is currently active."""
+        with self._lock:
+            return self._enabled
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        """Enable or disable metadata retrieval without tearing down threads."""
+        should_wake = False
+        with self._lock:
+            was_enabled = self._enabled
+            self._enabled = bool(value)
+            if not self._enabled:
+                self._generation += 1
+                self._current = None
+            elif not was_enabled:
+                should_wake = True
+        if should_wake:
+            self.request_update()
+
+    def request_update(self) -> None:
+        """Request an immediate metadata update (e.g. from provider change event)."""
+        self._update_event.set()
 
     def register_provider(self, provider: MetadataProvider, enabled: bool = True) -> None:
         """Register a provider and insert it in priority order."""
@@ -118,6 +147,12 @@ class NowPlayingCoordinator:
                 self._enabled_names.add(provider.name)
             else:
                 self._enabled_names.discard(provider.name)
+
+        if hasattr(provider, "set_on_change"):
+            try:
+                provider.set_on_change(self.request_update)
+            except Exception:
+                pass
 
         if self._started and enabled:
             try:
@@ -198,12 +233,22 @@ class NowPlayingCoordinator:
     def update(self) -> NowPlaying | None:
         """Synchronously query providers in priority order and update current state."""
         with self._lock:
+            if not self._enabled or self._stop_event.is_set():
+                return None
+            gen = self._generation
             active_providers = [
                 p for p in self._providers if p.name in self._enabled_names
             ]
 
         resolved: NowPlaying | None = None
         for provider in active_providers:
+            with self._lock:
+                if (
+                    not self._enabled
+                    or self._generation != gen
+                    or self._stop_event.is_set()
+                ):
+                    return None
             try:
                 if not provider.is_available():
                     continue
@@ -220,6 +265,12 @@ class NowPlayingCoordinator:
 
         listeners_to_notify: list[Callable[[NowPlaying | None], None]] = []
         with self._lock:
+            if (
+                not self._enabled
+                or self._generation != gen
+                or self._stop_event.is_set()
+            ):
+                return None
             changed = self._current != resolved
             self._current = resolved
             if changed:
@@ -239,7 +290,10 @@ class NowPlayingCoordinator:
             if self._started:
                 return
             self._started = True
+            self._generation += 1
+            gen = self._generation
             self._stop_event.clear()
+            self._update_event.clear()
             providers_to_start = [
                 p for p in self._providers if p.name in self._enabled_names
             ]
@@ -251,12 +305,16 @@ class NowPlayingCoordinator:
             except Exception:
                 pass
 
-        self._thread = threading.Thread(
-            target=self._worker_loop,
-            name="NowPlayingCoordinator",
-            daemon=True,
-        )
-        self._thread.start()
+        with self._lock:
+            if not self._started or self._generation != gen:
+                return
+            self._thread = threading.Thread(
+                target=self._worker_loop,
+                args=(gen,),
+                name="NowPlayingCoordinator",
+                daemon=True,
+            )
+            self._thread.start()
 
     def stop(self) -> None:
         """Stop background worker and shut down all providers."""
@@ -264,10 +322,13 @@ class NowPlayingCoordinator:
             if not self._started:
                 return
             self._started = False
+            self._generation += 1
             self._stop_event.set()
+            self._update_event.set()
             thread = self._thread
             self._thread = None
             providers_to_stop = list(self._providers)
+            self._current = None
 
         if thread and thread.is_alive() and thread != threading.current_thread():
             thread.join(timeout=2.0)
@@ -281,14 +342,22 @@ class NowPlayingCoordinator:
         with self._lock:
             self._current = None
 
-    def _worker_loop(self) -> None:
+    def _worker_loop(self, generation: int) -> None:
         """Worker loop executing low-frequency metadata updates."""
         while not self._stop_event.is_set():
-            try:
-                self.update()
-            except Exception:
-                pass
-            self._stop_event.wait(self.poll_interval)
+            with self._lock:
+                if not self._started or self._generation != generation:
+                    break
+                is_enabled = self._enabled
+
+            if is_enabled:
+                try:
+                    self.update()
+                except Exception:
+                    pass
+
+            self._update_event.wait(self.poll_interval)
+            self._update_event.clear()
 
     def __enter__(self) -> NowPlayingCoordinator:
         self.start()
