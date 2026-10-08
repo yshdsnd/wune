@@ -48,6 +48,8 @@ def _run_dialog(state, path, events, commands):
     except Exception as error:
         events.put(("error", str(error)))
     finally:
+        if dialog is not None:
+            dialog.close()
         if root is not None:
             try:
                 root.destroy()
@@ -60,7 +62,8 @@ def _run_dialog(state, path, events, commands):
 
 
 def _focus_dialog(root):
-    root.deiconify()
+    if root.state() != "normal":
+        root.deiconify()
     root.lift()
     if sys.platform == "darwin":
         # Activate the settings process rather than the pygame process.
@@ -74,12 +77,14 @@ def _focus_dialog(root):
             api.SetFrontProcessWithOptions(ct.byref(ProcessSerialNumber(0, 2)), 1)
         except (OSError, AttributeError):
             pass
-    root.focus_force()
+        root.focus_force()
+    else:
+        root.focus_set()
 
 
 class SettingsDialog:
     def __init__(self, state, path):
-        self._process = sys.platform == "darwin"
+        self._process = sys.platform in ("win32", "darwin")
         self._closed = False
         if self._process:
             context = mp.get_context("spawn")
@@ -144,6 +149,7 @@ class _Dialog:
         root.minsize(570, 560)
         root.protocol("WM_DELETE_WINDOW", lambda: self.submit("cancel"))
         root.bind("<Escape>", lambda event: self.submit("cancel"))
+        root.bind("<Deactivate>", self._on_deactivate)
         frame = ttk.Frame(root, padding=12)
         frame.pack(fill="both", expand=True)
         ttk.Label(frame, text=self.t('settings.preview_changes_on_the_playing_spectrum'), font=("Hiragino Sans" if sys.platform == "darwin" else "Yu Gothic UI", 11, "bold")).pack(anchor="w")
@@ -503,7 +509,25 @@ class _Dialog:
                 button.configure(state="disabled")
             self.events.put((action, self.draft.snapshot()))
 
+    def _on_deactivate(self, event=None):
+        if event is None or event.widget == self.root:
+            self.unpost_combos()
+
+    def unpost_combos(self):
+        for combo, _ in self.combos.values():
+            try:
+                combo.tk.eval(f"ttk::combobox::Unpost {combo._w}")
+            except Exception:
+                pass
+        try:
+            current_grab = self.root.tk.eval("grab current")
+            if current_grab:
+                self.root.tk.eval(f"grab release {current_grab}")
+        except Exception:
+            pass
+
     def close(self):
+        self.unpost_combos()
         if hasattr(self, "_poll_id") and self._poll_id is not None:
             try:
                 self.root.after_cancel(self._poll_id)
@@ -513,6 +537,8 @@ class _Dialog:
 
     def poll(self):
         try:
+            if not self.root.winfo_exists():
+                return
             while True:
                 action, payload = self.commands.get_nowait()
                 if action == "close":
@@ -535,4 +561,10 @@ class _Dialog:
                     self.status.set(self.t(message))
         except Empty:
             pass
-        self._poll_id = self.root.after(30, self.poll)
+        except Exception:
+            return
+        try:
+            if self.root.winfo_exists():
+                self._poll_id = self.root.after(30, self.poll)
+        except Exception:
+            self._poll_id = None

@@ -111,4 +111,5 @@ class LocalizedDialogTests(unittest.TestCase):
                 dialog.reset()
                 self.assertNotEqual(draft.state.layout["language"], language)
             finally:
+                dialog.close()
                 root.destroy()

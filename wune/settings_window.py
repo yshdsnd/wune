@@ -28,6 +28,10 @@ class SettingsWindow:
         api.SetWindowPos.argtypes = [wt.HWND, wt.HWND, ct.c_int, ct.c_int,
                                      ct.c_int, ct.c_int, wt.UINT]
         api.SetWindowPos.restype = wt.BOOL
+        api.GetWindowThreadProcessId.argtypes = [wt.HWND, ct.POINTER(wt.DWORD)]
+        api.GetWindowThreadProcessId.restype = wt.DWORD
+        api.AttachThreadInput.argtypes = [wt.DWORD, wt.DWORD, wt.BOOL]
+        api.AttachThreadInput.restype = wt.BOOL
         self.set_owner = api.SetWindowLongPtrW if ct.sizeof(ct.c_void_p) == 8 else api.SetWindowLongW
         self.set_owner.argtypes = [wt.HWND, ct.c_int, ct.c_ssize_t]
         self.set_owner.restype = ct.c_ssize_t
@@ -43,11 +47,22 @@ class SettingsWindow:
         ct.set_last_error(0)
         previous = self.set_owner(self.handle, -8, int(owner or 0))  # GWLP_HWNDPARENT
         error = ct.get_last_error()
-        if previous == 0 and error:
+        if previous == 0 and error and error != 1400:
             raise ct.WinError(error)
+        if owner and self.api.IsWindow(owner):
+            pid_owner = wt.DWORD()
+            tid_owner = self.api.GetWindowThreadProcessId(owner, ct.byref(pid_owner))
+            pid_child = wt.DWORD()
+            tid_child = self.api.GetWindowThreadProcessId(self.handle, ct.byref(pid_child))
+            if tid_owner and tid_child and tid_owner != tid_child:
+                # GWLP_HWNDPARENT implicitly attaches thread input queues across threads,
+                # which deadlocks Tk and pygame during external focus loss (e.g. Snipping Tool).
+                # Explicitly detach the input queues while preserving native window ownership.
+                self.api.AttachThreadInput(tid_child, tid_owner, False)
 
     def detach(self):
-        self.bind(None)
+        if self.api is not None and self.api.IsWindow(self.handle):
+            self.bind(None)
 
     def position(self, owner):
         if self.api is None:
