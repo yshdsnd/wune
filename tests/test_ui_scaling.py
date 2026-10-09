@@ -155,5 +155,41 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertEqual(position, (100, 100))
 
 
+    def test_menu_and_badge_do_not_overlap_with_now_playing(self):
+        for size in ((1280, 800), (3840, 2160)):
+            with self.subTest(size=size):
+                cfg = Config(show_now_playing=True, show_badge=True)
+                surf = pg.Surface(size)
+                renderer = LedBarRenderer(surf, cfg)
+                menu = ApplicationMenu()
+                btn_rect = menu.button_rect(renderer.font_small, cfg.language)
+                badge_rect = renderer.badge_rect()
+                np_rect = renderer.now_playing_rect()
+
+                self.assertIsNotNone(np_rect)
+                self.assertIsNotNone(badge_rect)
+                # Now playing bar must be strictly below menu button and theme badge
+                self.assertGreater(np_rect.top, btn_rect.bottom)
+                self.assertGreater(np_rect.top, badge_rect.bottom)
+
+    def test_bottom_info_bar_maintains_bottom_margin(self):
+        for size in ((1280, 800), (3840, 2160)):
+            with self.subTest(size=size):
+                cfg = Config(info_enabled=True, info_position="bottom")
+                layout = calculate_layout(size, cfg)
+                self.assertIsNotNone(layout.info_rect)
+                info_bottom = layout.info_rect[1] + layout.info_rect[3]
+                # Guaranteed margin between info bar bottom and window bottom
+                self.assertGreaterEqual(size[1] - info_bottom, 16)
+
+    def test_medium_window_expands_led_grid(self):
+        # Screenshot 2 dimensions: 935x811 with 64 bars
+        cfg = Config(bars=64)
+        layout = calculate_layout((935, 811), cfg)
+        self.assertGreaterEqual(layout.led_height, 6)
+        self.assertGreaterEqual(layout.bar_width, 12)
+        self.assertGreaterEqual(layout.plots[0][2], 800)
+
+
 if __name__ == "__main__":
     unittest.main()

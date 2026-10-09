@@ -45,8 +45,6 @@ def _dimensions(cfg):
         left = max(72, cfg.margin_lr)
         scale = max(30, cfg.scale_reserved) if cfg.show_db_scale else 0
     info = max(28, cfg.info_height) + 12 if cfg.info_enabled else 0
-    # When show_now_playing is True, reserve a dedicated row below the menu bar
-    # (retained across track changes and playback pause/stop to maintain window size stability).
     now_playing = max(28, cfg.info_height) + 8 if cfg.show_now_playing else 0
     return cols, rows, margin, left, header, scale, info, now_playing
 
@@ -64,7 +62,7 @@ def minimum_window_size(cfg):
         raise ValueError("led_aspect_ratio must be finite and positive")
     h = max(3, cfg.min_led_height, math.ceil(3 / ratio))
     w = max(3, round(h * ratio))
-    gap = max(1, round(h / 4))
+    gap = max(1, round((h - 0.01) / 4))
     nx, ny = grid_counts(cfg)
     plot_w = nx * w + (nx - 1) * gap
     plot_h = ny * h + (ny - 1) * gap
@@ -99,9 +97,10 @@ def channel_mode_window_size(size, previous_cfg, cfg):
     axes on every round trip. Instead, rebuild the window around the same
     LED height, including the new number of rows/columns and their margins.
     """
-    led_h = calculate_layout(clamp_window_size(size, previous_cfg), previous_cfg).led_height
+    layout = calculate_layout(clamp_window_size(size, previous_cfg), previous_cfg)
+    led_h = layout.led_height
     led_w = max(1, round(led_h * cfg.led_aspect_ratio))
-    gap = max(1, round(led_h / 4))
+    gap = max(1, round((led_h - 0.01) / 4))
     nx, ny = grid_counts(cfg)
     plot_w = nx * led_w + (nx - 1) * gap
     plot_h = ny * led_h + (ny - 1) * gap
@@ -117,22 +116,28 @@ def calculate_layout(size, cfg):
         raise ValueError("Drawable area is smaller than the minimum spectrum layout")
     scale = calculate_ui_scale(size)
     cols, rows, margin, left, header, scale_reserved, info, now_playing = _dimensions(cfg)
+    bar_h = round(max(28, cfg.info_height) * scale)
+
+    # Top header space for menu button and theme badge:
     top = margin + 40
     bottom = height - margin
-    bar_h = round(max(28, cfg.info_height) * scale)
+
     now_playing_rect = None
     if now_playing:
-        now_playing_rect = (16, margin + 36, width - 32, bar_h)
+        np_y = max(top, round(58 * scale) + 4)
+        now_playing_rect = (16, np_y, width - 32, bar_h)
         top += now_playing
+
     info_rect = None
     if info:
         if cfg.info_position == "top":
-            info_top = (now_playing_rect[1] + now_playing_rect[3] + 8) if now_playing_rect else top
+            info_top = (now_playing_rect[1] + now_playing_rect[3] + 8) if now_playing_rect else max(top, round(44 * scale) + 4)
             info_rect = (16, info_top, width - 32, bar_h)
             top += info
         else:
             bottom -= info
-            info_rect = (16, bottom + 12, width - 32, bar_h)
+            info_rect = (16, height - margin - bar_h, width - 32, bar_h)
+
     cell_w = (width - (cols - 1) * cfg.channel_gap) // cols
     cell_h = (bottom - top - (rows - 1) * cfg.channel_gap) // rows
     available_w = cell_w - left - 16
@@ -143,7 +148,7 @@ def calculate_layout(size, cfg):
     led_h = int(min(available_w / (nx * ratio), available_h / ny))
     while True:
         bar_w = max(1, round(led_h * ratio))
-        gap = max(1, round(led_h / 4))
+        gap = max(1, round((led_h - 0.01) / 4))
         plot_w = nx * bar_w + (nx - 1) * gap
         plot_h = ny * led_h + (ny - 1) * gap
         if plot_w <= available_w and plot_h <= available_h:
