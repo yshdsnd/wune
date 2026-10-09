@@ -6,6 +6,8 @@ import traceback
 
 
 def launch():
+    if sys.platform == "win32":
+        os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
     # PyInstaller windowed builds have no stdout/stderr. Keep diagnostics per user.
     from wune.settings import settings_path
     log = settings_path().with_name("Wune.log")

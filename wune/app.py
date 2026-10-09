@@ -26,6 +26,8 @@ class App:
         # Keep fullscreen visible when another monitor receives keyboard focus.
         # Set before SDL initialization; do not raise the window or force topmost.
         os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
+        if sys.platform == "win32":
+            os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
         pg.init()
         self._icon = pygame_icon()
         pg.display.set_caption(window_title(cfg.language))
@@ -96,21 +98,42 @@ class App:
             self._display_window = Window.from_display_module()
         return self._display_window
 
+    def _enter_fullscreen(self, *, display=None):
+        # Prefer desktop fullscreen (SDL_WINDOW_FULLSCREEN_DESKTOP) to preserve
+        # the display's current desktop resolution and refresh rate without
+        # changing physical video modes or causing monitor resync blackouts.
+        try:
+            window = self._geometry_window()
+            window.set_fullscreen(desktop=True)
+            surface = pg.display.get_surface()
+            if surface is not None:
+                self.screen = surface
+                self._fullscreen = True
+                return
+        except Exception as error:
+            warnings.warn(f"Desktop fullscreen unavailable ({error}); falling back to mode switch", RuntimeWarning)
+        self._set_mode((0, 0), pg.FULLSCREEN, display=display)
+        self._fullscreen = True
+
+    def _leave_fullscreen(self):
+        try:
+            self._geometry_window().set_windowed()
+        except Exception:
+            pass
+        self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+        self._fullscreen = False
+        self._restore_position()
+
     def toggle_fullscreen(self):
         self.menu.close()
         if self._fullscreen:
-            self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
-            self._fullscreen = False
-            self._restore_position()
+            self._leave_fullscreen()
         else:
             self._windowed_size = self.screen.get_size()
             self._remember_position()
-            self._set_mode((0, 0), pg.FULLSCREEN)
-            self._fullscreen = True
+            self._enter_fullscreen()
             if self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
-                self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
-                self._fullscreen = False
-                self._restore_position()
+                self._leave_fullscreen()
         self.renderer.resize(self.screen)
 
     def _restore_fullscreen(self, saved):
@@ -131,8 +154,7 @@ class App:
             window = self._geometry_window()
             window.position = (x + max(0, (width - placement_size[0]) // 2),
                                y + max(0, (height - placement_size[1]) // 2))
-            self._set_mode((0, 0), pg.FULLSCREEN, display=window.display_index)
-            self._fullscreen = True
+            self._enter_fullscreen(display=window.display_index)
             actual = current_monitor_identity(pg.display.get_wm_info().get("window"))
             if not actual or actual.casefold() != target.identity.casefold():
                 raise ValueError("Fullscreen monitor changed during startup")
@@ -141,6 +163,10 @@ class App:
         except (OSError, pg.error, ValueError) as error:
             warnings.warn(f"Cannot restore fullscreen: {error}. Using a normal window.", RuntimeWarning)
         self._fullscreen = False
+        try:
+            self._geometry_window().set_windowed()
+        except Exception:
+            pass
         self._set_mode(self._windowed_size, pg.RESIZABLE)
         self._restore_position()
         self.renderer.resize(self.screen)

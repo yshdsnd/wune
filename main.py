@@ -6,8 +6,13 @@ T or left-click the preset badge: next visual preset.
 macOS: Command+F toggles fullscreen; Command+, opens settings.
 """
 # main.py
-import pygame as pg
+import os
 import sys
+
+if sys.platform == "win32":
+    os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
+
+import pygame as pg
 import argparse
 
 from wune.config import CFG
