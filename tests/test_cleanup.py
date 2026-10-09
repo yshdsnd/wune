@@ -418,11 +418,17 @@ class AppCleanupTests(unittest.TestCase):
         env_patch.start()
         self.addCleanup(env_patch.stop)
         self.pg.display.set_mode.return_value.get_size.return_value = (1280, 800)
+        self.pg.display.get_surface.return_value = self.pg.display.set_mode.return_value
         for i, name in enumerate(("QUIT", "KEYDOWN", "K_ESCAPE", "K_q", "K_F11", "K_SPACE", "K_i", "K_t", "MOUSEBUTTONDOWN", "VIDEORESIZE", "WINDOWSIZECHANGED")):
             setattr(self.pg, name, i + 1)
         self.backend = MagicMock()
+        self.mock_window_class = MagicMock()
+        self.mock_window = MagicMock()
+        self.mock_window_class.from_display_module.return_value = self.mock_window
         self.modules = patch.dict(sys.modules, {
             "pygame": self.pg,
+            "pygame._sdl2": MagicMock(),
+            "pygame._sdl2.video": MagicMock(Window=self.mock_window_class),
             "wune.spectrum_audio": self.backend,
         })
         self.modules.start()
@@ -542,11 +548,14 @@ class AppCleanupTests(unittest.TestCase):
         fullscreen = MagicMock()
         fullscreen.get_size.return_value = (1920, 1080)
         self.app.screen = window
-        self.pg.display.set_mode.side_effect = [fullscreen, window]
+        self.pg.display.get_surface.return_value = fullscreen
+        self.pg.display.set_mode.return_value = window
         self.app.toggle_fullscreen()
         self.assertTrue(self.app._fullscreen)
+        self.mock_window.set_fullscreen.assert_called_once_with(desktop=True)
         self.app.toggle_fullscreen()
         self.assertFalse(self.app._fullscreen)
+        self.mock_window.set_windowed.assert_called_once()
         from wune.layout import fit_window_size
         self.pg.display.set_mode.assert_called_with(fit_window_size((960, 600), self.app.cfg), self.pg.RESIZABLE)
         self.assertEqual(self.app.renderer.resize.call_count, 2)
@@ -712,6 +721,13 @@ class AppCleanupTests(unittest.TestCase):
                 os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"], "0")
             self.app_module.App(Config(language="en"))
 
+    def test_dpi_awareness_policy_is_set_before_pygame_init(self):
+        import os
+        with patch.dict(os.environ, {}, clear=True), patch("sys.platform", "win32"):
+            self.pg.init.side_effect = lambda: self.assertEqual(
+                os.environ.get("SDL_WINDOWS_DPI_AWARENESS"), "permonitorv2")
+            self.app_module.App(Config(language="en"))
+
     def test_focus_loss_keeps_fullscreen_audio_and_drawing_running(self):
         self.app._fullscreen = True
         self.pg.WINDOWFOCUSLOST = 1001
@@ -747,12 +763,30 @@ class AppCleanupTests(unittest.TestCase):
              patch.object(self.app, "_geometry_window", return_value=window), \
              patch.object(self.app, "_set_mode") as mode:
             self.app._restore_fullscreen({"fullscreen": True, "fullscreen_monitor": "monitor-a"})
-        mode.assert_called_once_with((0, 0), self.pg.FULLSCREEN, display=2)
+        window.set_fullscreen.assert_called_once_with(desktop=True)
+        mode.assert_not_called()
         self.assertTrue(self.app._fullscreen)
         self.assertEqual(window.position, (-1410, 240))
         self.assertEqual(self.app._windowed_size, (900, 600))
         self.assertEqual(self.app._windowed_position, (40, 80))
         self.app.spectrum.close.assert_not_called()
+
+    def test_restore_fullscreen_desktop_fails_falls_back_to_mode(self):
+        from wune.monitor_identity import Monitor
+        self.app._windowed_size = (900, 600)
+        self.app._windowed_position = (40, 80)
+        self.app.screen.get_size.return_value = (900, 600)
+        target = Monitor("monitor-a", (-1920, 0, 1920, 1080), 10)
+        window = MagicMock(display_index=2)
+        window.set_fullscreen.side_effect = RuntimeError("desktop fs not supported")
+        with patch.object(self.app_module, "connected_monitors", return_value=[target]), \
+             patch.object(self.app_module, "current_monitor_identity", return_value="MONITOR-A"), \
+             patch.object(self.app, "_geometry_window", return_value=window), \
+             patch.object(self.app, "_set_mode") as mode:
+            with self.assertWarns(RuntimeWarning):
+                self.app._restore_fullscreen({"fullscreen": True, "fullscreen_monitor": "monitor-a"})
+        mode.assert_called_once_with((0, 0), self.pg.FULLSCREEN, display=2)
+        self.assertTrue(self.app._fullscreen)
 
     def test_restore_fullscreen_missing_monitor_stays_windowed(self):
         from wune.monitor_identity import Monitor
@@ -1010,7 +1044,8 @@ class AppCleanupTests(unittest.TestCase):
         full, normal = MagicMock(), MagicMock()
         full.get_size.return_value = (1920, 1080)
         normal.get_size.return_value = (960, 600)
-        self.pg.display.set_mode.side_effect = [full, normal] * 5
+        self.pg.display.get_surface.return_value = full
+        self.pg.display.set_mode.return_value = normal
         self.app._remember_position = MagicMock()
         self.app._restore_position = MagicMock()
         levels = self.app.levels
