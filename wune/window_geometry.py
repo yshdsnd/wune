@@ -1,7 +1,7 @@
 """Restore windowed geometry into a connected display's usable area."""
 import sys
 import warnings
-from .layout import fit_window_size
+from .layout import clamp_window_size
 
 
 def work_areas():
@@ -110,7 +110,7 @@ def restore_geometry(cfg, saved, areas):
     ax, ay, aw, ah = area
     # Keep room for native borders and a reachable title bar.
     left, top, available_w, available_h = ax+16, ay+40, max(1, aw-32), max(1, ah-56)
-    size = fit_window_size((min(width, available_w), min(height, available_h)), cfg)
+    size = clamp_window_size((min(width, available_w), min(height, available_h)), cfg)
     if x is None or y is None or overlap(area) == 0:
         x = left + max(0, (available_w-size[0])//2)
         y = top + max(0, (available_h-size[1])//2)
