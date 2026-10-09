@@ -723,7 +723,9 @@ class AppCleanupTests(unittest.TestCase):
 
     def test_dpi_awareness_policy_is_set_before_pygame_init(self):
         import os
-        with patch.dict(os.environ, {}, clear=True), patch("sys.platform", "win32"):
+        with patch.dict(os.environ, {}, clear=True), \
+             patch("sys.platform", "win32"), \
+             patch.object(self.app_module, "set_app_id"):
             self.pg.init.side_effect = lambda: self.assertEqual(
                 os.environ.get("SDL_WINDOWS_DPI_AWARENESS"), "permonitorv2")
             self.app_module.App(Config(language="en"))

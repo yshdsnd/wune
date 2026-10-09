@@ -11,13 +11,14 @@ def set_app_id():
     """Keep source launches grouped as Wune instead of the Python interpreter."""
     if sys.platform == "win32":
         import ctypes
-        from ctypes import wintypes
-        set_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
-        set_id.argtypes = [wintypes.LPCWSTR]
-        set_id.restype = ctypes.c_long
-        result = set_id(APP_ID)
-        if result < 0:
-            raise OSError(f"Cannot set Wune application identity: 0x{result & 0xffffffff:08x}")
+        if hasattr(ctypes, "windll"):
+            from ctypes import wintypes
+            set_id = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
+            set_id.argtypes = [wintypes.LPCWSTR]
+            set_id.restype = ctypes.c_long
+            result = set_id(APP_ID)
+            if result < 0:
+                raise OSError(f"Cannot set Wune application identity: 0x{result & 0xffffffff:08x}")
 
 
 def pygame_icon():
