@@ -130,6 +130,48 @@ def channel_mode_window_size(size, previous_cfg, cfg):
     return clamp_window_size((width, height), cfg)
 
 
+def layout_has_clearance(layout, cfg, size) -> bool:
+    """Check if the layout fits within the window without colliding with info bars or labels."""
+    width, height = size
+    scale = getattr(layout, "ui_scale", 1.0)
+    gap = max(4, round(4 * scale))
+
+    # Top boundary check (Now playing bar / top info bar)
+    top_limit = 0
+    if layout.now_playing_rect:
+        top_limit = max(top_limit, layout.now_playing_rect[1] + layout.now_playing_rect[3])
+    if layout.info_rect and cfg.info_position == "top":
+        top_limit = max(top_limit, layout.info_rect[1] + layout.info_rect[3])
+
+    if top_limit > 0:
+        db_unit_offset = max(6, round(cfg.db_unit_offset * scale))
+        unit_h = max(10, round(12 * scale))
+        lr_h = max(12, round(16 * scale))
+        top_label_y = layout.plots[0][1] - unit_h - db_unit_offset - lr_h - max(2, round(2 * scale))
+        if top_label_y < top_limit + gap:
+            return False
+
+    # Bottom boundary check (device info bar / bottom margin)
+    bottom_limit = height - max(16, cfg.margin_tb)
+    if layout.info_rect and cfg.info_position == "bottom":
+        bottom_limit = min(bottom_limit, layout.info_rect[1])
+
+    p_last = layout.plots[-1]
+    p_last_bottom = p_last[1] + p_last[3]
+    show_bottom_scale = cfg.show_db_scale if cfg.spectrum_orientation == "frequency_vertical" else cfg.show_freq_scale
+    if show_bottom_scale:
+        text_pad = max(6, round(8 * scale))
+        scale_font_h = max(10, round(14 * scale))
+        labels_bottom = p_last_bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+    else:
+        labels_bottom = p_last_bottom
+
+    if bottom_limit < labels_bottom + gap:
+        return False
+
+    return True
+
+
 def calculate_optimal_leds_per_bar(size, cfg, min_leds: int = 20, max_leds: int = 100) -> int:
     """Calculate the optimal leds_per_bar to minimize blank space in the window.
 
@@ -151,6 +193,8 @@ def calculate_optimal_leds_per_bar(size, cfg, min_leds: int = 20, max_leds: int 
             try:
                 layout = calculate_layout(size, c)
             except ValueError:
+                continue
+            if not layout_has_clearance(layout, c, size):
                 continue
             area = layout.plots[0][2] * layout.plots[0][3]
             if area > best_area:

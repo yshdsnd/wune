@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 import numpy as np
 import pygame as pg
 
@@ -463,6 +464,38 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
                         db_label_left = x_right - ts_w
                         self.assertGreaterEqual(db_label_left, 14)
 
+    def test_auto_adjust_leds_per_bar_does_not_overlap_info_bars(self):
+        """Regression test: verify that calculate_optimal_leds_per_bar selects segment
+        counts that guarantee clearance between plots/labels and info bars.
+        """
+        user_cfg = Config(channel_layout="vertical", bars=64, led_aspect_ratio=2.0,
+                          show_now_playing=True, info_position="bottom")
+        optimal = calculate_optimal_leds_per_bar((1800, 1200), user_cfg)
+        self.assertLessEqual(optimal, 27)
+
+        surf = pg.Surface((1800, 1200))
+        applied_cfg = replace(user_cfg, leds_per_bar=optimal)
+        renderer = LedBarRenderer(surf, applied_cfg)
+        np_rect = renderer.now_playing_rect()
+        info_rect = pg.Rect(renderer._layout.info_rect)
+        plot0 = pg.Rect(renderer._layout.plots[0])
+        plot_last = pg.Rect(renderer._layout.plots[-1])
+        scale = getattr(renderer, "ui_scale", 1.0)
+
+        # Top clearance
+        db_unit_offset = max(6, round(applied_cfg.db_unit_offset * scale))
+        unit_h = renderer.font_scale.get_height()
+        lr_h = renderer.font_channel.get_height()
+        top_label_y = plot0.y - unit_h - db_unit_offset - lr_h - max(2, round(2 * scale))
+        self.assertGreaterEqual(top_label_y, np_rect.bottom + 4)
+
+        # Bottom clearance
+        text_pad = max(6, round(8 * scale))
+        scale_font_h = renderer.font_scale.get_height()
+        freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+        self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
 
 if __name__ == "__main__":
     unittest.main()
+
