@@ -54,7 +54,7 @@ class LedShapeTests(unittest.TestCase):
         for size in ((1280, 480), (1280, 1000), (2400, 1500)):
             layout = calculate_layout(size, cfg)
             self.assertEqual(layout.bar_width, 2 * layout.led_height)
-            self.assertEqual(layout.bar_gap, layout.led_gap)
+            self.assertEqual(layout.bar_gap, cfg.bar_gap)
             self.assertLessEqual(abs(layout.led_gap-layout.led_height/4), 0.5)
             for x, y, w, h in layout.plots:
                 self.assertEqual(w, cfg.bars*layout.bar_width+(cfg.bars-1)*layout.bar_gap)

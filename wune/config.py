@@ -25,7 +25,7 @@ class Config:
     led_gap: int = 1              # LEDの隙間(px)
     margin_lr: int = 40           # 左右マージン
     margin_tb: int = 16           # 上下の外側余白
-    bar_gap: int = 6              # バー同士の隙間
+    bar_gap: int = 2              # バー同士の隙間(px)
 
     # インフォバー（入力仕様）
     info_enabled: bool = True

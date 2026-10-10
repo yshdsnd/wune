@@ -264,9 +264,16 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         # Screenshot 2 dimensions: 935x811 with 64 bars
         cfg = Config(bars=64)
         layout = calculate_layout((935, 811), cfg)
-        self.assertGreaterEqual(layout.led_height, 6)
-        self.assertGreaterEqual(layout.bar_width, 12)
-        self.assertGreaterEqual(layout.plots[0][2], 800)
+        self.assertGreaterEqual(layout.led_height, 5)
+        self.assertGreaterEqual(layout.bar_width, 10)
+        self.assertGreaterEqual(layout.plots[0][2], 750)
+
+        # With tight bar_gap (1px), expands to led_height >= 6
+        cfg_tight = Config(bars=64, bar_gap=1)
+        layout_tight = calculate_layout((935, 811), cfg_tight)
+        self.assertGreaterEqual(layout_tight.led_height, 6)
+        self.assertGreaterEqual(layout_tight.bar_width, 12)
+        self.assertGreaterEqual(layout_tight.plots[0][2], 800)
 
 
     def test_configurable_leds_per_bar(self):
@@ -385,6 +392,33 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         app.resize_window((1280, 800))
         self.assertEqual(app.cfg.leds_per_bar, 50)
         app.save_settings.assert_not_called()
+
+    def test_configurable_bar_gap(self):
+        for gap in (0, 2, 6, 12, 20):
+            with self.subTest(bar_gap=gap):
+                cfg = Config(bar_gap=gap)
+                size = clamp_window_size((1280, 800), cfg)
+                layout = calculate_layout(size, cfg)
+                self.assertEqual(layout.bar_gap, gap)
+                min_w, min_h = minimum_window_size(cfg)
+                self.assertGreater(min_w, 0)
+                self.assertGreater(min_h, 0)
+
+        # In horizontal frequency mode, increasing bar_gap increases minimum required window width
+        cfg_gap2 = Config(bar_gap=2, channel_layout="vertical", bars=64)
+        cfg_gap10 = Config(bar_gap=10, channel_layout="vertical", bars=64)
+        min_w_2, _ = minimum_window_size(cfg_gap2)
+        min_w_10, _ = minimum_window_size(cfg_gap10)
+        self.assertGreater(min_w_10, min_w_2)
+
+        # Verify renderer respects configured bar_gap
+        cfg_custom = Config(bar_gap=8, channel_layout="vertical", bars=32)
+        surf = pg.Surface((1280, 800))
+        renderer = LedBarRenderer(surf, cfg_custom)
+        self.assertEqual(renderer.bar_gap, 8)
+        levels = np.zeros((2, 32), dtype=np.float32)
+        renderer.draw(levels)
+        self.assertEqual(renderer.bar_w, renderer._layout.bar_width)
 
 
 if __name__ == "__main__":

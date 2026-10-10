@@ -75,6 +75,8 @@
   "settings.previewing_save_or_apply_to_confirm": "プレビュー中 — 保存または適用で確定します。",
   "settings.enter_an_led_aspect_ratio_between_0_25_and_8": "LEDの縦横比（幅÷高さ）は0.25～8の数値で入力してください。",
   "settings.enter_leds_per_bar_between_10_and_100": "LED段数は10～100の数値で入力してください。",
+  "settings.bar_gap": "バーの間隔 (px)",
+  "settings.enter_a_bar_gap_between_0_and_20": "バーの間隔は0～20の数値で入力してください。",
   "settings.auto_adjust_leds": "自動調整",
   "settings.auto_adjusted_leds_to": "LED段数を{count}段に自動調整しました。",
   "settings.auto_adjust_leds_on_resize": "ウィンドウのリサイズ時にLED段数を自動調整する",

@@ -253,8 +253,15 @@ class _Dialog:
                         variable=self.auto_adjust_leds_on_resize,
                         command=self.toggle_auto_adjust_leds_on_resize).grid(
                             row=8, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ttk.Label(spectrum, text=self.t('settings.bar_gap')).grid(row=9, column=0, sticky="w", pady=8)
+        self.bar_gap = tk.StringVar(root)
+        bar_gap_spin = ttk.Spinbox(spectrum, from_=0, to=20, increment=1, textvariable=self.bar_gap,
+                                   command=self.set_bar_gap, width=8)
+        bar_gap_spin.grid(row=9, column=1, sticky="w", padx=(14, 0))
+        bar_gap_spin.bind("<Return>", lambda event: self.set_bar_gap())
+        bar_gap_spin.bind("<FocusOut>", lambda event: self.set_bar_gap())
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=9, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=10, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -383,6 +390,7 @@ class _Dialog:
         self.ratio.set(str(state.style["led_aspect_ratio"]))
         self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
         self.auto_adjust_leds_on_resize.set(bool(state.style.get("auto_adjust_leds_on_resize", False)))
+        self.bar_gap.set(str(state.style.get("bar_gap", 2)))
         self.combos["channel_layout"][0].configure(
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
@@ -447,6 +455,16 @@ class _Dialog:
             self.style("leds_per_bar", val)
         except ValueError:
             self.status.set(self.t('settings.enter_leds_per_bar_between_10_and_100'))
+
+    def set_bar_gap(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.bar_gap.get())
+            if not valid_preference("bar_gap", val):
+                raise ValueError()
+            self.style("bar_gap", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_a_bar_gap_between_0_and_20'))
 
     def auto_adjust_leds(self):
         from .layout import calculate_optimal_leds_per_bar
@@ -635,11 +653,19 @@ class _Dialog:
                 except ValueError:
                     self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
                     return
+                try:
+                    bar_gap = int(self.bar_gap.get())
+                    if not valid_preference("bar_gap", bar_gap):
+                        raise ValueError()
+                except ValueError:
+                    self.status.set(self.t('settings.enter_a_bar_gap_between_0_and_20'))
+                    return
                 self.draft.edit_motion(motion)
                 self.draft.edit_style(
                     led_aspect_ratio=ratio,
                     leds_per_bar=leds,
                     auto_adjust_leds_on_resize=bool(self.auto_adjust_leds_on_resize.get()),
+                    bar_gap=bar_gap,
                 )
                 self.draft.state.layout["label_font_size"] = font_size
                 self.draft.state.layout["info_font_size"] = info_size

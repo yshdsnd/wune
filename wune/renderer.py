@@ -413,10 +413,12 @@ class LedBarRenderer:
         plot = self.plots[ch]
         if self.cfg.spectrum_orientation == "frequency_vertical":
             col, row = led, self.cfg.bars - 1 - band
+            x_gap, y_gap = self.led_gap, self.bar_gap
         else:
             col, row = band, self.cfg.leds_per_bar - 1 - led
-        return pg.Rect(plot.left + col * (self.bar_w + self.bar_gap),
-                       plot.top + row * (self.led_h + self.led_gap),
+            x_gap, y_gap = self.bar_gap, self.led_gap
+        return pg.Rect(plot.left + col * (self.bar_w + x_gap),
+                       plot.top + row * (self.led_h + y_gap),
                        self.bar_w, self.led_h)
 
     def draw_vertical_frequency_scale(self):
