@@ -39,6 +39,7 @@ class LedBarRenderer:
                                    cfg.peak_fall_per_second * cfg.leds_per_bar)
         self.peak_pos = self._peaks.positions
         self.peak_hold = self._peaks.remaining
+        self._leds_per_bar = cfg.leds_per_bar
 
         self.trail = None
         self.ui_scale = 1.0
@@ -88,6 +89,16 @@ class LedBarRenderer:
                                        self.cfg.peak_fall_per_second * self.cfg.leds_per_bar)
             self.peak_pos = self._peaks.positions
             self.peak_hold = self._peaks.remaining
+            self._leds_per_bar = self.cfg.leds_per_bar
+        elif getattr(self, "_leds_per_bar", None) != self.cfg.leds_per_bar:
+            if getattr(self, "_leds_per_bar", 0) > 0:
+                scale_factor = self.cfg.leds_per_bar / self._leds_per_bar
+                self._peaks.positions *= scale_factor
+                np.clip(self._peaks.positions, 0, self.cfg.leds_per_bar, out=self._peaks.positions)
+            self._peaks.configure(self.cfg.peak_hold_ms,
+                                  self.cfg.peak_fall_per_second * self.cfg.leds_per_bar)
+            self._leds_per_bar = self.cfg.leds_per_bar
+            self._layout = None
         layout = calculate_layout(surf.get_size(), self.cfg)
         self.ui_scale = layout.ui_scale
         cache_key = (self.ui_scale, getattr(self.cfg, "label_font_size", 14), getattr(self.cfg, "info_font_size", 14), getattr(self.cfg, "auto_scale_fonts", True))

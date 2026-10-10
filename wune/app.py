@@ -234,7 +234,9 @@ class App:
                 size = channel_mode_window_size(self.screen.get_size(), previous_cfg, self.cfg)
             self.spectrum.set_display_mode(self.cfg.channel_mode)
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
-        elif self.cfg.channel_layout != previous_layout or self.cfg.spectrum_orientation != previous_orientation:
+        elif (self.cfg.channel_layout != previous_layout or
+              self.cfg.spectrum_orientation != previous_orientation or
+              self.cfg.leds_per_bar != previous_cfg.leds_per_bar):
             if size is None and not self._fullscreen:
                 size = clamp_window_size(self.screen.get_size(), self.cfg)
         pg.display.set_caption(window_title(self.cfg.language))

@@ -141,6 +141,20 @@ class DialogTests(unittest.TestCase):
         self.assertFalse(self.dialog.pending)
         self.assertIn("10", self.dialog.status.get())
 
+    def test_invalid_leds_per_bar_blocks_save_without_discarding_input(self):
+        self.dialog.leds_per_bar.set("999")
+        self.dialog.submit("save")
+        self.assertTrue(self.events.empty())
+        self.assertFalse(self.dialog.pending)
+        self.assertIn("10", self.dialog.status.get())
+
+    def test_leds_per_bar_preview(self):
+        self.dialog.leds_per_bar.set("45")
+        self.dialog.set_leds_per_bar()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.style["leds_per_bar"], 45)
+
     def test_label_font_size_and_auto_scale_preview(self):
         self.dialog.label_font_size.set("18")
         self.dialog.set_label_font_size()

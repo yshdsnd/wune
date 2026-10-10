@@ -231,8 +231,15 @@ class _Dialog:
         ratio.grid(row=6, column=1, sticky="w", padx=(14, 0))
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
+        ttk.Label(spectrum, text=self.t('settings.leds_per_bar')).grid(row=7, column=0, sticky="w", pady=8)
+        self.leds_per_bar = tk.StringVar(root)
+        leds_spin = ttk.Spinbox(spectrum, from_=10, to=60, increment=1, textvariable=self.leds_per_bar,
+                                command=self.set_leds_per_bar, width=10)
+        leds_spin.grid(row=7, column=1, sticky="w", padx=(14, 0))
+        leds_spin.bind("<Return>", lambda event: self.set_leds_per_bar())
+        leds_spin.bind("<FocusOut>", lambda event: self.set_leds_per_bar())
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=7, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -359,6 +366,7 @@ class _Dialog:
                      state.layout[key] if key in state.layout else state.style[key])
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
+        self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
         self.combos["channel_layout"][0].configure(
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
@@ -410,6 +418,16 @@ class _Dialog:
             self.style("led_aspect_ratio", float(self.ratio.get()))
         except ValueError:
             self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
+
+    def set_leds_per_bar(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.leds_per_bar.get())
+            if not valid_preference("leds_per_bar", val):
+                raise ValueError()
+            self.style("leds_per_bar", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_leds_per_bar_between_10_and_60'))
 
     def set_label_font_size(self):
         from .settings import valid_preference
@@ -557,6 +575,13 @@ class _Dialog:
                     self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
                     return
                 try:
+                    leds = int(self.leds_per_bar.get())
+                    if not valid_preference("leds_per_bar", leds):
+                        raise ValueError()
+                except ValueError:
+                    self.status.set(self.t('settings.enter_leds_per_bar_between_10_and_60'))
+                    return
+                try:
                     font_size = int(self.label_font_size.get())
                     if not valid_preference("label_font_size", font_size):
                         raise ValueError()
@@ -571,7 +596,7 @@ class _Dialog:
                     self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
                     return
                 self.draft.edit_motion(motion)
-                self.style("led_aspect_ratio", ratio)
+                self.draft.edit_style(led_aspect_ratio=ratio, leds_per_bar=leds)
                 self.draft.state.layout["label_font_size"] = font_size
                 self.draft.state.layout["info_font_size"] = info_size
             self.pending = True

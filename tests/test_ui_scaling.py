@@ -263,5 +263,42 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertGreaterEqual(layout.plots[0][2], 800)
 
 
+    def test_configurable_leds_per_bar(self):
+        size = (1280, 800)
+        surf = pg.Surface(size)
+        for count in (10, 20, 40, 60):
+            with self.subTest(leds_per_bar=count):
+                cfg = Config(leds_per_bar=count)
+                layout = calculate_layout(size, cfg)
+                self.assertIsNotNone(layout)
+                renderer = LedBarRenderer(surf, cfg)
+                levels = np.full((cfg.display_channels, cfg.bars), 0.75, dtype=np.float32)
+                renderer.draw(levels)
+                # Verify that row_tiles and grid_rects reflect the exact count
+                self.assertEqual(len(renderer._row_tiles), count)
+                self.assertEqual(len(renderer._grid_rects[0][0]), count)
+
+        # Test live dynamic reconfiguration without restarting
+        cfg_dynamic = Config(leds_per_bar=20)
+        renderer = LedBarRenderer(surf, cfg_dynamic)
+        levels = np.full((cfg_dynamic.display_channels, cfg_dynamic.bars), 0.8, dtype=np.float32)
+        renderer.draw(levels)
+        self.assertAlmostEqual(float(renderer.peak_pos[0, 0]), 16.0, delta=0.5)
+
+        # Dynamic increase to 40 leds_per_bar
+        cfg_dynamic.leds_per_bar = 40
+        renderer.draw(levels)
+        self.assertEqual(len(renderer._row_tiles), 40)
+        self.assertEqual(len(renderer._grid_rects[0][0]), 40)
+        self.assertGreater(float(renderer.peak_pos[0, 0]), 25.0)
+
+        # Dynamic decrease to 10 leds_per_bar
+        cfg_dynamic.leds_per_bar = 10
+        renderer.draw(levels)
+        self.assertEqual(len(renderer._row_tiles), 10)
+        self.assertEqual(len(renderer._grid_rects[0][0]), 10)
+        self.assertLessEqual(float(renderer.peak_pos[0, 0]), 10.0)
+
+
 if __name__ == "__main__":
     unittest.main()
