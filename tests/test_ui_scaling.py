@@ -103,6 +103,33 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         renderer.draw(levels)
         renderer.draw_pause_overlay()
 
+    def test_auto_scale_fonts_disabled_preserves_base_font_sizes(self):
+        cfg = Config(auto_scale_fonts=False, label_font_size=14)
+        base_surf = pg.Surface((1280, 800))
+        renderer = LedBarRenderer(base_surf, cfg)
+        base_badge_h = renderer.font_badge.get_height()
+        base_scale_h = renderer.font_scale.get_height()
+
+        # Resize to 4K
+        surf_4k = pg.Surface((3840, 2160))
+        renderer.resize(surf_4k)
+
+        # Fonts must not scale up when auto_scale_fonts is False
+        self.assertEqual(renderer.font_badge.get_height(), base_badge_h)
+        self.assertEqual(renderer.font_scale.get_height(), base_scale_h)
+
+    def test_configurable_label_font_size(self):
+        base_surf = pg.Surface((1280, 800))
+        cfg_small = Config(label_font_size=10)
+        renderer_small = LedBarRenderer(base_surf, cfg_small)
+        small_h = renderer_small.font_scale.get_height()
+
+        cfg_large = Config(label_font_size=24)
+        renderer_large = LedBarRenderer(base_surf, cfg_large)
+        large_h = renderer_large.font_scale.get_height()
+
+        self.assertGreater(large_h, small_h)
+
     def test_application_menu_scaling(self):
         menu = ApplicationMenu()
         font_small = pg.font.SysFont("Meiryo,Segoe UI", 12)

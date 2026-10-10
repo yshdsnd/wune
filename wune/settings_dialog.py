@@ -245,20 +245,31 @@ class _Dialog:
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
                             row=9, column=0, columnspan=2, sticky="w", pady=8)
+        ttk.Label(general, text=self.t('settings.label_font_size')).grid(row=10, column=0, sticky="w", pady=8)
+        self.label_font_size = tk.StringVar(root)
+        label_size_spin = ttk.Spinbox(general, from_=10, to=24, increment=1, textvariable=self.label_font_size,
+                                      command=self.set_label_font_size, width=10)
+        label_size_spin.grid(row=10, column=1, sticky="w", padx=(14, 0))
+        label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
+        label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
+        self.auto_scale_fonts = tk.BooleanVar(root)
+        ttk.Checkbutton(general, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
+                        command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
+                            row=11, column=0, columnspan=2, sticky="w", pady=8)
         ttk.Label(general, text=self.t('settings.layout_help'),
-                  wraplength=500).grid(row=10, column=0, columnspan=2, sticky="w", pady=16)
+                  wraplength=500).grid(row=12, column=0, columnspan=2, sticky="w", pady=16)
 
         language_options = {self.t("language.auto"): "auto"}
         language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
-        choice(general, 11, "language", self.t("settings.language"), language_options,
+        choice(general, 13, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
         ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
-            row=12, column=0, columnspan=2, sticky="w", pady=8)
+            row=14, column=0, columnspan=2, sticky="w", pady=8)
         self.confirm_keyboard_exit = tk.BooleanVar()
         ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
                         variable=self.confirm_keyboard_exit,
                         command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
-                            row=13, column=0, columnspan=2, sticky="w", pady=8)
+                            row=15, column=0, columnspan=2, sticky="w", pady=8)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -333,6 +344,8 @@ class _Dialog:
         self.info.set(state.layout["info_enabled"])
         self.show_now_playing.set(state.layout.get("show_now_playing", True))
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
+        self.label_font_size.set(str(state.layout.get("label_font_size", 14)))
+        self.auto_scale_fonts.set(state.layout.get("auto_scale_fonts", True))
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")
             self.motion_scales[key].set(value)
@@ -374,6 +387,16 @@ class _Dialog:
             self.style("led_aspect_ratio", float(self.ratio.get()))
         except ValueError:
             self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
+
+    def set_label_font_size(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.label_font_size.get())
+            if not valid_preference("label_font_size", val):
+                raise ValueError()
+            self.layout("label_font_size", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_a_label_font_size_between_10_and_24'))
 
     def background(self, key, value):
         if self.loading or self.pending:
@@ -500,8 +523,16 @@ class _Dialog:
                 except ValueError:
                     self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
                     return
+                try:
+                    font_size = int(self.label_font_size.get())
+                    if not valid_preference("label_font_size", font_size):
+                        raise ValueError()
+                except ValueError:
+                    self.status.set(self.t('settings.enter_a_label_font_size_between_10_and_24'))
+                    return
                 self.draft.edit_motion(motion)
                 self.style("led_aspect_ratio", ratio)
+                self.draft.state.layout["label_font_size"] = font_size
             self.pending = True
             for tab in self.notebook.tabs():
                 self.notebook.tab(tab, state="disabled")

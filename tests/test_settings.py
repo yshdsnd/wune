@@ -46,6 +46,15 @@ class SettingsTests(unittest.TestCase):
             loaded, _ = SettingsStore(self.path).load(Config())
             self.assertEqual(loaded.show_now_playing, enabled)
 
+    def test_font_preferences_survive_restart(self):
+        for font_size, auto_scale in ((10, False), (14, True), (20, False), (24, True)):
+            with self.subTest(font_size=font_size, auto_scale=auto_scale):
+                cfg = Config(label_font_size=font_size, auto_scale_fonts=auto_scale)
+                self.assertTrue(self.store.save(cfg, (1280, 800), (0, 0), "CLASSIC"))
+                loaded, _ = SettingsStore(self.path).load(Config())
+                self.assertEqual(loaded.label_font_size, font_size)
+                self.assertEqual(loaded.auto_scale_fonts, auto_scale)
+
 
     def test_saved_peak_hold_values_survive_restart(self):
         for hold_ms in (0, 120, 200, 875.5, 5000):
@@ -95,13 +104,16 @@ class SettingsTests(unittest.TestCase):
     def test_invalid_values_do_not_reach_layout(self):
         self.write({"version": 1, "appearance": {"bars": True, "channels": 0,
                     "led_aspect_ratio": float('nan'), "initial_preset": "missing",
-                    "spectrum_orientation": "bad", "info_enabled": "yes"},
+                    "spectrum_orientation": "bad", "info_enabled": "yes",
+                    "label_font_size": 99, "auto_scale_fonts": "yes"},
                     "window": {"width": -1, "height": 10**10, "x": "left", "y": False}})
         with self.assertWarns(RuntimeWarning):
             cfg, geometry = self.store.load(Config())
         self.assertEqual(cfg.bars, 64)
         self.assertEqual(cfg.channels, 2)
         self.assertEqual(cfg.led_aspect_ratio, 2)
+        self.assertEqual(cfg.label_font_size, 14)
+        self.assertEqual(cfg.auto_scale_fonts, True)
         self.assertEqual(geometry, {})
 
     def test_corrupt_or_future_version_is_not_overwritten(self):
