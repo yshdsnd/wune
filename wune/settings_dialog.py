@@ -243,23 +243,30 @@ class _Dialog:
         label_size_spin.grid(row=0, column=1, sticky="w", padx=(14, 0))
         label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
         label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
+        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=1, column=0, sticky="w", pady=8)
+        self.info_font_size = tk.StringVar(root)
+        info_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.info_font_size,
+                                     command=self.set_info_font_size, width=10)
+        info_size_spin.grid(row=1, column=1, sticky="w", padx=(14, 0))
+        info_size_spin.bind("<Return>", lambda event: self.set_info_font_size())
+        info_size_spin.bind("<FocusOut>", lambda event: self.set_info_font_size())
         self.auto_scale_fonts = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
                         command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
-                            row=1, column=0, columnspan=2, sticky="w", pady=8)
+                            row=2, column=0, columnspan=2, sticky="w", pady=8)
         self.show_now_playing = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
                         command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=2, column=0, columnspan=2, sticky="w", pady=8)
+                            row=3, column=0, columnspan=2, sticky="w", pady=8)
         self.info = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_output_information'), variable=self.info,
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(
-                            row=3, column=0, sticky="w", pady=8)
-        choice(info_tab, 4, "info_position", self.t('settings.information_position'), {
+                            row=4, column=0, sticky="w", pady=8)
+        choice(info_tab, 5, "info_position", self.t('settings.information_position'), {
             self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
         ttk.Label(info_tab, text=self.t('settings.info_text_help'),
-                  wraplength=500).grid(row=5, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=6, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 4: Background & General
         background.columnconfigure(1, weight=1)
@@ -360,6 +367,7 @@ class _Dialog:
         self.show_now_playing.set(state.layout.get("show_now_playing", True))
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         self.label_font_size.set(str(state.layout.get("label_font_size", 14)))
+        self.info_font_size.set(str(state.layout.get("info_font_size", 14)))
         self.auto_scale_fonts.set(state.layout.get("auto_scale_fonts", True))
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")
@@ -412,6 +420,16 @@ class _Dialog:
             self.layout("label_font_size", val)
         except ValueError:
             self.status.set(self.t('settings.enter_a_label_font_size_between_10_and_24'))
+
+    def set_info_font_size(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.info_font_size.get())
+            if not valid_preference("info_font_size", val):
+                raise ValueError()
+            self.layout("info_font_size", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
 
     def background(self, key, value):
         if self.loading or self.pending:
@@ -545,9 +563,17 @@ class _Dialog:
                 except ValueError:
                     self.status.set(self.t('settings.enter_a_label_font_size_between_10_and_24'))
                     return
+                try:
+                    info_size = int(self.info_font_size.get())
+                    if not valid_preference("info_font_size", info_size):
+                        raise ValueError()
+                except ValueError:
+                    self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
+                    return
                 self.draft.edit_motion(motion)
                 self.style("led_aspect_ratio", ratio)
                 self.draft.state.layout["label_font_size"] = font_size
+                self.draft.state.layout["info_font_size"] = info_size
             self.pending = True
             for tab in self.notebook.tabs():
                 self.notebook.tab(tab, state="disabled")

@@ -130,6 +130,51 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
 
         self.assertGreater(large_h, small_h)
 
+    def test_configurable_info_font_size_and_adaptive_height(self):
+        base_surf = pg.Surface((1280, 800))
+        cfg_small = Config(info_font_size=10, show_now_playing=True, info_enabled=True, info_position="top")
+        renderer_small = LedBarRenderer(base_surf, cfg_small)
+        small_h = renderer_small.font_small.get_height()
+
+        cfg_large = Config(info_font_size=24, show_now_playing=True, info_enabled=True, info_position="top")
+        renderer_large = LedBarRenderer(base_surf, cfg_large)
+        large_h = renderer_large.font_small.get_height()
+
+        self.assertGreater(large_h, small_h)
+
+        layout_small = calculate_layout((1280, 800), cfg_small)
+        layout_large = calculate_layout((1280, 800), cfg_large)
+
+        np_small = pg.Rect(layout_small.now_playing_rect)
+        np_large = pg.Rect(layout_large.now_playing_rect)
+        info_small = pg.Rect(layout_small.info_rect)
+        info_large = pg.Rect(layout_large.info_rect)
+
+        self.assertGreater(np_large.height, np_small.height)
+        self.assertGreater(info_large.height, info_small.height)
+
+        # Bar heights must comfortably enclose font height
+        self.assertGreaterEqual(np_small.height, small_h)
+        self.assertGreaterEqual(np_large.height, large_h)
+
+        # No collision between Now Playing and Info bar
+        self.assertGreater(info_large.top, np_large.bottom)
+
+        # No collision between info bars and spectrum plots
+        header = max(44, cfg_large.header_reserved)
+        channel_label_top = layout_large.plots[0][1] - header
+        self.assertGreater(channel_label_top, info_large.bottom)
+
+        for plot in layout_large.plots:
+            plot_rect = pg.Rect(plot)
+            self.assertFalse(np_large.colliderect(plot_rect))
+            self.assertFalse(info_large.colliderect(plot_rect))
+
+        # With auto_scale_fonts=False on 4K, bar height stays at base height
+        layout_4k_no_scale = calculate_layout((3840, 2160), Config(info_font_size=24, auto_scale_fonts=False, show_now_playing=True))
+        np_4k = pg.Rect(layout_4k_no_scale.now_playing_rect)
+        self.assertEqual(np_4k.height, np_large.height)
+
     def test_application_menu_scaling(self):
         menu = ApplicationMenu()
         font_small = pg.font.SysFont("Meiryo,Segoe UI", 12)
