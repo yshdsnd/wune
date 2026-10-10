@@ -63,53 +63,67 @@ class TranslationTests(unittest.TestCase):
 
 class LocalizedDialogTests(unittest.TestCase):
     def test_name_and_confirmation_prompts_use_localized_buttons(self):
-        import tkinter as tk
-        from tkinter import ttk
-        from wune.localized_dialogs import Prompt
-        root = tk.Tk()
-        root.withdraw()
-        try:
-            for language, cancel in (("en", "Cancel"), ("ja", "キャンセル")):
-                for initial in (None, "夜空"):
-                    seen = []
-                    def finish():
-                        for child in root.winfo_children():
-                            if isinstance(child, Prompt):
-                                def visit(widget):
-                                    if isinstance(widget, ttk.Button):
-                                        seen.append(widget.cget("text"))
-                                    for nested in widget.winfo_children():
-                                        visit(nested)
-                                visit(child)
-                                child.ok()
-                    root.after(30, finish)
-                    prompt = Prompt(root, Translator(language), "Test", "Test", initial)
-                    self.assertIn(cancel, seen)
-                    self.assertEqual(prompt.result, True if initial is None else "夜空")
-        finally:
-            root.destroy()
+        import subprocess
+        import sys
+        subprocess.run([sys.executable, "-c", """
+import tkinter as tk
+from tkinter import ttk
+from wune.i18n import Translator
+from wune.localized_dialogs import Prompt
+
+root = tk.Tk()
+root.withdraw()
+try:
+    for language, cancel in (("en", "Cancel"), ("ja", "キャンセル")):
+        for initial in (None, "夜空"):
+            seen = []
+            def finish():
+                for child in root.winfo_children():
+                    if isinstance(child, Prompt):
+                        def visit(widget):
+                            if isinstance(widget, ttk.Button):
+                                seen.append(widget.cget("text"))
+                            for nested in widget.winfo_children():
+                                visit(nested)
+                        visit(child)
+                        child.ok()
+            root.after(30, finish)
+            prompt = Prompt(root, Translator(language), "Test", "Test", initial)
+            assert cancel in seen, (cancel, seen)
+            assert prompt.result == (True if initial is None else "夜空"), (prompt.result, initial)
+finally:
+    root.destroy()
+"""], check=True, timeout=15)
 
     def test_both_languages_render_controls_and_keep_pending_values(self):
-        import tkinter as tk
-        from wune.settings_dialog import _Dialog
-        for language, title, motion in (("en", "Display settings", "Motion"), ("ja", "表示設定", "動作")):
-            root = tk.Tk()
-            root.withdraw()
-            try:
-                draft = AppearanceDraft(AppearanceState.capture(Config(language=language), "CLASSIC", {}))
-                events = Queue()
-                dialog = _Dialog(root, draft, "settings.json", events, Queue())
-                root.update_idletasks()
-                self.assertIn(title, root.title())
-                self.assertEqual(dialog.notebook.tab(2, "text"), motion)
-                dialog.ratio.set("1.5")
-                dialog.set_ratio()
-                dialog.layout("language", "ja" if language == "en" else "en")
-                self.assertEqual(dialog.ratio.get(), "1.5")
-                self.assertEqual(draft.state.user_presets, {})
-                self.assertIn(title, root.title())  # Deliberately applies on reopen.
-                dialog.reset()
-                self.assertNotEqual(draft.state.layout["language"], language)
-            finally:
-                dialog.close()
-                root.destroy()
+        import subprocess
+        import sys
+        subprocess.run([sys.executable, "-c", """
+from queue import Queue
+import tkinter as tk
+from wune.appearance import AppearanceDraft, AppearanceState
+from wune.config import Config
+from wune.settings_dialog import _Dialog
+
+for language, title, motion in (("en", "Display settings", "Motion"), ("ja", "表示設定", "動作")):
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        draft = AppearanceDraft(AppearanceState.capture(Config(language=language), "CLASSIC", {}))
+        events = Queue()
+        dialog = _Dialog(root, draft, "settings.json", events, Queue())
+        root.update_idletasks()
+        assert title in root.title()
+        assert dialog.notebook.tab(2, "text") == motion
+        dialog.ratio.set("1.5")
+        dialog.set_ratio()
+        dialog.layout("language", "ja" if language == "en" else "en")
+        assert dialog.ratio.get() == "1.5"
+        assert draft.state.user_presets == {}
+        assert title in root.title()
+        dialog.reset()
+        assert draft.state.layout["language"] != language
+    finally:
+        dialog.close()
+        root.destroy()
+"""], check=True, timeout=15)
