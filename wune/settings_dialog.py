@@ -33,13 +33,13 @@ MOTION_LABELS = {
 COLOR_LABELS = {key: "color." + key for key in COLOR_FIELDS}
 
 
-def _run_dialog(state, path, events, commands):
+def _run_dialog(state, path, events, commands, window_size=None):
     root = dialog = None
     try:
         import tkinter as tk
         root = tk.Tk()
         root.withdraw()
-        dialog = _Dialog(root, AppearanceDraft(state), path, events, commands)
+        dialog = _Dialog(root, AppearanceDraft(state), path, events, commands, window_size=window_size)
         root.update_idletasks()
         # Only Windows transfers a native handle for ownership. Mac Tk lives
         # on the child process's main thread and is activated by that process.
@@ -83,7 +83,7 @@ def _focus_dialog(root):
 
 
 class SettingsDialog:
-    def __init__(self, state, path):
+    def __init__(self, state, path, window_size=None):
         self._process = sys.platform in ("win32", "darwin")
         self._closed = False
         if self._process:
@@ -94,7 +94,7 @@ class SettingsDialog:
             self.events, self.commands = Queue(), Queue()
             worker = Thread
         self.thread = worker(target=_run_dialog,
-                             args=(state, str(path), self.events, self.commands),
+                             args=(state, str(path), self.events, self.commands, window_size),
                              daemon=True, name="Wune settings")
         try:
             self.thread.start()
@@ -116,6 +116,10 @@ class SettingsDialog:
         if not self._closed:
             self.commands.put(("focus", None))
 
+    def update_window_size(self, size):
+        if not self._closed:
+            self.commands.put(("window_size", size))
+
     def close(self):
         if self._closed:
             return
@@ -135,11 +139,12 @@ class SettingsDialog:
 
 
 class _Dialog:
-    def __init__(self, root, draft, path, events, commands):
+    def __init__(self, root, draft, path, events, commands, window_size=None):
         import tkinter as tk
         from tkinter import ttk
         self.root, self.draft = root, draft
         self.events, self.commands = events, commands
+        self.window_size = window_size or (1280, 800)
         self.t = Translator(draft.state.layout["language"])
         self.loading = False
         self.pending = False
@@ -231,8 +236,20 @@ class _Dialog:
         ratio.grid(row=6, column=1, sticky="w", padx=(14, 0))
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
+        ttk.Label(spectrum, text=self.t('settings.leds_per_bar')).grid(row=7, column=0, sticky="w", pady=8)
+        leds_frame = ttk.Frame(spectrum)
+        leds_frame.grid(row=7, column=1, sticky="w", padx=(14, 0))
+        self.leds_per_bar = tk.StringVar(root)
+        leds_spin = ttk.Spinbox(leds_frame, from_=10, to=100, increment=1, textvariable=self.leds_per_bar,
+                                command=self.set_leds_per_bar, width=8)
+        leds_spin.pack(side="left")
+        leds_spin.bind("<Return>", lambda event: self.set_leds_per_bar())
+        leds_spin.bind("<FocusOut>", lambda event: self.set_leds_per_bar())
+        self.auto_adjust_button = ttk.Button(leds_frame, text=self.t('settings.auto_adjust_leds'),
+                                             command=self.auto_adjust_leds)
+        self.auto_adjust_button.pack(side="left", padx=(8, 0))
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=7, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -359,6 +376,7 @@ class _Dialog:
                      state.layout[key] if key in state.layout else state.style[key])
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
+        self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
         self.combos["channel_layout"][0].configure(
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
@@ -410,6 +428,27 @@ class _Dialog:
             self.style("led_aspect_ratio", float(self.ratio.get()))
         except ValueError:
             self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
+
+    def set_leds_per_bar(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.leds_per_bar.get())
+            if not valid_preference("leds_per_bar", val):
+                raise ValueError()
+            self.style("leds_per_bar", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_leds_per_bar_between_10_and_100'))
+
+    def auto_adjust_leds(self):
+        from .layout import calculate_optimal_leds_per_bar
+        from .config import Config
+        cfg = Config()
+        self.draft.state.apply(cfg)
+        size = getattr(self, "window_size", None) or (1280, 800)
+        optimal = calculate_optimal_leds_per_bar(size, cfg)
+        self.leds_per_bar.set(str(optimal))
+        self.set_leds_per_bar()
+        self.status.set(self.t('settings.auto_adjusted_leds_to', count=optimal))
 
     def set_label_font_size(self):
         from .settings import valid_preference
@@ -557,6 +596,13 @@ class _Dialog:
                     self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
                     return
                 try:
+                    leds = int(self.leds_per_bar.get())
+                    if not valid_preference("leds_per_bar", leds):
+                        raise ValueError()
+                except ValueError:
+                    self.status.set(self.t('settings.enter_leds_per_bar_between_10_and_100'))
+                    return
+                try:
                     font_size = int(self.label_font_size.get())
                     if not valid_preference("label_font_size", font_size):
                         raise ValueError()
@@ -571,7 +617,7 @@ class _Dialog:
                     self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
                     return
                 self.draft.edit_motion(motion)
-                self.style("led_aspect_ratio", ratio)
+                self.draft.edit_style(led_aspect_ratio=ratio, leds_per_bar=leds)
                 self.draft.state.layout["label_font_size"] = font_size
                 self.draft.state.layout["info_font_size"] = info_size
             self.pending = True
@@ -619,6 +665,8 @@ class _Dialog:
                     return
                 if action == "focus":
                     _focus_dialog(self.root)
+                elif action == "window_size":
+                    self.window_size = payload
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:

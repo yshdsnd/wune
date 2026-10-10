@@ -4,7 +4,13 @@ import pygame as pg
 
 from wune.application_menu import ApplicationMenu
 from wune.config import Config
-from wune.layout import calculate_layout, calculate_ui_scale, clamp_window_size, minimum_window_size
+from wune.layout import (
+    calculate_layout,
+    calculate_optimal_leds_per_bar,
+    calculate_ui_scale,
+    clamp_window_size,
+    minimum_window_size,
+)
 from wune.renderer import LedBarRenderer
 from wune.window_geometry import restore_geometry
 
@@ -261,6 +267,80 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertGreaterEqual(layout.led_height, 6)
         self.assertGreaterEqual(layout.bar_width, 12)
         self.assertGreaterEqual(layout.plots[0][2], 800)
+
+
+    def test_configurable_leds_per_bar(self):
+        base_size = (1280, 800)
+        for count in (10, 20, 40, 60, 100):
+            with self.subTest(leds_per_bar=count):
+                cfg = Config(leds_per_bar=count)
+                size = clamp_window_size(base_size, cfg)
+                surf = pg.Surface(size)
+                layout = calculate_layout(size, cfg)
+                self.assertIsNotNone(layout)
+                renderer = LedBarRenderer(surf, cfg)
+                levels = np.full((cfg.display_channels, cfg.bars), 0.75, dtype=np.float32)
+                renderer.draw(levels)
+                # Verify that row_tiles and grid_rects reflect the exact count
+                self.assertEqual(len(renderer._row_tiles), count)
+                self.assertEqual(len(renderer._grid_rects[0][0]), count)
+
+        # Test live dynamic reconfiguration without restarting
+        surf = pg.Surface(base_size)
+        cfg_dynamic = Config(leds_per_bar=20)
+        renderer = LedBarRenderer(surf, cfg_dynamic)
+        levels = np.full((cfg_dynamic.display_channels, cfg_dynamic.bars), 0.8, dtype=np.float32)
+        renderer.draw(levels)
+        self.assertAlmostEqual(float(renderer.peak_pos[0, 0]), 16.0, delta=0.5)
+
+        # Dynamic increase to 40 leds_per_bar
+        cfg_dynamic.leds_per_bar = 40
+        renderer.draw(levels)
+        self.assertEqual(len(renderer._row_tiles), 40)
+        self.assertEqual(len(renderer._grid_rects[0][0]), 40)
+        self.assertGreater(float(renderer.peak_pos[0, 0]), 25.0)
+
+        # Dynamic decrease to 10 leds_per_bar
+        cfg_dynamic.leds_per_bar = 10
+        renderer.draw(levels)
+        self.assertEqual(len(renderer._row_tiles), 10)
+        self.assertEqual(len(renderer._grid_rects[0][0]), 10)
+        self.assertLessEqual(float(renderer.peak_pos[0, 0]), 10.0)
+
+    def test_calculate_optimal_leds_per_bar(self):
+        # 1280x800 default window:
+        # Vertical layout (2 rows) has limited height per channel -> optimal is 20 leds
+        cfg_vertical = Config(channel_layout="vertical", bars=32)
+        optimal_v = calculate_optimal_leds_per_bar((1280, 800), cfg_vertical)
+        self.assertEqual(optimal_v, 20)
+
+        # Horizontal layout (1 row) has ample vertical space -> optimal expands to 64 leds
+        # to fill the huge vertical blank gap without sacrificing bar thickness
+        cfg_horizontal = Config(channel_layout="horizontal", bars=32)
+        optimal_h = calculate_optimal_leds_per_bar((1280, 800), cfg_horizontal)
+        self.assertEqual(optimal_h, 64)
+
+        # When bars=64 in horizontal mode, optimal reaches the upper bound (100)
+        cfg_h64 = Config(channel_layout="horizontal", bars=64)
+        optimal_h64 = calculate_optimal_leds_per_bar((1280, 800), cfg_h64)
+        self.assertEqual(optimal_h64, 100)
+
+        # 4K resolution (3840x2160):
+        # Returns a valid number in [20, 100]
+        cfg_4k = Config(channel_layout="horizontal", bars=32)
+        optimal_4k = calculate_optimal_leds_per_bar((3840, 2160), cfg_4k)
+        self.assertGreaterEqual(optimal_4k, 20)
+        self.assertLessEqual(optimal_4k, 100)
+
+        # When window size is below minimum, clamp_window_size ensures no crash and returns valid value
+        tiny_size = (100, 100)
+        optimal_tiny = calculate_optimal_leds_per_bar(tiny_size, cfg_vertical)
+        self.assertGreaterEqual(optimal_tiny, 10)
+        self.assertLessEqual(optimal_tiny, 100)
+
+        # Custom bounds can be respected
+        optimal_custom = calculate_optimal_leds_per_bar((1280, 800), cfg_horizontal, min_leds=30, max_leds=50)
+        self.assertEqual(optimal_custom, 50)
 
 
 if __name__ == "__main__":

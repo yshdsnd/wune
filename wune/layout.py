@@ -1,5 +1,5 @@
 """Spectrum geometry only: resizing never changes band or LED counts."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 
 
@@ -118,6 +118,33 @@ def channel_mode_window_size(size, previous_cfg, cfg):
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
     height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return clamp_window_size((width, height), cfg)
+
+
+def calculate_optimal_leds_per_bar(size, cfg, min_leds: int = 20, max_leds: int = 100) -> int:
+    """Calculate the optimal leds_per_bar to minimize blank space in the window.
+
+    Finds the segment count that maximizes the utilized spectrum area (minimizing
+    blank space) within the current window dimensions.
+    """
+    size = clamp_window_size(size, cfg)
+    best_k = getattr(cfg, "leds_per_bar", 20)
+    best_area = -1
+    for search_min in (min_leds, 10):
+        for k in range(search_min, max_leds + 1):
+            c = replace(cfg, leds_per_bar=k)
+            if tuple(size) != clamp_window_size(size, c):
+                continue
+            try:
+                layout = calculate_layout(size, c)
+            except ValueError:
+                continue
+            area = layout.plots[0][2] * layout.plots[0][3]
+            if area > best_area:
+                best_area = area
+                best_k = k
+        if best_area > 0:
+            break
+    return max(10, min(max_leds, best_k))
 
 
 def calculate_layout(size, cfg):

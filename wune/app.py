@@ -213,7 +213,7 @@ class App:
         self._appearance_size = self._windowed_size if self._fullscreen else self.screen.get_size()
         self._settings_closing = False
         path = self.settings_store.path if self.settings_store is not None else settings_path()
-        self.settings_dialog = SettingsDialog(state, path)
+        self.settings_dialog = SettingsDialog(state, path, window_size=self._appearance_size)
 
     def preview_appearance(self, state, size=None):
         self._redraw_requested = True
@@ -234,7 +234,9 @@ class App:
                 size = channel_mode_window_size(self.screen.get_size(), previous_cfg, self.cfg)
             self.spectrum.set_display_mode(self.cfg.channel_mode)
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
-        elif self.cfg.channel_layout != previous_layout or self.cfg.spectrum_orientation != previous_orientation:
+        elif (self.cfg.channel_layout != previous_layout or
+              self.cfg.spectrum_orientation != previous_orientation or
+              self.cfg.leds_per_bar != previous_cfg.leds_per_bar):
             if size is None and not self._fullscreen:
                 size = clamp_window_size(self.screen.get_size(), self.cfg)
         pg.display.set_caption(window_title(self.cfg.language))
@@ -339,6 +341,8 @@ class App:
                 self._set_mode(size, pg.RESIZABLE)
             self._windowed_size = size
         self.renderer.resize(self.screen)
+        if self.settings_dialog is not None:
+            self.settings_dialog.update_window_size(self.screen.get_size())
 
     def handle_event(self, event: pg.event.Event):
         if event.type == pg.QUIT:
