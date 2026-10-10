@@ -10,22 +10,24 @@ from wune.settings_dialog import _Dialog, _focus_dialog
 
 class DialogTests(unittest.TestCase):
     def test_channel_mode_preview_and_apply(self):
-        general = self.dialog.notebook.nametowidget(self.dialog.notebook.tabs()[0])
-        cells = {}
-        for child in general.winfo_children():
-            info = child.grid_info()
-            if not info:
-                continue
-            row = int(info["row"])
-            col = int(info["column"])
-            span = int(info.get("columnspan", 1))
-            for c in range(col, col + span):
-                key = (row, c)
-                self.assertNotIn(key, cells, f"Grid collision at row {row}, col {c} between {child} and {cells.get(key)}")
-                cells[key] = child
+        self.assertEqual(len(self.dialog.notebook.tabs()), 5)
+        for tab_id in self.dialog.notebook.tabs():
+            tab_widget = self.dialog.notebook.nametowidget(tab_id)
+            cells = {}
+            for child in tab_widget.winfo_children():
+                info = child.grid_info()
+                if not info:
+                    continue
+                row = int(info["row"])
+                col = int(info["column"])
+                span = int(info.get("columnspan", 1))
+                for c in range(col, col + span):
+                    key = (row, c)
+                    self.assertNotIn(key, cells, f"Grid collision at row {row}, col {c} between {child} and {cells.get(key)}")
+                    cells[key] = child
 
         lang_combo, _ = self.dialog.combos["language"]
-        self.assertEqual(int(lang_combo.grid_info()["row"]), 13)
+        self.assertEqual(int(lang_combo.grid_info()["row"]), 4)
 
         self.dialog.layout("channel_mode", "stereo_mix")
         action, state = self.events.get_nowait()
