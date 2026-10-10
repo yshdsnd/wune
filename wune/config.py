@@ -58,6 +58,10 @@ class Config:
     db_label_pad: int = 6   # ラベルの右端とバー領域の間隔(px)
     db_unit_offset: int = 10   # dB単位ラベルを上にずらす量
 
+    # フォント設定
+    label_font_size: int = 14     # 目盛りラベルのベースフォントサイズ(pt)
+    auto_scale_fonts: bool = True # ウィンドウ拡大時にフォントを自動拡大するか
+
     # ---- ステレオ分割 ----
     channels: int = 2           # 1=mono, 2=stereo
     channel_mode: str = "stereo"  # stereo or stereo_mix; capture remains stereo.

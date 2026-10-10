@@ -25,7 +25,7 @@ class DialogTests(unittest.TestCase):
                 cells[key] = child
 
         lang_combo, _ = self.dialog.combos["language"]
-        self.assertEqual(int(lang_combo.grid_info()["row"]), 11)
+        self.assertEqual(int(lang_combo.grid_info()["row"]), 13)
 
         self.dialog.layout("channel_mode", "stereo_mix")
         action, state = self.events.get_nowait()
@@ -124,6 +124,25 @@ class DialogTests(unittest.TestCase):
         self.assertTrue(self.events.empty())
         self.assertFalse(self.dialog.pending)
         self.assertIn("0.25", self.dialog.status.get())
+
+    def test_invalid_label_font_size_blocks_save_without_discarding_input(self):
+        self.dialog.label_font_size.set("99")
+        self.dialog.submit("save")
+        self.assertTrue(self.events.empty())
+        self.assertFalse(self.dialog.pending)
+        self.assertIn("10", self.dialog.status.get())
+
+    def test_label_font_size_and_auto_scale_preview(self):
+        self.dialog.label_font_size.set("18")
+        self.dialog.set_label_font_size()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["label_font_size"], 18)
+
+        self.dialog.layout("auto_scale_fonts", False)
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["auto_scale_fonts"], False)
 
     def test_apply_acknowledgment_reenables_controls(self):
         self.dialog.submit("apply")
