@@ -47,7 +47,7 @@ def _dimensions(cfg):
     cols = cfg.display_channels if cfg.channel_layout == "horizontal" else 1
     rows = 1 if cfg.channel_layout == "horizontal" else cfg.display_channels
     margin = max(16, cfg.margin_tb)
-    left = max(40, cfg.margin_lr)
+    left = max(50, cfg.margin_lr + 10)
     header = max(44, cfg.header_reserved)
     scale = max(30, cfg.scale_reserved) if cfg.show_freq_scale else 0
     if cfg.spectrum_orientation == "frequency_vertical":
@@ -171,25 +171,24 @@ def calculate_layout(size, cfg):
     bar_scale = scale if auto_scale else 1.0
     bar_h = max(20, round(info_bar_base_height(cfg) * bar_scale))
 
-    # Top header space for menu button and theme badge:
     top = margin + 40
     bottom = height - margin
 
     now_playing_rect = None
     if now_playing:
-        np_y = max(top, round(58 * scale) + 4)
+        np_y = max(top, round(54 * scale) + 4)
         now_playing_rect = (16, np_y, width - 32, bar_h)
         top += now_playing
 
     info_rect = None
     if info:
         if cfg.info_position == "top":
-            info_top = (now_playing_rect[1] + now_playing_rect[3] + 8) if now_playing_rect else max(top, round(44 * scale) + 4)
+            info_top = (now_playing_rect[1] + now_playing_rect[3] + max(6, round(6 * scale))) if now_playing_rect else max(top, round(44 * scale) + 4)
             info_rect = (16, info_top, width - 32, bar_h)
             top += info
         else:
-            bottom -= info
             info_rect = (16, height - margin - bar_h, width - 32, bar_h)
+            bottom -= info
 
     cell_w = (width - (cols - 1) * cfg.channel_gap) // cols
     cell_h = (bottom - top - (rows - 1) * cfg.channel_gap) // rows
@@ -212,11 +211,38 @@ def calculate_layout(size, cfg):
         if plot_w <= available_w and plot_h <= available_h:
             break
         led_h -= 1
+
     plots = []
     packed_w = left + plot_w + 16
     packed_h = header + plot_h + scale_reserved
-    group_x = (width - (cols * packed_w + (cols-1)*cfg.channel_gap)) // 2
-    group_y = top + (bottom-top - (rows*packed_h + (rows-1)*cfg.channel_gap)) // 2
+    total_w = cols * packed_w + (cols - 1) * cfg.channel_gap
+    total_h = rows * packed_h + (rows - 1) * cfg.channel_gap
+
+    # Group centering with safety margins to prevent overlapping with info bars or window edges
+    min_group_x = max(0, round(32 * (scale - 1.0)))
+    group_x = max(min_group_x, (width - total_w) // 2)
+    group_y = top + (bottom - top - total_h) // 2
+
+    # Enforce safe margin below top info bars (Now playing / Top info)
+    top_bar_bottom = 0
+    if info_rect and cfg.info_position == "top":
+        top_bar_bottom = info_rect[1] + info_rect[3]
+    elif now_playing_rect:
+        top_bar_bottom = now_playing_rect[1] + now_playing_rect[3]
+
+    if top_bar_bottom > 0:
+        gap = max(8, round(8 * scale))
+        # Account for scaled header labels (L/R and dB) which extend above plot Y
+        header_extra = max(0, round(46 * (scale - 1.0)))
+        group_y = max(group_y, top_bar_bottom + gap + header_extra)
+
+    # Enforce safe margin above bottom info bar
+    if info_rect and cfg.info_position == "bottom":
+        scale_extra = max(0, round(28 * (scale - 1.0)))
+        max_group_y = info_rect[1] - max(8, round(8 * scale)) - scale_extra - total_h
+        if max_group_y < group_y and (top_bar_bottom == 0 or max_group_y >= top_bar_bottom + 4):
+            group_y = max_group_y
+
     for ch in range(cfg.display_channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
         x = group_x + col * (packed_w + cfg.channel_gap) + left

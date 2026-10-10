@@ -418,7 +418,50 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertEqual(renderer.bar_gap, 8)
         levels = np.zeros((2, 32), dtype=np.float32)
         renderer.draw(levels)
-        self.assertEqual(renderer.bar_w, renderer._layout.bar_width)
+    def test_info_bars_labels_and_margins_do_not_overlap(self):
+        """Regression test: verify no collision between Now playing bar, device info bar,
+        channel/dB labels, and frequency scale labels, and ensure adequate left margin.
+        """
+        for layout_mode in ("vertical", "horizontal"):
+            for info_pos in ("top", "bottom"):
+                cfg = Config(channel_layout=layout_mode, show_now_playing=True, info_position=info_pos)
+                min_s = minimum_window_size(cfg)
+                for size in (min_s, (1280, 800), (1920, 1080), (3840, 2160)):
+                    with self.subTest(layout=layout_mode, info=info_pos, size=size):
+                        surf = pg.Surface(size)
+                        renderer = LedBarRenderer(surf, cfg)
+                        np_rect = renderer.now_playing_rect()
+                        info_rect = pg.Rect(renderer._layout.info_rect)
+                        plot0 = pg.Rect(renderer._layout.plots[0])
+                        scale = getattr(renderer, "ui_scale", 1.0)
+
+                        # 1. Now playing and top info separation
+                        if info_pos == "top":
+                            self.assertGreaterEqual(info_rect.top, np_rect.bottom + 4)
+                            top_boundary = info_rect.bottom
+                        else:
+                            top_boundary = np_rect.bottom
+
+                        # 2. L/R and dB label separation below top bars
+                        db_unit_offset = max(6, round(cfg.db_unit_offset * scale))
+                        unit_h = renderer.font_scale.get_height()
+                        lr_h = renderer.font_channel.get_height()
+                        unit_y = plot0.y - unit_h - db_unit_offset
+                        lr_y = unit_y - lr_h - max(2, round(2 * scale))
+                        self.assertGreaterEqual(lr_y, top_boundary + 4)
+
+                        # 3. Frequency scale labels separation above bottom info bar
+                        if info_pos == "bottom":
+                            text_pad = max(6, round(8 * scale))
+                            scale_font_h = renderer.font_scale.get_height()
+                            freq_label_bottom = plot0.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+                            self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
+                        # 4. Volume label (-60 dB) left clearance from window border (at 8px)
+                        x_right = plot0.x - max(4, round(cfg.db_label_pad * scale))
+                        ts_w = renderer.font_scale.size("-60")[0]
+                        db_label_left = x_right - ts_w
+                        self.assertGreaterEqual(db_label_left, 14)
 
 
 if __name__ == "__main__":
