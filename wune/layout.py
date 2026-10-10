@@ -126,7 +126,11 @@ def calculate_optimal_leds_per_bar(size, cfg, min_leds: int = 20, max_leds: int 
     Finds the segment count that maximizes the utilized spectrum area (minimizing
     blank space) within the current window dimensions.
     """
-    size = clamp_window_size(size, cfg)
+    # Clamp against minimum possible window size (at leds_per_bar=10) rather than
+    # current cfg.leds_per_bar so that a large current segment count does not
+    # inflate the window size when shrinking.
+    min_cfg = replace(cfg, leds_per_bar=10)
+    size = clamp_window_size(size, min_cfg)
     best_k = getattr(cfg, "leds_per_bar", 20)
     best_area = -1
     for search_min in (min_leds, 10):

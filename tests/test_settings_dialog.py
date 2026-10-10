@@ -176,6 +176,37 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(optimal_horizontal, 100)
         self.assertIn("100", self.dialog.status.get())
 
+    def test_auto_adjust_leds_on_resize_toggle_and_triggers(self):
+        # Toggle on triggers immediate auto-adjust
+        self.dialog.auto_adjust_leds_on_resize.set(True)
+        self.dialog.toggle_auto_adjust_leds_on_resize()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertTrue(state.style["auto_adjust_leds_on_resize"])
+        self.assertEqual(state.style["leds_per_bar"], 24)
+
+        # Layout change (channel_layout to horizontal) automatically runs auto-adjust when enabled
+        self.dialog.layout("channel_layout", "horizontal")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.style["leds_per_bar"], 100)
+        self.assertEqual(int(self.dialog.leds_per_bar.get()), 100)
+
+        # If leds_per_bar was manually changed while auto_adjust_leds_on_resize is active,
+        # receiving a window_size event will re-adjust it to optimal
+        self.dialog.leds_per_bar.set("50")
+        self.dialog.set_leds_per_bar()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.style["leds_per_bar"], 50)
+
+        self.commands.put(("window_size", (1280, 800)))
+        self.dialog.poll()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.style["leds_per_bar"], 100)
+        self.assertEqual(int(self.dialog.leds_per_bar.get()), 100)
+
     def test_label_font_size_and_auto_scale_preview(self):
         self.dialog.label_font_size.set("18")
         self.dialog.set_label_font_size()

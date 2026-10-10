@@ -13,7 +13,12 @@ from .exit_confirmation import ExitConfirmation
 from .build_identity import window_title
 from .i18n import Translator
 from .icons import set_app_id, pygame_icon
-from .layout import clamp_window_size, fit_window_size, channel_mode_window_size
+from .layout import (
+    calculate_optimal_leds_per_bar,
+    clamp_window_size,
+    fit_window_size,
+    channel_mode_window_size,
+)
 from .monitor_identity import connected_monitors, matching_monitor, current_monitor_identity
 from .renderer import LedBarRenderer
 from .spectrum_audio import AudioSpectrum
@@ -332,6 +337,11 @@ class App:
 
     def resize_window(self, size):
         self._redraw_requested = True
+        if getattr(self.cfg, "auto_adjust_leds_on_resize", False):
+            optimal = calculate_optimal_leds_per_bar(size, self.cfg)
+            if optimal != self.cfg.leds_per_bar:
+                self.cfg.leds_per_bar = optimal
+                self.save_settings()
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
             self.toggle_fullscreen()
             return
