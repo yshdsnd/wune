@@ -155,6 +155,27 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "preview")
         self.assertEqual(state.style["leds_per_bar"], 45)
 
+    def test_auto_adjust_leds_updates_spinbox_and_previews(self):
+        # Default layout is vertical (2 channels stacked) in 1280x800
+        self.dialog.auto_adjust_leds()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        optimal_vertical = int(self.dialog.leds_per_bar.get())
+        self.assertEqual(state.style["leds_per_bar"], optimal_vertical)
+        self.assertEqual(optimal_vertical, 24)
+        self.assertIn("24", self.dialog.status.get())
+
+        # Switch to horizontal layout (side-by-side L and R)
+        self.dialog.layout("channel_layout", "horizontal")
+        _ = self.events.get_nowait()  # consume layout preview
+        self.dialog.auto_adjust_leds()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        optimal_horizontal = int(self.dialog.leds_per_bar.get())
+        self.assertEqual(state.style["leds_per_bar"], optimal_horizontal)
+        self.assertEqual(optimal_horizontal, 100)
+        self.assertIn("100", self.dialog.status.get())
+
     def test_label_font_size_and_auto_scale_preview(self):
         self.dialog.label_font_size.set("18")
         self.dialog.set_label_font_size()

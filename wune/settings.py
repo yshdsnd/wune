@@ -50,7 +50,7 @@ def valid_preference(key, value):
     if key == "led_aspect_ratio":
         return type(value) in (int, float) and math.isfinite(value) and 0.25 <= value <= 8
     if key == "leds_per_bar":
-        return integer(value, 10, 60)
+        return integer(value, 10, 100)
     if key == "bars":
         return integer(value, 1, 256)
     if key == "channels":

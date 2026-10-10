@@ -95,13 +95,13 @@ class SettingsTests(unittest.TestCase):
             self.assertNotIn("fullscreen", window)
 
     def test_custom_style_round_trip(self):
-        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, leds_per_bar=40)
+        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, leds_per_bar=95)
         self.store.save(cfg, (1000, 700), (50, 60), "CUSTOM")
         loaded, _ = self.store.load(Config())
         self.assertIsNone(loaded.initial_preset)
         self.assertEqual(loaded.led_shape, "ellipse")
         self.assertEqual(loaded.led_aspect_ratio, 1.5)
-        self.assertEqual(loaded.leds_per_bar, 40)
+        self.assertEqual(loaded.leds_per_bar, 95)
 
     def test_invalid_values_do_not_reach_layout(self):
         self.write({"version": 1, "appearance": {"bars": True, "channels": 0,
