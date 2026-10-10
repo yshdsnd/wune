@@ -337,6 +337,11 @@ class App:
 
     def resize_window(self, size):
         self._redraw_requested = True
+        if getattr(self.cfg, "auto_adjust_leds_on_resize", False):
+            optimal = calculate_optimal_leds_per_bar(size, self.cfg)
+            if optimal != self.cfg.leds_per_bar:
+                self.cfg.leds_per_bar = optimal
+                self.save_settings()
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
             self.toggle_fullscreen()
             return
@@ -345,11 +350,6 @@ class App:
             if self.screen.get_size() != size:
                 self._set_mode(size, pg.RESIZABLE)
             self._windowed_size = size
-        if getattr(self.cfg, "auto_adjust_leds_on_resize", False):
-            optimal = calculate_optimal_leds_per_bar(self.screen.get_size(), self.cfg)
-            if optimal != self.cfg.leds_per_bar:
-                self.cfg.leds_per_bar = optimal
-                self.save_settings()
         self.renderer.resize(self.screen)
         if self.settings_dialog is not None:
             self.settings_dialog.update_window_size(self.screen.get_size())

@@ -338,6 +338,12 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertGreaterEqual(optimal_tiny, 10)
         self.assertLessEqual(optimal_tiny, 100)
 
+        # When current leds_per_bar is high (100), passing a smaller size must NOT
+        # inflate the size and must return the lower optimal segment count.
+        cfg_high = Config(channel_layout="vertical", bars=32, leds_per_bar=100)
+        optimal_shrunk = calculate_optimal_leds_per_bar((1280, 800), cfg_high)
+        self.assertEqual(optimal_shrunk, 20)
+
         # Custom bounds can be respected
         optimal_custom = calculate_optimal_leds_per_bar((1280, 800), cfg_horizontal, min_leds=30, max_leds=50)
         self.assertEqual(optimal_custom, 50)
@@ -362,6 +368,15 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         app.save_settings.assert_called_once()
         app.renderer.resize.assert_called_with(app.screen)
         app.settings_dialog.update_window_size.assert_called_with((1280, 800))
+
+        # Shrinking test: when window was enlarged and segment count became high (e.g. 60),
+        # shrinking the window down to (1280, 800) in vertical mode must shrink leds_per_bar to 20
+        # and must NOT ratchet / get stuck at large window size.
+        app.cfg.channel_layout = "vertical"
+        app.cfg.leds_per_bar = 60
+        app.resize_window((1280, 800))
+        self.assertEqual(app.cfg.leds_per_bar, 20)
+        self.assertEqual(app._windowed_size, (1280, 800))
 
         # When auto_adjust_leds_on_resize is False, resizing does not change leds_per_bar
         app.cfg.auto_adjust_leds_on_resize = False
