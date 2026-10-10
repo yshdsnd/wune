@@ -26,7 +26,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "leds_per_bar", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
+PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "leds_per_bar", "auto_adjust_leds_on_resize", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -57,7 +57,7 @@ def valid_preference(key, value):
         return integer(value, 1, 2)
     if key in ("label_font_size", "info_font_size"):
         return integer(value, 10, 24)
-    return key in ("info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "auto_scale_fonts") and type(value) is bool
+    return key in ("info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "auto_scale_fonts", "auto_adjust_leds_on_resize") and type(value) is bool
 
 
 

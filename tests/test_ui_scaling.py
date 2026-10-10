@@ -342,6 +342,35 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         optimal_custom = calculate_optimal_leds_per_bar((1280, 800), cfg_horizontal, min_leds=30, max_leds=50)
         self.assertEqual(optimal_custom, 50)
 
+    def test_app_resize_window_with_auto_adjust(self):
+        from unittest.mock import MagicMock
+        from wune.app import App
+        app = App.__new__(App)
+        app.cfg = Config(channel_layout="horizontal", bars=32, leds_per_bar=20, auto_adjust_leds_on_resize=True)
+        app._fullscreen = False
+        app._redraw_requested = False
+        app.screen = pg.Surface((1280, 800))
+        app._windowed_size = (1280, 800)
+        app._set_mode = MagicMock()
+        app.save_settings = MagicMock()
+        app.renderer = MagicMock()
+        app.settings_dialog = MagicMock()
+
+        # Resize to same size (1280, 800) with auto_adjust enabled -> optimal is 64
+        app.resize_window((1280, 800))
+        self.assertEqual(app.cfg.leds_per_bar, 64)
+        app.save_settings.assert_called_once()
+        app.renderer.resize.assert_called_with(app.screen)
+        app.settings_dialog.update_window_size.assert_called_with((1280, 800))
+
+        # When auto_adjust_leds_on_resize is False, resizing does not change leds_per_bar
+        app.cfg.auto_adjust_leds_on_resize = False
+        app.cfg.leds_per_bar = 50
+        app.save_settings.reset_mock()
+        app.resize_window((1280, 800))
+        self.assertEqual(app.cfg.leds_per_bar, 50)
+        app.save_settings.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

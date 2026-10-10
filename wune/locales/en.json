@@ -77,6 +77,7 @@
   "settings.enter_leds_per_bar_between_10_and_100": "Enter an LED segment count between 10 and 100.",
   "settings.auto_adjust_leds": "Auto-adjust",
   "settings.auto_adjusted_leds_to": "Auto-adjusted LED segments to {count}.",
+  "settings.auto_adjust_leds_on_resize": "Auto-adjust LED segments on window resize",
   "settings.enter_a_label_font_size_between_10_and_24": "Enter a label font size between 10 and 24.",
   "settings.enter_an_info_font_size_between_10_and_24": "Enter an info bar font size between 10 and 24.",
   "settings.built_in_themes_cannot_be_deleted": "Built-in themes cannot be deleted.",

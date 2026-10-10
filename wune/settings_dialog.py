@@ -248,8 +248,13 @@ class _Dialog:
         self.auto_adjust_button = ttk.Button(leds_frame, text=self.t('settings.auto_adjust_leds'),
                                              command=self.auto_adjust_leds)
         self.auto_adjust_button.pack(side="left", padx=(8, 0))
+        self.auto_adjust_leds_on_resize = tk.BooleanVar(root)
+        ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_leds_on_resize'),
+                        variable=self.auto_adjust_leds_on_resize,
+                        command=self.toggle_auto_adjust_leds_on_resize).grid(
+                            row=8, column=0, columnspan=2, sticky="w", pady=(0, 8))
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=8, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=9, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -377,6 +382,7 @@ class _Dialog:
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
         self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
+        self.auto_adjust_leds_on_resize.set(bool(state.style.get("auto_adjust_leds_on_resize", False)))
         self.combos["channel_layout"][0].configure(
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
@@ -412,7 +418,10 @@ class _Dialog:
 
     def layout(self, key, value):
         self.draft.state.layout[key] = value
-        self.preview()
+        if key in ("channel_layout", "channel_mode") and getattr(self, "auto_adjust_leds_on_resize", None) and self.auto_adjust_leds_on_resize.get():
+            self.auto_adjust_leds()
+        else:
+            self.preview()
 
     def style(self, key, value):
         if self.loading or self.draft.state.style[key] == value:
@@ -449,6 +458,16 @@ class _Dialog:
         self.leds_per_bar.set(str(optimal))
         self.set_leds_per_bar()
         self.status.set(self.t('settings.auto_adjusted_leds_to', count=optimal))
+
+    def toggle_auto_adjust_leds_on_resize(self):
+        if self.loading:
+            return
+        enabled = bool(self.auto_adjust_leds_on_resize.get())
+        self.draft.state.style["auto_adjust_leds_on_resize"] = enabled
+        if enabled:
+            self.auto_adjust_leds()
+        else:
+            self.preview()
 
     def set_label_font_size(self):
         from .settings import valid_preference
@@ -617,7 +636,11 @@ class _Dialog:
                     self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
                     return
                 self.draft.edit_motion(motion)
-                self.draft.edit_style(led_aspect_ratio=ratio, leds_per_bar=leds)
+                self.draft.edit_style(
+                    led_aspect_ratio=ratio,
+                    leds_per_bar=leds,
+                    auto_adjust_leds_on_resize=bool(self.auto_adjust_leds_on_resize.get()),
+                )
                 self.draft.state.layout["label_font_size"] = font_size
                 self.draft.state.layout["info_font_size"] = info_size
             self.pending = True
@@ -667,6 +690,8 @@ class _Dialog:
                     _focus_dialog(self.root)
                 elif action == "window_size":
                     self.window_size = payload
+                    if getattr(self, "auto_adjust_leds_on_resize", None) and self.auto_adjust_leds_on_resize.get():
+                        self.auto_adjust_leds()
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:
