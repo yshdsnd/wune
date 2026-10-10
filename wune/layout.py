@@ -26,6 +26,15 @@ def calculate_ui_scale(size) -> float:
     return max(1.0, min(3.0, ratio))
 
 
+def info_bar_base_height(cfg) -> int:
+    font_size = getattr(cfg, "info_font_size", 14)
+    needed = round(font_size * 1.5) + 7
+    custom_height = getattr(cfg, "info_height", 28)
+    if custom_height != 28:
+        return max(20, custom_height, needed)
+    return max(20, needed)
+
+
 def _dimensions(cfg):
     if cfg.spectrum_orientation not in ("frequency_horizontal", "frequency_vertical"):
         raise ValueError("spectrum_orientation must be frequency_horizontal or frequency_vertical")
@@ -44,8 +53,9 @@ def _dimensions(cfg):
     if cfg.spectrum_orientation == "frequency_vertical":
         left = max(72, cfg.margin_lr)
         scale = max(30, cfg.scale_reserved) if cfg.show_db_scale else 0
-    info = max(28, cfg.info_height) + 12 if cfg.info_enabled else 0
-    now_playing = max(28, cfg.info_height) + 8 if cfg.show_now_playing else 0
+    base_info = info_bar_base_height(cfg)
+    info = base_info + 12 if cfg.info_enabled else 0
+    now_playing = base_info + 8 if cfg.show_now_playing else 0
     return cols, rows, margin, left, header, scale, info, now_playing
 
 
@@ -116,7 +126,9 @@ def calculate_layout(size, cfg):
         raise ValueError("Drawable area is smaller than the minimum spectrum layout")
     scale = calculate_ui_scale(size)
     cols, rows, margin, left, header, scale_reserved, info, now_playing = _dimensions(cfg)
-    bar_h = round(max(28, cfg.info_height) * scale)
+    auto_scale = getattr(cfg, "auto_scale_fonts", True)
+    bar_scale = scale if auto_scale else 1.0
+    bar_h = max(20, round(info_bar_base_height(cfg) * bar_scale))
 
     # Top header space for menu button and theme badge:
     top = margin + 40

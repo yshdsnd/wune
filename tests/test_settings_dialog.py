@@ -134,6 +134,13 @@ class DialogTests(unittest.TestCase):
         self.assertFalse(self.dialog.pending)
         self.assertIn("10", self.dialog.status.get())
 
+    def test_invalid_info_font_size_blocks_save_without_discarding_input(self):
+        self.dialog.info_font_size.set("99")
+        self.dialog.submit("save")
+        self.assertTrue(self.events.empty())
+        self.assertFalse(self.dialog.pending)
+        self.assertIn("10", self.dialog.status.get())
+
     def test_label_font_size_and_auto_scale_preview(self):
         self.dialog.label_font_size.set("18")
         self.dialog.set_label_font_size()
@@ -145,6 +152,13 @@ class DialogTests(unittest.TestCase):
         action, state = self.events.get_nowait()
         self.assertEqual(action, "preview")
         self.assertEqual(state.layout["auto_scale_fonts"], False)
+
+    def test_info_font_size_preview(self):
+        self.dialog.info_font_size.set("20")
+        self.dialog.set_info_font_size()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["info_font_size"], 20)
 
     def test_apply_acknowledgment_reenables_controls(self):
         self.dialog.submit("apply")

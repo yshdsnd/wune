@@ -47,13 +47,14 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(loaded.show_now_playing, enabled)
 
     def test_font_preferences_survive_restart(self):
-        for font_size, auto_scale in ((10, False), (14, True), (20, False), (24, True)):
-            with self.subTest(font_size=font_size, auto_scale=auto_scale):
-                cfg = Config(label_font_size=font_size, auto_scale_fonts=auto_scale)
+        for font_size, auto_scale, info_size in ((10, False, 10), (14, True, 14), (20, False, 18), (24, True, 24)):
+            with self.subTest(font_size=font_size, auto_scale=auto_scale, info_size=info_size):
+                cfg = Config(label_font_size=font_size, auto_scale_fonts=auto_scale, info_font_size=info_size)
                 self.assertTrue(self.store.save(cfg, (1280, 800), (0, 0), "CLASSIC"))
                 loaded, _ = SettingsStore(self.path).load(Config())
                 self.assertEqual(loaded.label_font_size, font_size)
                 self.assertEqual(loaded.auto_scale_fonts, auto_scale)
+                self.assertEqual(loaded.info_font_size, info_size)
 
 
     def test_saved_peak_hold_values_survive_restart(self):
@@ -105,7 +106,7 @@ class SettingsTests(unittest.TestCase):
         self.write({"version": 1, "appearance": {"bars": True, "channels": 0,
                     "led_aspect_ratio": float('nan'), "initial_preset": "missing",
                     "spectrum_orientation": "bad", "info_enabled": "yes",
-                    "label_font_size": 99, "auto_scale_fonts": "yes"},
+                    "label_font_size": 99, "info_font_size": 99, "auto_scale_fonts": "yes"},
                     "window": {"width": -1, "height": 10**10, "x": "left", "y": False}})
         with self.assertWarns(RuntimeWarning):
             cfg, geometry = self.store.load(Config())
@@ -113,6 +114,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(cfg.channels, 2)
         self.assertEqual(cfg.led_aspect_ratio, 2)
         self.assertEqual(cfg.label_font_size, 14)
+        self.assertEqual(cfg.info_font_size, 14)
         self.assertEqual(cfg.auto_scale_fonts, True)
         self.assertEqual(geometry, {})
 

@@ -59,11 +59,12 @@ class LedBarRenderer:
         auto_scale = getattr(self.cfg, "auto_scale_fonts", True)
         effective_scale = scale if auto_scale else 1.0
         label_size = getattr(self.cfg, "label_font_size", 14)
+        info_size = getattr(self.cfg, "info_font_size", 14)
 
         self.font_channel = pg.font.SysFont(display_font, max(12, round(16 * effective_scale)), bold=True)
         self.font_small = pg.font.SysFont(
             japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
-            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", max(11, round(15 * effective_scale))
+            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", max(11, round(info_size * effective_scale))
         )
         self.font_badge = pg.font.SysFont(display_font, max(14, round(18 * effective_scale)), bold=True)
         self.font_badge_user = pg.font.SysFont(
@@ -75,7 +76,7 @@ class LedBarRenderer:
             max(9, round(label_size * effective_scale))
         )
         self._font_scale = scale
-        self._font_cache_key = (scale, label_size, auto_scale)
+        self._font_cache_key = (scale, label_size, info_size, auto_scale)
 
     def resize(self, surf):
         """Refresh geometry/surfaces without resetting levels, peaks or presets."""
@@ -89,7 +90,7 @@ class LedBarRenderer:
             self.peak_hold = self._peaks.remaining
         layout = calculate_layout(surf.get_size(), self.cfg)
         self.ui_scale = layout.ui_scale
-        cache_key = (self.ui_scale, getattr(self.cfg, "label_font_size", 14), getattr(self.cfg, "auto_scale_fonts", True))
+        cache_key = (self.ui_scale, getattr(self.cfg, "label_font_size", 14), getattr(self.cfg, "info_font_size", 14), getattr(self.cfg, "auto_scale_fonts", True))
         if self._font_cache_key != cache_key:
             self._create_fonts(self.ui_scale)
         size_changed = self.trail is None or self.trail.get_size() != surf.get_size()

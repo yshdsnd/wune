@@ -60,6 +60,7 @@ class Config:
 
     # フォント設定
     label_font_size: int = 14     # 目盛りラベルのベースフォントサイズ(pt)
+    info_font_size: int = 14      # Now Playing / 入力情報のベースフォントサイズ(pt)
     auto_scale_fonts: bool = True # ウィンドウ拡大時にフォントを自動拡大するか
 
     # ---- ステレオ分割 ----
