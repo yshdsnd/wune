@@ -495,7 +495,41 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
         self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
 
+    def test_large_window_without_auto_adjust_has_clearance_for_fixed_leds(self):
+        """Verify that large windows without auto-adjustment (fixed leds_per_bar=20)
+        maintain full clearance between labels/plots and top/bottom info bars.
+        """
+        from wune.layout import layout_has_clearance
+        cfg = Config(channel_layout="vertical", bars=32, leds_per_bar=20,
+                     show_now_playing=True, info_position="bottom")
+        for size in ((1920, 1080), (2560, 1080), (2560, 1440), (3840, 2160)):
+            with self.subTest(size=size):
+                layout = calculate_layout(size, cfg)
+                self.assertTrue(layout_has_clearance(layout, cfg, size))
+
+                surf = pg.Surface(size)
+                renderer = LedBarRenderer(surf, cfg)
+                np_rect = renderer.now_playing_rect()
+                info_rect = pg.Rect(renderer._layout.info_rect)
+                plot0 = pg.Rect(renderer._layout.plots[0])
+                plot_last = pg.Rect(renderer._layout.plots[-1])
+                scale = getattr(renderer, "ui_scale", 1.0)
+
+                # Top clearance
+                db_unit_offset = max(6, round(cfg.db_unit_offset * scale))
+                unit_h = renderer.font_scale.get_height()
+                lr_h = renderer.font_channel.get_height()
+                top_label_y = plot0.y - unit_h - db_unit_offset - lr_h - max(2, round(2 * scale))
+                self.assertGreaterEqual(top_label_y, np_rect.bottom + 4)
+
+                # Bottom clearance
+                text_pad = max(6, round(8 * scale))
+                scale_font_h = renderer.font_scale.get_height()
+                freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+                self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

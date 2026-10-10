@@ -90,6 +90,29 @@ def clamp_window_size(size, cfg):
     return tuple(max(int(value), limit) for value, limit in zip(size, minimum_window_size(cfg)))
 
 
+def _vertical_overhead(size, cfg, scale: float) -> tuple[int, int]:
+    """Calculate the safe top boundary and bottom clearance margin for plots."""
+    width, height = size
+    cols, rows, margin, left, header, scale_reserved, info, now_playing = _dimensions(cfg)
+    auto_scale = getattr(cfg, "auto_scale_fonts", True)
+    bar_scale = scale if auto_scale else 1.0
+    bar_h = max(20, round(info_bar_base_height(cfg) * bar_scale))
+    gap = max(8, round(8 * scale))
+    header_extra = max(0, round(46 * (scale - 1.0)))
+    scale_extra = max(0, round(28 * (scale - 1.0)))
+    top = margin + 40
+    top_bar_bottom = 0
+    if now_playing:
+        np_y = max(top, round(54 * scale) + 4)
+        top_bar_bottom = np_y + bar_h
+    if info and cfg.info_position == "top":
+        info_top = (top_bar_bottom + max(6, round(6 * scale))) if top_bar_bottom > 0 else max(top, round(44 * scale) + 4)
+        top_bar_bottom = info_top + bar_h
+    min_group_y = (top_bar_bottom + gap + header_extra) if top_bar_bottom > 0 else margin + 40
+    bottom_extra = (gap + scale_extra + bar_h + margin) if (info and cfg.info_position == "bottom") else margin
+    return min_group_y, bottom_extra
+
+
 def fit_window_size(size, cfg):
     """Fit every orientation to its grid; resizing the window controls scale.
 
@@ -101,8 +124,17 @@ def fit_window_size(size, cfg):
     cols, rows, margin, left, header, scale, info, now_playing = _dimensions(cfg)
     _, _, plot_w, plot_h = layout.plots[0]
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
-    height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
-    return clamp_window_size((width, height), cfg)
+    total_h = rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    base_height = 2 * margin + 40 + info + now_playing + total_h
+    h = base_height
+    for _ in range(5):
+        cur_scale = calculate_ui_scale((width, h))
+        min_gy, bot_extra = _vertical_overhead((width, h), cfg, cur_scale)
+        needed_h = max(base_height, min_gy + bot_extra + total_h)
+        if needed_h == h:
+            break
+        h = needed_h
+    return clamp_window_size((width, h), cfg)
 
 
 def channel_mode_window_size(size, previous_cfg, cfg):
@@ -126,8 +158,17 @@ def channel_mode_window_size(size, previous_cfg, cfg):
     plot_h = ny * led_h + (ny - 1) * y_gap
     cols, rows, margin, left, header, scale, info, now_playing = _dimensions(cfg)
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
-    height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
-    return clamp_window_size((width, height), cfg)
+    total_h = rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    base_height = 2 * margin + 40 + info + now_playing + total_h
+    h = base_height
+    for _ in range(5):
+        cur_scale = calculate_ui_scale((width, h))
+        min_gy, bot_extra = _vertical_overhead((width, h), cfg, cur_scale)
+        needed_h = max(base_height, min_gy + bot_extra + total_h)
+        if needed_h == h:
+            break
+        h = needed_h
+    return clamp_window_size((width, h), cfg)
 
 
 def layout_has_clearance(layout, cfg, size) -> bool:
@@ -234,10 +275,14 @@ def calculate_layout(size, cfg):
             info_rect = (16, height - margin - bar_h, width - 32, bar_h)
             bottom -= info
 
+    min_group_y, bottom_extra = _vertical_overhead(size, cfg, scale)
+    max_plot_bottom = height - bottom_extra
+
     cell_w = (width - (cols - 1) * cfg.channel_gap) // cols
     cell_h = (bottom - top - (rows - 1) * cfg.channel_gap) // rows
+    real_cell_h = (max_plot_bottom - min_group_y - (rows - 1) * cfg.channel_gap) // rows
     available_w = cell_w - left - 16
-    available_h = cell_h - header - scale_reserved
+    available_h = min(cell_h - header - scale_reserved, max(0, real_cell_h - header - scale_reserved))
     # Scale the complete dense grid, not LEDs independently inside stretched cells.
     ratio = cfg.led_aspect_ratio
     nx, ny = grid_counts(cfg)
@@ -265,27 +310,7 @@ def calculate_layout(size, cfg):
     # Group centering with safety margins to prevent overlapping with info bars or window edges
     min_group_x = max(0, round(32 * (scale - 1.0)))
     group_x = max(min_group_x, (width - total_w) // 2)
-    group_y = top + (bottom - top - total_h) // 2
-
-    # Enforce safe margin below top info bars (Now playing / Top info)
-    top_bar_bottom = 0
-    if info_rect and cfg.info_position == "top":
-        top_bar_bottom = info_rect[1] + info_rect[3]
-    elif now_playing_rect:
-        top_bar_bottom = now_playing_rect[1] + now_playing_rect[3]
-
-    if top_bar_bottom > 0:
-        gap = max(8, round(8 * scale))
-        # Account for scaled header labels (L/R and dB) which extend above plot Y
-        header_extra = max(0, round(46 * (scale - 1.0)))
-        group_y = max(group_y, top_bar_bottom + gap + header_extra)
-
-    # Enforce safe margin above bottom info bar
-    if info_rect and cfg.info_position == "bottom":
-        scale_extra = max(0, round(28 * (scale - 1.0)))
-        max_group_y = info_rect[1] - max(8, round(8 * scale)) - scale_extra - total_h
-        if max_group_y < group_y and (top_bar_bottom == 0 or max_group_y >= top_bar_bottom + 4):
-            group_y = max_group_y
+    group_y = min_group_y + max(0, (max_plot_bottom - min_group_y - total_h)) // 2
 
     for ch in range(cfg.display_channels):
         col, row = (ch, 0) if cols > 1 else (0, ch)
