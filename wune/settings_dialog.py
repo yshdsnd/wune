@@ -156,18 +156,24 @@ class _Dialog:
         notebook = ttk.Notebook(frame)
         self.notebook = notebook
         notebook.pack(fill="both", expand=True, pady=10)
-        general = ttk.Frame(notebook, padding=12)
+        spectrum = ttk.Frame(notebook, padding=12)
+        info_tab = ttk.Frame(notebook, padding=12)
         colors = ttk.Frame(notebook, padding=12)
-        notebook.add(general, text=self.t('settings.layout_and_leds'))
-        notebook.add(colors, text=self.t('settings.themes_and_colors'))
         motion = ttk.Frame(notebook, padding=12)
+        background = ttk.Frame(notebook, padding=12)
+
+        notebook.add(spectrum, text=self.t('settings.tab_spectrum'))
+        notebook.add(info_tab, text=self.t('settings.tab_info_text'))
+        notebook.add(colors, text=self.t('settings.themes_and_colors'))
         notebook.add(motion, text=self.t('settings.motion'))
+        notebook.add(background, text=self.t('settings.tab_background_general'))
+
         motion.columnconfigure(0, weight=1)
         self.motion_variables = {}
         self.motion_scales = {}
         for row, (key, (label, hint, increment)) in enumerate(MOTION_LABELS.items()):
             low, high = MOTION_LIMITS[key]
-            ttk.Label(motion, text=self.t(label)).grid(row=row*3, column=0, sticky="w", pady=(8, 0))
+            ttk.Label(motion, text=self.t(label)).grid(row=row*3, column=0, sticky="w", pady=(6, 0))
             variable = tk.StringVar(root)
             self.motion_variables[key] = variable
             entry = ttk.Spinbox(motion, from_=low, to=high, increment=increment, width=10,
@@ -177,10 +183,10 @@ class _Dialog:
             entry.bind("<FocusOut>", lambda event: self.set_motion())
             slider = ttk.Scale(motion, from_=low, to=high,
                                command=lambda value, k=key: self.slide_motion(k, value))
-            slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=4)
+            slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=2)
             self.motion_scales[key] = slider
             ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high), wraplength=500).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
-        ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=12)
+        ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=8)
         ttk.Label(motion, text=self.t('motion.help'), wraplength=500).grid(row=13, column=0, columnspan=2, sticky="w")
         self.variables = {}
         self.combos = {}
@@ -194,8 +200,68 @@ class _Dialog:
             combo.bind("<<ComboboxSelected>>", lambda event: callback(options[variable.get()]))
             self.combos[key] = (combo, options)
 
-        background = ttk.Frame(notebook, padding=12)
-        notebook.add(background, text=self.t("background.tab"))
+        # Tab 0: Spectrum
+        spectrum.columnconfigure(1, weight=1)
+        choice(spectrum, 0, "channel_mode", self.t("settings.channel_mode"), {
+            self.t("settings.stereo_separate"): "stereo",
+            self.t("settings.stereo_mix"): "stereo_mix"},
+            lambda value: self.layout("channel_mode", value))
+        choice(spectrum, 1, "channel_layout", self.t('settings.l_r_arrangement'), {
+            self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
+            lambda value: self.layout("channel_layout", value))
+        choice(spectrum, 2, "spectrum_orientation", self.t('settings.spectrum_direction'), {
+            self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal",
+            self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
+            lambda value: self.layout("spectrum_orientation", value))
+        self.limit_to_20khz = tk.BooleanVar(root)
+        ttk.Checkbutton(spectrum, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
+                        variable=self.limit_to_20khz,
+                        command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
+                            row=3, column=0, columnspan=2, sticky="w", pady=8)
+        choice(spectrum, 4, "gauge_style", self.t('settings.led_rendering'), {
+            self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
+            lambda value: self.style("gauge_style", value))
+        choice(spectrum, 5, "led_shape", self.t('settings.led_shape'), {
+            self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
+            lambda value: self.style("led_shape", value))
+        ttk.Label(spectrum, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=6, column=0, sticky="w", pady=8)
+        self.ratio = tk.StringVar(root)
+        ratio = ttk.Spinbox(spectrum, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
+                            command=self.set_ratio, width=10)
+        ratio.grid(row=6, column=1, sticky="w", padx=(14, 0))
+        ratio.bind("<Return>", lambda event: self.set_ratio())
+        ratio.bind("<FocusOut>", lambda event: self.set_ratio())
+        ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
+                  wraplength=500).grid(row=7, column=0, columnspan=2, sticky="w", pady=12)
+
+        # Tab 1: Info & Text
+        info_tab.columnconfigure(1, weight=1)
+        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=0, column=0, sticky="w", pady=8)
+        self.label_font_size = tk.StringVar(root)
+        label_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.label_font_size,
+                                      command=self.set_label_font_size, width=10)
+        label_size_spin.grid(row=0, column=1, sticky="w", padx=(14, 0))
+        label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
+        label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
+        self.auto_scale_fonts = tk.BooleanVar(root)
+        ttk.Checkbutton(info_tab, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
+                        command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
+                            row=1, column=0, columnspan=2, sticky="w", pady=8)
+        self.show_now_playing = tk.BooleanVar(root)
+        ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
+                        command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
+                            row=2, column=0, columnspan=2, sticky="w", pady=8)
+        self.info = tk.BooleanVar(root)
+        ttk.Checkbutton(info_tab, text=self.t('settings.show_output_information'), variable=self.info,
+                        command=lambda: self.layout("info_enabled", self.info.get())).grid(
+                            row=3, column=0, sticky="w", pady=8)
+        choice(info_tab, 4, "info_position", self.t('settings.information_position'), {
+            self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
+            lambda value: self.layout("info_position", value))
+        ttk.Label(info_tab, text=self.t('settings.info_text_help'),
+                  wraplength=500).grid(row=5, column=0, columnspan=2, sticky="w", pady=12)
+
+        # Tab 4: Background & General
         background.columnconfigure(1, weight=1)
         choice(background, 0, "background_mode", self.t("background.mode"),
                {self.t("background.solid"): "solid", self.t("background.image"): "image"},
@@ -205,71 +271,20 @@ class _Dialog:
                lambda value: self.background("background_sizing", value))
         self.background_path = tk.StringVar(root)
         ttk.Entry(background, textvariable=self.background_path, state="readonly").grid(
-            row=2, column=0, columnspan=2, sticky="ew", pady=12)
+            row=2, column=0, columnspan=2, sticky="ew", pady=8)
         ttk.Button(background, text=self.t("background.choose"), command=self.choose_background).grid(
             row=3, column=0, sticky="w")
-        ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
-            row=4, column=0, columnspan=2, sticky="w", pady=12)
-        general.columnconfigure(1, weight=1)
-        choice(general, 0, "channel_mode", self.t("settings.channel_mode"), {
-            self.t("settings.stereo_separate"): "stereo",
-            self.t("settings.stereo_mix"): "stereo_mix"},
-            lambda value: self.layout("channel_mode", value))
-        choice(general, 1, "spectrum_orientation", self.t('settings.spectrum_direction'), {
-            self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal", self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
-            lambda value: self.layout("spectrum_orientation", value))
-        choice(general, 2, "channel_layout", self.t('settings.l_r_arrangement'), {self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
-            lambda value: self.layout("channel_layout", value))
-        choice(general, 3, "gauge_style", self.t('settings.led_rendering'), {self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
-            lambda value: self.style("gauge_style", value))
-        choice(general, 4, "led_shape", self.t('settings.led_shape'), {self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
-            lambda value: self.style("led_shape", value))
-        ttk.Label(general, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=5, column=0, sticky="w", pady=8)
-        self.ratio = tk.StringVar(root)
-        ratio = ttk.Spinbox(general, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
-                            command=self.set_ratio, width=10)
-        ratio.grid(row=5, column=1, sticky="w", padx=(14, 0))
-        ratio.bind("<Return>", lambda event: self.set_ratio())
-        ratio.bind("<FocusOut>", lambda event: self.set_ratio())
-        self.info = tk.BooleanVar(root)
-        ttk.Checkbutton(general, text=self.t('settings.show_output_information'), variable=self.info,
-                        command=lambda: self.layout("info_enabled", self.info.get())).grid(row=6, column=0, sticky="w", pady=8)
-        choice(general, 7, "info_position", self.t('settings.information_position'), {self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
-            lambda value: self.layout("info_position", value))
-        self.show_now_playing = tk.BooleanVar(root)
-        ttk.Checkbutton(general, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
-                        command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=8, column=0, columnspan=2, sticky="w", pady=8)
-        self.limit_to_20khz = tk.BooleanVar(root)
-        ttk.Checkbutton(general, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
-                        variable=self.limit_to_20khz,
-                        command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
-                            row=9, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Label(general, text=self.t('settings.label_font_size')).grid(row=10, column=0, sticky="w", pady=8)
-        self.label_font_size = tk.StringVar(root)
-        label_size_spin = ttk.Spinbox(general, from_=10, to=24, increment=1, textvariable=self.label_font_size,
-                                      command=self.set_label_font_size, width=10)
-        label_size_spin.grid(row=10, column=1, sticky="w", padx=(14, 0))
-        label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
-        label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
-        self.auto_scale_fonts = tk.BooleanVar(root)
-        ttk.Checkbutton(general, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
-                        command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
-                            row=11, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Label(general, text=self.t('settings.layout_help'),
-                  wraplength=500).grid(row=12, column=0, columnspan=2, sticky="w", pady=16)
-
         language_options = {self.t("language.auto"): "auto"}
         language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
-        choice(general, 13, "language", self.t("settings.language"), language_options,
+        choice(background, 4, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
-        ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
-            row=14, column=0, columnspan=2, sticky="w", pady=8)
         self.confirm_keyboard_exit = tk.BooleanVar()
-        ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
+        ttk.Checkbutton(background, text=self.t("exit.confirm_setting"),
                         variable=self.confirm_keyboard_exit,
                         command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
-                            row=15, column=0, columnspan=2, sticky="w", pady=8)
+                            row=5, column=0, columnspan=2, sticky="w", pady=8)
+        ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
+            row=6, column=0, columnspan=2, sticky="w", pady=12)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -324,7 +339,7 @@ class _Dialog:
         ttk.Label(frame, text=self.t("settings.path", path=path), wraplength=540).pack(anchor="w", pady=(6, 0))
         self.refresh()
         root.update_idletasks()
-        root.minsize(max(570, root.winfo_reqwidth()), max(560, root.winfo_reqheight()))
+        root.minsize(max(560, root.winfo_reqwidth()), max(480, root.winfo_reqheight()))
         self._poll_id = root.after(30, self.poll)
 
     def refresh(self):

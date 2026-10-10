@@ -114,7 +114,7 @@ for language, title, motion in (("en", "Display settings", "Motion"), ("ja", "è¡
         dialog = _Dialog(root, draft, "settings.json", events, Queue())
         root.update_idletasks()
         assert title in root.title()
-        assert dialog.notebook.tab(2, "text") == motion
+        assert dialog.notebook.tab(3, "text") == motion
         dialog.ratio.set("1.5")
         dialog.set_ratio()
         dialog.layout("language", "ja" if language == "en" else "en")
