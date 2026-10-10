@@ -1,0 +1,195 @@
+import unittest
+import numpy as np
+import pygame as pg
+
+from wune.application_menu import ApplicationMenu
+from wune.config import Config
+from wune.layout import calculate_layout, calculate_ui_scale, clamp_window_size, minimum_window_size
+from wune.renderer import LedBarRenderer
+from wune.window_geometry import restore_geometry
+
+
+class UiScalingAndFlexibleWindowTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pg.font.init()
+
+    def test_calculate_ui_scale(self):
+        # Base resolution or smaller should clamp to 1.0
+        self.assertEqual(calculate_ui_scale((800, 600)), 1.0)
+        self.assertEqual(calculate_ui_scale((1280, 800)), 1.0)
+        self.assertEqual(calculate_ui_scale((1280, 720)), 1.0)
+
+        # Full HD (1920x1080): min(1920/1280=1.5, 1080/800=1.35) = 1.35
+        self.assertAlmostEqual(calculate_ui_scale((1920, 1080)), 1.35, places=2)
+
+        # WQHD (2560x1440): min(2560/1280=2.0, 1440/800=1.8) = 1.8
+        self.assertAlmostEqual(calculate_ui_scale((2560, 1440)), 1.8, places=2)
+
+        # Ultrawide (3440x1440): limited by height scale 1.8
+        self.assertAlmostEqual(calculate_ui_scale((3440, 1440)), 1.8, places=2)
+
+        # 4K UHD (3840x2160): min(3840/1280=3.0, 2160/800=2.7) = 2.7
+        self.assertAlmostEqual(calculate_ui_scale((3840, 2160)), 2.7, places=2)
+
+        # Ultra high resolutions should clamp to max 3.0
+        self.assertEqual(calculate_ui_scale((7680, 4320)), 3.0)
+
+    def test_now_playing_and_info_rect_scaling_and_separation(self):
+        cfg = Config(show_now_playing=True, info_position="top")
+        
+        # Standard size
+        layout_base = calculate_layout((1280, 800), cfg)
+        self.assertEqual(layout_base.ui_scale, 1.0)
+        self.assertEqual(layout_base.now_playing_rect[3], 28)
+        self.assertEqual(layout_base.info_rect[3], 28)
+        # Verify no overlap between now_playing_rect and info_rect
+        np_rect_base = pg.Rect(layout_base.now_playing_rect)
+        info_rect_base = pg.Rect(layout_base.info_rect)
+        self.assertFalse(np_rect_base.colliderect(info_rect_base))
+        self.assertGreaterEqual(info_rect_base.top, np_rect_base.bottom)
+
+        # 4K UHD
+        layout_4k = calculate_layout((3840, 2160), cfg)
+        self.assertGreater(layout_4k.ui_scale, 2.5)
+        self.assertGreater(layout_4k.now_playing_rect[3], 28 * 2.5)
+        self.assertGreater(layout_4k.info_rect[3], 28 * 2.5)
+        
+        np_rect_4k = pg.Rect(layout_4k.now_playing_rect)
+        info_rect_4k = pg.Rect(layout_4k.info_rect)
+        self.assertFalse(np_rect_4k.colliderect(info_rect_4k))
+        self.assertGreaterEqual(info_rect_4k.top, np_rect_4k.bottom)
+
+        for plot in layout_4k.plots:
+            plot_rect = pg.Rect(plot)
+            self.assertFalse(plot_rect.colliderect(np_rect_4k))
+            self.assertFalse(plot_rect.colliderect(info_rect_4k))
+
+    def test_bottom_info_bar_scaling(self):
+        cfg = Config(show_now_playing=True, info_position="bottom")
+        layout_4k = calculate_layout((3840, 2160), cfg)
+        np_rect = pg.Rect(layout_4k.now_playing_rect)
+        info_rect = pg.Rect(layout_4k.info_rect)
+        self.assertFalse(np_rect.colliderect(info_rect))
+        for plot in layout_4k.plots:
+            plot_rect = pg.Rect(plot)
+            self.assertFalse(plot_rect.colliderect(np_rect))
+            self.assertFalse(plot_rect.colliderect(info_rect))
+
+    def test_renderer_font_and_badge_scaling(self):
+        cfg = Config()
+        base_surf = pg.Surface((1280, 800))
+        renderer = LedBarRenderer(base_surf, cfg)
+        base_badge_rect = renderer.badge_rect()
+        base_font_h = renderer.font_badge.get_height()
+
+        # Resize to 4K
+        surf_4k = pg.Surface((3840, 2160))
+        renderer.resize(surf_4k)
+        scaled_badge_rect = renderer.badge_rect()
+        scaled_font_h = renderer.font_badge.get_height()
+
+        # Badge and fonts must scale up significantly
+        self.assertGreater(scaled_badge_rect.width, base_badge_rect.width * 2)
+        self.assertGreater(scaled_badge_rect.height, base_badge_rect.height * 2)
+        self.assertGreater(scaled_font_h, base_font_h * 2)
+
+        # Hit test must work inside scaled badge and fail outside
+        self.assertTrue(renderer.badge_contains(scaled_badge_rect.center))
+        self.assertFalse(renderer.badge_contains((scaled_badge_rect.left - 10, scaled_badge_rect.top)))
+
+        # Ensure drawing works without errors at 4K resolution
+        levels = np.full((2, cfg.bars), 0.7, dtype=np.float32)
+        renderer.draw(levels)
+        renderer.draw_pause_overlay()
+
+    def test_application_menu_scaling(self):
+        menu = ApplicationMenu()
+        font_small = pg.font.SysFont("Meiryo,Segoe UI", 12)
+        font_large = pg.font.SysFont("Meiryo,Segoe UI", 32)
+
+        small_btn = menu.button_rect(font_small, "en")
+        large_btn = menu.button_rect(font_large, "en")
+
+        self.assertGreater(large_btn.width, small_btn.width)
+        self.assertGreater(large_btn.height, small_btn.height)
+
+        # Verify geometry with large font fits on large surface
+        surface_size = (3840, 2160)
+        menu_rect, rows = menu.geometry(surface_size, font_large, "en", False)
+        self.assertTrue(pg.Rect((0, 0), surface_size).contains(menu_rect))
+        self.assertEqual(len(rows), 3)
+        for i in range(len(rows) - 1):
+            self.assertGreaterEqual(rows[i + 1].top, rows[i].bottom)
+
+    def test_flexible_window_sizing_preserves_custom_sizes(self):
+        cfg = Config(bars=32)
+        min_w, min_h = minimum_window_size(cfg)
+
+        custom_sizes = [
+            (3440, 1440),  # Ultrawide 21:9
+            (2560, 600),   # Very wide banner
+            (900, 1800),   # Very tall portrait
+            (1920, 1200),  # 16:10
+        ]
+
+        for w, h in custom_sizes:
+            self.assertGreaterEqual(w, min_w)
+            self.assertGreaterEqual(h, min_h)
+            # clamp_window_size must preserve custom width and height
+            clamped = clamp_window_size((w, h), cfg)
+            self.assertEqual(clamped, (w, h))
+
+    def test_restore_geometry_preserves_saved_custom_size(self):
+        cfg = Config(bars=32)
+        saved = {
+            "x": 100,
+            "y": 100,
+            "width": 3000,
+            "height": 1000,
+            "maximized": False,
+        }
+        bounds = ((0, 0, 3840, 2160),)
+        size, position = restore_geometry(cfg, saved, bounds)
+        self.assertEqual(size, (3000, 1000))
+        self.assertEqual(position, (100, 100))
+
+
+    def test_menu_and_badge_do_not_overlap_with_now_playing(self):
+        for size in ((1280, 800), (3840, 2160)):
+            with self.subTest(size=size):
+                cfg = Config(show_now_playing=True, show_badge=True)
+                surf = pg.Surface(size)
+                renderer = LedBarRenderer(surf, cfg)
+                menu = ApplicationMenu()
+                btn_rect = menu.button_rect(renderer.font_small, cfg.language)
+                badge_rect = renderer.badge_rect()
+                np_rect = renderer.now_playing_rect()
+
+                self.assertIsNotNone(np_rect)
+                self.assertIsNotNone(badge_rect)
+                # Now playing bar must be strictly below menu button and theme badge
+                self.assertGreater(np_rect.top, btn_rect.bottom)
+                self.assertGreater(np_rect.top, badge_rect.bottom)
+
+    def test_bottom_info_bar_maintains_bottom_margin(self):
+        for size in ((1280, 800), (3840, 2160)):
+            with self.subTest(size=size):
+                cfg = Config(info_enabled=True, info_position="bottom")
+                layout = calculate_layout(size, cfg)
+                self.assertIsNotNone(layout.info_rect)
+                info_bottom = layout.info_rect[1] + layout.info_rect[3]
+                # Guaranteed margin between info bar bottom and window bottom
+                self.assertGreaterEqual(size[1] - info_bottom, 16)
+
+    def test_medium_window_expands_led_grid(self):
+        # Screenshot 2 dimensions: 935x811 with 64 bars
+        cfg = Config(bars=64)
+        layout = calculate_layout((935, 811), cfg)
+        self.assertGreaterEqual(layout.led_height, 6)
+        self.assertGreaterEqual(layout.bar_width, 12)
+        self.assertGreaterEqual(layout.plots[0][2], 800)
+
+
+if __name__ == "__main__":
+    unittest.main()

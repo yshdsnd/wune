@@ -40,32 +40,36 @@ class LedBarRenderer:
         self.peak_pos = self._peaks.positions
         self.peak_hold = self._peaks.remaining
 
-        # チャンネルラベル用フォント（任意）
-        mac = sys.platform == "darwin"
-        display_font = "SF Pro Display,Helvetica Neue,Arial" if mac else "Bahnschrift"
-        japanese_font = ("Hiragino Sans GB,hiraginosansgb,Hiragino Sans,"
-                         "Hiragino Kaku Gothic ProN,arialunicode,AppleGothic,") if mac else ""
-        self.font_channel = pg.font.SysFont(display_font, 16, bold=True)
-
-        # 透明サーフェス（残像用）
         self.trail = None
-
-        # フォント
-        # SysFont picks one installed font; it does not fill missing glyphs
-        # from other fonts. Prefer Japanese-capable fonts for endpoint names.
-        self.font_small = pg.font.SysFont(
-            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
-            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", 15
-        )
-        self.font_badge = pg.font.SysFont(display_font, 18, bold=True)
-        self.font_badge_user = pg.font.SysFont(japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI", 18, bold=True)
-        self.font_scale = pg.font.SysFont("SF Mono,Menlo,Monaco,Consolas, Segoe UI" if mac else "Consolas, Segoe UI", 12)
+        self.ui_scale = 1.0
+        self._font_scale = None
+        self._create_fonts(1.0)
 
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
         self.now_playing_text = ""
         self.resize(surf)
 
+    def _create_fonts(self, scale: float = 1.0):
+        mac = sys.platform == "darwin"
+        display_font = "SF Pro Display,Helvetica Neue,Arial" if mac else "Bahnschrift"
+        japanese_font = ("Hiragino Sans GB,hiraginosansgb,Hiragino Sans,"
+                         "Hiragino Kaku Gothic ProN,arialunicode,AppleGothic,") if mac else ""
+        self.font_channel = pg.font.SysFont(display_font, max(12, round(16 * scale)), bold=True)
+        self.font_small = pg.font.SysFont(
+            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
+            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", max(11, round(15 * scale))
+        )
+        self.font_badge = pg.font.SysFont(display_font, max(14, round(18 * scale)), bold=True)
+        self.font_badge_user = pg.font.SysFont(
+            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI",
+            max(14, round(18 * scale)), bold=True
+        )
+        self.font_scale = pg.font.SysFont(
+            "SF Mono,Menlo,Monaco,Consolas, Segoe UI" if mac else "Consolas, Segoe UI",
+            max(9, round(12 * scale))
+        )
+        self._font_scale = scale
 
     def resize(self, surf):
         """Refresh geometry/surfaces without resetting levels, peaks or presets."""
@@ -78,6 +82,9 @@ class LedBarRenderer:
             self.peak_pos = self._peaks.positions
             self.peak_hold = self._peaks.remaining
         layout = calculate_layout(surf.get_size(), self.cfg)
+        self.ui_scale = layout.ui_scale
+        if self._font_scale != self.ui_scale:
+            self._create_fonts(self.ui_scale)
         size_changed = self.trail is None or self.trail.get_size() != surf.get_size()
         self.surf = surf
         self.width, self.height = surf.get_size()
@@ -106,8 +113,13 @@ class LedBarRenderer:
     def badge_rect(self):
         if not self.cfg.show_badge:
             return None
+        scale = getattr(self, "ui_scale", 1.0)
         width, height = self.badge_text().get_size()
-        return pg.Rect(self.width - width - 16 - 24, 14, width + 16, height + 8)
+        pad_x = max(16, round(16 * scale))
+        pad_y = max(8, round(8 * scale))
+        right_pad = max(24, round(24 * scale))
+        y = max(14, round(14 * scale))
+        return pg.Rect(self.width - width - pad_x - right_pad, y, width + pad_x, height + pad_y)
 
     def badge_text(self):
         font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
@@ -123,8 +135,6 @@ class LedBarRenderer:
         rect = self.badge_rect()
         return rect is not None and rect.collidepoint(pos)
 
-
-
     def now_playing_rect(self) -> pg.Rect | None:
         if not self.cfg.show_now_playing:
             return None
@@ -139,37 +149,48 @@ class LedBarRenderer:
         pg.draw.rect(self.surf, self.cfg.theme.border, (8, 8, self.width-16, self.height-16), 2, border_radius=10)
         # テーマ切り替えバッジ（アプリ名はウィンドウのタイトルバーに表示）
         if self.cfg.show_badge:
+            scale = getattr(self, "ui_scale", 1.0)
             text = self.badge_text()
             tw, th = text.get_size()
-            pad = 8
-            bx, by = self.badge_rect().topleft
+            rect = self.badge_rect()
+            bx, by = rect.topleft
+            glow_pad = max(2, round(2 * scale))
+            corner_radius = max(8, round(10 * scale))
             # グロー風
-            pg.draw.rect(self.surf, self.cfg.theme.badge_glow, (bx-2, by-2, tw+pad*2+4, th+pad+4), border_radius=10)
-            pg.draw.rect(self.surf, self.cfg.theme.badge_background, (bx, by, tw+pad*2, th+pad), border_radius=10)
-            self.surf.blit(text, (bx+pad, by+2))
+            pg.draw.rect(self.surf, self.cfg.theme.badge_glow,
+                         (bx - glow_pad, by - glow_pad, rect.width + glow_pad * 2, rect.height + glow_pad * 2),
+                         border_radius=corner_radius)
+            pg.draw.rect(self.surf, self.cfg.theme.badge_background, rect, border_radius=corner_radius)
+            self.surf.blit(text, (bx + (rect.width - tw) // 2, by + (rect.height - th) // 2))
         # 再生中の曲情報バー（メニューの下：ウィンドウサイズ維持のため設定ON時は枠を常設）
         if self.cfg.show_now_playing:
+            scale = getattr(self, "ui_scale", 1.0)
             bar_rect = self.now_playing_rect()
             if bar_rect is not None:
                 ih = bar_rect.height
-                pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=8)
-                pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
+                corner_radius = max(6, round(8 * scale))
+                pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=corner_radius)
+                pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=corner_radius)
                 text_str = self.now_playing_text
                 if text_str:
-                    available_w = max(20, bar_rect.width - 20)
+                    text_pad = max(10, round(10 * scale))
+                    available_w = max(20, bar_rect.width - text_pad * 2)
                     fitted = self._fit_text(text_str, self.font_small, available_w)
                     if fitted:
                         text_surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
                         ty = bar_rect.y + (ih - text_surf.get_height()) // 2
-                        self.surf.blit(text_surf, (bar_rect.x + 10, ty))
+                        self.surf.blit(text_surf, (bar_rect.x + text_pad, ty))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
+            scale = getattr(self, "ui_scale", 1.0)
             bar_rect = pg.Rect(self._layout.info_rect)
             ih = bar_rect.height
-            pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=8)
-            pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=8)
-            info_surf = self.font_small.render(self._fit_text(self.info_text, self.font_small, bar_rect.width - 20), True, self.cfg.theme.info_text)
-            self.surf.blit(info_surf, (bar_rect.x + 10, bar_rect.y + (ih - info_surf.get_height())//2))
+            corner_radius = max(6, round(8 * scale))
+            pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=corner_radius)
+            pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=corner_radius)
+            text_pad = max(10, round(10 * scale))
+            info_surf = self.font_small.render(self._fit_text(self.info_text, self.font_small, bar_rect.width - text_pad * 2), True, self.cfg.theme.info_text)
+            self.surf.blit(info_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - info_surf.get_height()) // 2))
 
 
     def update_peaks(self, level_leds, dt=None):
@@ -208,44 +229,48 @@ class LedBarRenderer:
             return
         if not self.cfg.show_freq_scale:
             return
+        scale = getattr(self, "ui_scale", 1.0)
+        tick_len = max(4, round(5 * scale))
+        text_pad = max(6, round(8 * scale))
+        inflate_pad = max(6, round(8 * scale))
         for plot in self.plots:
-            base_y = plot.bottom + 4
+            base_y = plot.bottom + max(3, round(4 * scale))
             occupied = []
             reference = self.cfg.min_freq_hz <= 20000 <= self.cfg.max_freq_hz
             if reference:
                 x = plot.x + self._freq_to_bar(20000) * (self.bar_w + self.bar_gap) + self.bar_w // 2
-                pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + 5))
+                pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + tick_len))
                 image = self.font_scale.render("20kHz", True, self.cfg.theme.scale_text)
-                rect = image.get_rect(midtop=(x, base_y + 8))
+                rect = image.get_rect(midtop=(x, base_y + text_pad))
                 rect.left = max(plot.left, min(rect.left, plot.right - rect.width))
                 self.surf.blit(image, rect)
-                occupied.append(rect.inflate(8, 0))
+                occupied.append(rect.inflate(inflate_pad, 0))
             if self.cfg.show_freq_edge_labels:
                 for freq, right in ((self.cfg.min_freq_hz, False), (self.cfg.max_freq_hz, True)):
                     if reference and freq == 20000:
                         continue
                     label = self._fmt_freq_label(freq, with_unit=right)
                     image = self.font_scale.render(label, True, self.cfg.theme.edge_text)
-                    rect = image.get_rect(topleft=(plot.x, base_y + 8))
+                    rect = image.get_rect(topleft=(plot.x, base_y + text_pad))
                     if right:
                         rect.right = plot.right
                     if any(rect.colliderect(other) for other in occupied):
                         continue
                     self.surf.blit(image, rect)
-                    occupied.append(rect.inflate(8, 0))
+                    occupied.append(rect.inflate(inflate_pad, 0))
             for freq in self.cfg.scale_ticks_hz:
                 if reference and freq == 20000:
                     continue
                 if not self.cfg.min_freq_hz < freq < self.cfg.max_freq_hz:
                     continue
                 x = plot.x + self._freq_to_bar(freq) * (self.bar_w + self.bar_gap) + self.bar_w // 2
-                pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + 5))
+                pg.draw.line(self.surf, self.cfg.theme.scale_line, (x, base_y), (x, base_y + tick_len))
                 image = self.font_scale.render(self._fmt_freq_label(freq), True, self.cfg.theme.scale_text)
-                rect = image.get_rect(midtop=(x, base_y + 8))
+                rect = image.get_rect(midtop=(x, base_y + text_pad))
                 if rect.left < plot.left or rect.right > plot.right or any(rect.colliderect(other) for other in occupied):
                     continue
                 self.surf.blit(image, rect)
-                occupied.append(rect.inflate(8, 0))
+                occupied.append(rect.inflate(inflate_pad, 0))
 
     def draw_db_labels_ch(self, ch: int):
         if self.cfg.spectrum_orientation == "frequency_vertical":
@@ -253,7 +278,8 @@ class LedBarRenderer:
             return
         if not self.cfg.show_db_scale:
             return
-        x_right = self.plots[ch].x - self.cfg.db_label_pad
+        scale = getattr(self, "ui_scale", 1.0)
+        x_right = self.plots[ch].x - max(4, round(self.cfg.db_label_pad * scale))
         y0 = self.ch_y0[ch]
         ch_h = self.ch_h
 
@@ -269,14 +295,14 @@ class LedBarRenderer:
         # dB の位置を先に決める（各段の上端から少し下げる）
         unit = self.font_scale.render("dB", True, self.cfg.theme.unit_text)
         unit_x = x_right - unit.get_width()
-        unit_y = y0 - unit.get_height() - self.cfg.db_unit_offset  # ←ここはお好みのマージン
+        unit_y = y0 - unit.get_height() - max(6, round(self.cfg.db_unit_offset * scale))
 
         # L/R は dB より“さらに上”に置く
         label = ("MIX" if self.cfg.channel_mode == "stereo_mix" else
                  "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}"))
         ts_lr = self.font_channel.render(label, True, self.cfg.theme.edge_text)
         lr_x  = x_right - ts_lr.get_width()
-        lr_y  = unit_y - ts_lr.get_height() - 2  # ← dBの上に来る
+        lr_y  = unit_y - ts_lr.get_height() - max(2, round(2 * scale))
 
         # 描画
         self.surf.blit(ts_lr, (lr_x,  lr_y))
@@ -377,6 +403,10 @@ class LedBarRenderer:
     def draw_vertical_frequency_scale(self):
         if not self.cfg.show_freq_scale:
             return
+        scale = getattr(self, "ui_scale", 1.0)
+        tick_len = max(4, round(5 * scale))
+        text_pad = max(6, round(8 * scale))
+        inflate_pad = max(3, round(4 * scale))
         for ch, plot in enumerate(self.plots):
             occupied = []
             frequencies = []
@@ -393,21 +423,22 @@ class LedBarRenderer:
                 seen.add(freq)
                 y = self.cell_rect(ch, band, 0).centery
                 pg.draw.line(self.surf, self.cfg.theme.scale_line,
-                             (plot.left-5, y), (plot.left-1, y))
+                             (plot.left - tick_len, y), (plot.left - 1, y))
                 text = self.font_scale.render(self._fmt_freq_label(freq, with_unit=True),
                                               True, self.cfg.theme.scale_text)
-                rect = text.get_rect(midright=(plot.left-8, y))
+                rect = text.get_rect(midright=(plot.left - text_pad, y))
                 if any(rect.colliderect(other) for other in occupied):
                     continue
                 self.surf.blit(text, rect)
-                occupied.append(rect.inflate(0, 4))
+                occupied.append(rect.inflate(0, inflate_pad))
 
     def draw_horizontal_db_scale(self, ch):
         plot = self.plots[ch]
+        scale = getattr(self, "ui_scale", 1.0)
         name = ("MIX" if self.cfg.channel_mode == "stereo_mix" else
                  "L" if ch == 0 else ("R" if ch == 1 else f"Ch{ch+1}"))
         label = self.font_channel.render(name, True, self.cfg.theme.edge_text)
-        self.surf.blit(label, (plot.left, plot.top - label.get_height() - 12))
+        self.surf.blit(label, (plot.left, plot.top - label.get_height() - max(8, round(12 * scale))))
         if not self.cfg.show_db_scale:
             return
         # Endpoints take priority when horizontal space is limited.
@@ -416,18 +447,22 @@ class LedBarRenderer:
                                        self.cfg.db_min, -self.cfg.db_step)]
         occupied = []
         span = self.cfg.db_max-self.cfg.db_min or 1.0
+        tick_top = max(2, round(3 * scale))
+        tick_bottom = max(5, round(7 * scale))
+        text_y = max(7, round(9 * scale))
+        inflate_pad = max(6, round(8 * scale))
         for db in values:
             x = round(plot.left + (db-self.cfg.db_min)/span*(plot.width-1))
             pg.draw.line(self.surf, self.cfg.theme.scale_line,
-                         (x, plot.bottom+3), (x, plot.bottom+7))
+                         (x, plot.bottom + tick_top), (x, plot.bottom + tick_bottom))
             text = self.font_scale.render(f"{db:g}" + (" dB" if db == self.cfg.db_max else ""),
                                           True, self.cfg.theme.db_text)
-            rect = text.get_rect(midtop=(x, plot.bottom+9))
+            rect = text.get_rect(midtop=(x, plot.bottom + text_y))
             rect.clamp_ip(pg.Rect(plot.left, rect.top, plot.width, rect.height))
             if any(rect.colliderect(other) for other in occupied):
                 continue
             self.surf.blit(text, rect)
-            occupied.append(rect.inflate(8, 0))
+            occupied.append(rect.inflate(inflate_pad, 0))
 
     def led_rect(self, cell: pg.Rect) -> pg.Rect:
         """Fit a style's proportions inside a layout cell (nearest pixel)."""

@@ -556,8 +556,8 @@ class AppCleanupTests(unittest.TestCase):
         self.app.toggle_fullscreen()
         self.assertFalse(self.app._fullscreen)
         self.mock_window.set_windowed.assert_called_once()
-        from wune.layout import fit_window_size
-        self.pg.display.set_mode.assert_called_with(fit_window_size((960, 600), self.app.cfg), self.pg.RESIZABLE)
+        from wune.layout import clamp_window_size
+        self.pg.display.set_mode.assert_called_with(clamp_window_size((960, 600), self.app.cfg), self.pg.RESIZABLE)
         self.assertEqual(self.app.renderer.resize.call_count, 2)
 
     def test_info_toggle_exits_fullscreen_if_it_no_longer_fits(self):
@@ -601,15 +601,15 @@ class AppCleanupTests(unittest.TestCase):
         self.assertEqual(self.app.spectrum.mock_calls, [])
         self.backend.AudioSpectrum.assert_called_once()
 
-    def test_transposed_resize_limits_excess_height_without_reopening_audio(self):
-        from wune.layout import fit_window_size
+    def test_transposed_resize_preserves_dimensions_without_reopening_audio(self):
+        from wune.layout import clamp_window_size
         self.app.cfg.spectrum_orientation = "frequency_vertical"
         self.app.cfg.channel_layout = "horizontal"
         self.app.cfg.bars = 32
-        self.app.screen.get_size.return_value = (960, 1800)
+        self.app.screen.get_size.return_value = (1280, 800)
         self.app.spectrum.reset_mock()
         self.app.handle_event(types.SimpleNamespace(type=self.pg.VIDEORESIZE, size=(960, 1800)))
-        expected = fit_window_size((960, 1800), self.app.cfg)
+        expected = clamp_window_size((960, 1800), self.app.cfg)
         self.pg.display.set_mode.assert_called_with(expected, self.pg.RESIZABLE)
         self.assertEqual(self.app._windowed_size, expected)
         self.assertEqual(self.app.spectrum.mock_calls, [])

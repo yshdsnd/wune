@@ -41,7 +41,7 @@ class App:
         self._display_window = None
         self._windowed_position = None
         self._fullscreen = False
-        self._windowed_size = fit_window_size((cfg.width, cfg.height), cfg)
+        self._windowed_size = clamp_window_size((cfg.width, cfg.height), cfg)
         if settings_store is not None:
             from .window_geometry import restore_geometry, work_areas
             self._windowed_size, self._windowed_position = restore_geometry(cfg, saved_geometry or {}, work_areas())
@@ -120,7 +120,7 @@ class App:
             self._geometry_window().set_windowed()
         except Exception:
             pass
-        self._set_mode(fit_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+        self._set_mode(clamp_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
         self._fullscreen = False
         self._restore_position()
 
@@ -236,7 +236,7 @@ class App:
             self.levels = np.zeros((self.cfg.display_channels, self.cfg.bars), dtype=np.float32)
         elif self.cfg.channel_layout != previous_layout or self.cfg.spectrum_orientation != previous_orientation:
             if size is None and not self._fullscreen:
-                size = fit_window_size(self.screen.get_size(), self.cfg)
+                size = clamp_window_size(self.screen.get_size(), self.cfg)
         pg.display.set_caption(window_title(self.cfg.language))
         self.update_info_text()
         self.update_now_playing_text()
@@ -334,7 +334,7 @@ class App:
             self.toggle_fullscreen()
             return
         if not self._fullscreen:
-            size = fit_window_size(size, self.cfg)
+            size = clamp_window_size(size, self.cfg)
             if self.screen.get_size() != size:
                 self._set_mode(size, pg.RESIZABLE)
             self._windowed_size = size

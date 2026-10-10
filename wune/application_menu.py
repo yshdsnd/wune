@@ -21,13 +21,22 @@ class ApplicationMenu:
 
     @staticmethod
     def button_rect(font, language):
-        return pg.Rect(24, 14, font.size(Translator(language)("menu.open"))[0] + 24, 30)
+        scale = max(1.0, font.get_height() / 18.0)
+        text_w = font.size(Translator(language)("menu.open"))[0]
+        pad_x = max(24, round(24 * scale))
+        height = max(30, font.get_height() + round(10 * scale))
+        x = max(24, round(24 * scale))
+        y = max(14, round(14 * scale))
+        return pg.Rect(x, y, text_w + pad_x, height)
 
     def geometry(self, size, font, language, fullscreen):
         items = self.items(language, fullscreen)
-        width = max(font.size(label)[0] + font.size(shortcut)[0] + 52 for _, label, shortcut in items)
-        row_height = max(34, font.get_linesize() + 12)
-        rect = pg.Rect(self.anchor or (0, 0), (width, row_height * len(items) + 8))
+        scale = max(1.0, font.get_height() / 18.0)
+        pad_w = max(52, round(52 * scale))
+        pad_h = max(12, round(12 * scale))
+        width = max(font.size(label)[0] + font.size(shortcut)[0] + pad_w for _, label, shortcut in items)
+        row_height = max(34, font.get_linesize() + pad_h)
+        rect = pg.Rect(self.anchor or (0, 0), (width, row_height * len(items) + round(8 * scale)))
         rect.clamp_ip(pg.Rect((0, 0), size).inflate(-16, -16))
         rows = [pg.Rect(rect.x + 4, rect.y + 4 + i * row_height, width - 8, row_height)
                 for i in range(len(items))]
@@ -73,19 +82,21 @@ class ApplicationMenu:
 
     def draw(self, surface, font, language, fullscreen, theme):
         button = self.button_rect(font, language)
-        pg.draw.rect(surface, theme.info_background, button, border_radius=6)
-        pg.draw.rect(surface, theme.info_text, button, 1, border_radius=6)
+        scale = max(1.0, font.get_height() / 18.0)
+        radius = max(6, round(6 * scale))
+        pg.draw.rect(surface, theme.info_background, button, border_radius=radius)
+        pg.draw.rect(surface, theme.info_text, button, max(1, round(1 * scale)), border_radius=radius)
         surface.blit(font.render(Translator(language)("menu.open"), True, theme.info_text),
-                     (button.x + 12, button.centery - font.get_height() // 2))
+                     (button.x + max(12, round(12 * scale)), button.centery - font.get_height() // 2))
         if self.anchor is None:
             return
         rect, rows = self.geometry(surface.get_size(), font, language, fullscreen)
-        pg.draw.rect(surface, theme.info_background, rect, border_radius=6)
-        pg.draw.rect(surface, theme.info_text, rect, 1, border_radius=6)
+        pg.draw.rect(surface, theme.info_background, rect, border_radius=radius)
+        pg.draw.rect(surface, theme.info_text, rect, max(1, round(1 * scale)), border_radius=radius)
         for index, ((_, label, shortcut), row) in enumerate(zip(self.items(language, fullscreen), rows)):
             if index == self.selected:
-                pg.draw.rect(surface, theme.badge_background, row, border_radius=4)
+                pg.draw.rect(surface, theme.badge_background, row, border_radius=max(4, round(4 * scale)))
             y = row.centery - font.get_height() // 2
-            surface.blit(font.render(label, True, theme.info_text), (row.x + 10, y))
+            surface.blit(font.render(label, True, theme.info_text), (row.x + max(10, round(10 * scale)), y))
             text = font.render(shortcut, True, theme.info_text)
-            surface.blit(text, (row.right - text.get_width() - 10, y))
+            surface.blit(text, (row.right - text.get_width() - max(10, round(10 * scale)), y))
