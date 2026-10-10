@@ -26,7 +26,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "leds_per_bar", "auto_adjust_leds_on_resize", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
+PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -51,6 +51,8 @@ def valid_preference(key, value):
         return type(value) in (int, float) and math.isfinite(value) and 0.25 <= value <= 8
     if key == "leds_per_bar":
         return integer(value, 10, 100)
+    if key == "bar_gap":
+        return integer(value, 0, 20)
     if key == "bars":
         return integer(value, 1, 256)
     if key == "channels":

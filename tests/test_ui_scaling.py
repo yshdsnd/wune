@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 import numpy as np
 import pygame as pg
 
@@ -264,9 +265,16 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         # Screenshot 2 dimensions: 935x811 with 64 bars
         cfg = Config(bars=64)
         layout = calculate_layout((935, 811), cfg)
-        self.assertGreaterEqual(layout.led_height, 6)
-        self.assertGreaterEqual(layout.bar_width, 12)
-        self.assertGreaterEqual(layout.plots[0][2], 800)
+        self.assertGreaterEqual(layout.led_height, 5)
+        self.assertGreaterEqual(layout.bar_width, 10)
+        self.assertGreaterEqual(layout.plots[0][2], 750)
+
+        # With tight bar_gap (1px), expands to led_height >= 6
+        cfg_tight = Config(bars=64, bar_gap=1)
+        layout_tight = calculate_layout((935, 811), cfg_tight)
+        self.assertGreaterEqual(layout_tight.led_height, 6)
+        self.assertGreaterEqual(layout_tight.bar_width, 12)
+        self.assertGreaterEqual(layout_tight.plots[0][2], 800)
 
 
     def test_configurable_leds_per_bar(self):
@@ -386,6 +394,142 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertEqual(app.cfg.leds_per_bar, 50)
         app.save_settings.assert_not_called()
 
+    def test_configurable_bar_gap(self):
+        for gap in (0, 2, 6, 12, 20):
+            with self.subTest(bar_gap=gap):
+                cfg = Config(bar_gap=gap)
+                size = clamp_window_size((1280, 800), cfg)
+                layout = calculate_layout(size, cfg)
+                self.assertEqual(layout.bar_gap, gap)
+                min_w, min_h = minimum_window_size(cfg)
+                self.assertGreater(min_w, 0)
+                self.assertGreater(min_h, 0)
+
+        # In horizontal frequency mode, increasing bar_gap increases minimum required window width
+        cfg_gap2 = Config(bar_gap=2, channel_layout="vertical", bars=64)
+        cfg_gap10 = Config(bar_gap=10, channel_layout="vertical", bars=64)
+        min_w_2, _ = minimum_window_size(cfg_gap2)
+        min_w_10, _ = minimum_window_size(cfg_gap10)
+        self.assertGreater(min_w_10, min_w_2)
+
+        # Verify renderer respects configured bar_gap
+        cfg_custom = Config(bar_gap=8, channel_layout="vertical", bars=32)
+        surf = pg.Surface((1280, 800))
+        renderer = LedBarRenderer(surf, cfg_custom)
+        self.assertEqual(renderer.bar_gap, 8)
+        levels = np.zeros((2, 32), dtype=np.float32)
+        renderer.draw(levels)
+    def test_info_bars_labels_and_margins_do_not_overlap(self):
+        """Regression test: verify no collision between Now playing bar, device info bar,
+        channel/dB labels, and frequency scale labels, and ensure adequate left margin.
+        """
+        for layout_mode in ("vertical", "horizontal"):
+            for info_pos in ("top", "bottom"):
+                cfg = Config(channel_layout=layout_mode, show_now_playing=True, info_position=info_pos)
+                min_s = minimum_window_size(cfg)
+                for size in (min_s, (1280, 800), (1920, 1080), (3840, 2160)):
+                    with self.subTest(layout=layout_mode, info=info_pos, size=size):
+                        surf = pg.Surface(size)
+                        renderer = LedBarRenderer(surf, cfg)
+                        np_rect = renderer.now_playing_rect()
+                        info_rect = pg.Rect(renderer._layout.info_rect)
+                        plot0 = pg.Rect(renderer._layout.plots[0])
+                        scale = getattr(renderer, "ui_scale", 1.0)
+
+                        # 1. Now playing and top info separation
+                        if info_pos == "top":
+                            self.assertGreaterEqual(info_rect.top, np_rect.bottom + 4)
+                            top_boundary = info_rect.bottom
+                        else:
+                            top_boundary = np_rect.bottom
+
+                        # 2. L/R and dB label separation below top bars
+                        db_unit_offset = max(6, round(cfg.db_unit_offset * scale))
+                        unit_h = renderer.font_scale.get_height()
+                        lr_h = renderer.font_channel.get_height()
+                        unit_y = plot0.y - unit_h - db_unit_offset
+                        lr_y = unit_y - lr_h - max(2, round(2 * scale))
+                        self.assertGreaterEqual(lr_y, top_boundary + 4)
+
+                        # 3. Frequency scale labels separation above bottom info bar
+                        if info_pos == "bottom":
+                            text_pad = max(6, round(8 * scale))
+                            scale_font_h = renderer.font_scale.get_height()
+                            freq_label_bottom = plot0.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+                            self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
+                        # 4. Volume label (-60 dB) left clearance from window border (at 8px)
+                        x_right = plot0.x - max(4, round(cfg.db_label_pad * scale))
+                        ts_w = renderer.font_scale.size("-60")[0]
+                        db_label_left = x_right - ts_w
+                        self.assertGreaterEqual(db_label_left, 14)
+
+    def test_auto_adjust_leds_per_bar_does_not_overlap_info_bars(self):
+        """Regression test: verify that calculate_optimal_leds_per_bar selects segment
+        counts that guarantee clearance between plots/labels and info bars.
+        """
+        user_cfg = Config(channel_layout="vertical", bars=64, led_aspect_ratio=2.0,
+                          show_now_playing=True, info_position="bottom")
+        optimal = calculate_optimal_leds_per_bar((1800, 1200), user_cfg)
+        self.assertLessEqual(optimal, 27)
+
+        surf = pg.Surface((1800, 1200))
+        applied_cfg = replace(user_cfg, leds_per_bar=optimal)
+        renderer = LedBarRenderer(surf, applied_cfg)
+        np_rect = renderer.now_playing_rect()
+        info_rect = pg.Rect(renderer._layout.info_rect)
+        plot0 = pg.Rect(renderer._layout.plots[0])
+        plot_last = pg.Rect(renderer._layout.plots[-1])
+        scale = getattr(renderer, "ui_scale", 1.0)
+
+        # Top clearance
+        db_unit_offset = max(6, round(applied_cfg.db_unit_offset * scale))
+        unit_h = renderer.font_scale.get_height()
+        lr_h = renderer.font_channel.get_height()
+        top_label_y = plot0.y - unit_h - db_unit_offset - lr_h - max(2, round(2 * scale))
+        self.assertGreaterEqual(top_label_y, np_rect.bottom + 4)
+
+        # Bottom clearance
+        text_pad = max(6, round(8 * scale))
+        scale_font_h = renderer.font_scale.get_height()
+        freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+        self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
+    def test_large_window_without_auto_adjust_has_clearance_for_fixed_leds(self):
+        """Verify that large windows without auto-adjustment (fixed leds_per_bar=20)
+        maintain full clearance between labels/plots and top/bottom info bars.
+        """
+        from wune.layout import layout_has_clearance
+        cfg = Config(channel_layout="vertical", bars=32, leds_per_bar=20,
+                     show_now_playing=True, info_position="bottom")
+        for size in ((1920, 1080), (2560, 1080), (2560, 1440), (3840, 2160)):
+            with self.subTest(size=size):
+                layout = calculate_layout(size, cfg)
+                self.assertTrue(layout_has_clearance(layout, cfg, size))
+
+                surf = pg.Surface(size)
+                renderer = LedBarRenderer(surf, cfg)
+                np_rect = renderer.now_playing_rect()
+                info_rect = pg.Rect(renderer._layout.info_rect)
+                plot0 = pg.Rect(renderer._layout.plots[0])
+                plot_last = pg.Rect(renderer._layout.plots[-1])
+                scale = getattr(renderer, "ui_scale", 1.0)
+
+                # Top clearance
+                db_unit_offset = max(6, round(cfg.db_unit_offset * scale))
+                unit_h = renderer.font_scale.get_height()
+                lr_h = renderer.font_channel.get_height()
+                top_label_y = plot0.y - unit_h - db_unit_offset - lr_h - max(2, round(2 * scale))
+                self.assertGreaterEqual(top_label_y, np_rect.bottom + 4)
+
+                # Bottom clearance
+                text_pad = max(6, round(8 * scale))
+                scale_font_h = renderer.font_scale.get_height()
+                freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+                self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
 
 if __name__ == "__main__":
     unittest.main()
+
+

@@ -148,6 +148,20 @@ class DialogTests(unittest.TestCase):
         self.assertFalse(self.dialog.pending)
         self.assertIn("10", self.dialog.status.get())
 
+    def test_invalid_bar_gap_blocks_save_without_discarding_input(self):
+        self.dialog.bar_gap.set("99")
+        self.dialog.submit("save")
+        self.assertTrue(self.events.empty())
+        self.assertFalse(self.dialog.pending)
+        self.assertIn("0", self.dialog.status.get())
+
+    def test_bar_gap_preview(self):
+        self.dialog.bar_gap.set("8")
+        self.dialog.set_bar_gap()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.style["bar_gap"], 8)
+
     def test_leds_per_bar_preview(self):
         self.dialog.leds_per_bar.set("45")
         self.dialog.set_leds_per_bar()
