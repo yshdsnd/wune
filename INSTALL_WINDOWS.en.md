@@ -25,6 +25,19 @@ Installation and initial setup instructions for Wune, an LED audio spectrum anal
 - Do not launch Wune directly from within the ZIP file; always extract the entire folder first.
 - The **`_internal`** folder must stay in the same directory as `Wune.exe`. Do not move `Wune.exe` alone. You can create a desktop shortcut to `Wune.exe` if desired.
 
+## First Launch and SmartScreen / Smart App Control
+
+Because this release is an open-source community build without an expensive commercial code-signing certificate, Windows Defender SmartScreen or Windows 11 Smart App Control may display a security prompt on first launch.
+
+### How to proceed past the SmartScreen prompt
+1. Double-click `Wune.exe`.
+2. When the blue **"Windows protected your PC"** (Microsoft Defender SmartScreen) prompt appears, click the **"More info"** link in the message body.
+3. An **"Run anyway"** button will appear in the bottom-right corner. Click **"Run anyway"**.
+4. Wune will launch normally. Once approved, Windows remembers this decision and will not prompt you again for this application.
+
+> [!NOTE]
+> On Windows 11 systems where "Smart App Control" is set to "On", unsigned community executables may be blocked automatically without a "Run anyway" button. In that case, check your Windows Security settings or consider adjusting Smart App Control permissions.
+
 ## Audio Capture Notes
 
 - Wune captures audio output from the default Windows playback device at startup via WASAPI loopback.
@@ -74,6 +87,7 @@ The Settings window (`F2`) also displays this path at the bottom. To back up you
 | Symptom | What to Check |
 | --- | --- |
 | Does not start or closes immediately | Verify that the entire ZIP was extracted and that `_internal` exists next to `Wune.exe`. Check any displayed error and inspect `Wune.log`. |
+| Prompted with "Windows protected your PC" | Click **"More info"** and choose **"Run anyway"** (see the first launch guide above). |
 | Spectrum does not move | Press `Space` to make sure visualization is not paused. Verify that audio is playing and that the device in the info bar (`I`) matches your music player's output. |
 | Stops reacting after switching headphones | Check the default Windows output device and restart Wune. |
 | Keyboard shortcuts (F2, etc.) do not respond | Click the main window to give it focus. Verify that the Settings dialog is not open in the background. |
