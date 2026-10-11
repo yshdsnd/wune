@@ -375,6 +375,14 @@ def create_default_coordinator() -> NowPlayingCoordinator:
     providers: list[MetadataProvider] = []
     if sys.platform == "win32":
         try:
+            from .now_playing_music_center import WindowsMusicCenterProvider
+
+            mc_provider = WindowsMusicCenterProvider()
+            if mc_provider.is_available():
+                providers.append(mc_provider)
+        except Exception:
+            pass
+        try:
             from .now_playing_windows import WindowsGsmtcProvider
 
             provider = WindowsGsmtcProvider()
