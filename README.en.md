@@ -37,8 +37,7 @@ Click the main window before using keyboard shortcuts.
 | Close button or Menu → Exit | Quit immediately |
 | Drag the window border | Resize the display |
 
-Window dimensions are constrained by a minimum size and aspect-ratio adjustments to preserve LED shapes and spacing.
-Width and height cannot be changed completely independently.
+You can freely resize the window width and height (constrained only by a minimum window size to prevent layout breakdown). Depending on the window's aspect ratio, empty margins may appear around the spectrum. You can eliminate these margins by enabling "Adaptive Fill" or clicking the "Auto-adjust" buttons for "LEDs per bar" and "Bar gap" (or enabling automatic adjustments on resize) in Settings. You can also manually fine-tune the number of LEDs and bar spacing to your preference.
 F2 or the menu opens Settings above the main window while keeping fullscreen active. Preview, save, and cancel changes without leaving fullscreen.
 While Settings is open, theme changes through T or the theme badge, and information-bar changes through I, are disabled.
 The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → General → Confirm before quitting with Q / Esc.
