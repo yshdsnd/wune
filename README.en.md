@@ -22,9 +22,6 @@ This main branch is developing the v1.1.0 integration; some controls differ from
 
 ## Controls
 
-Choose a solid color or local PNG/JPEG image in the Background tab. Fit shows the entire image; Fill crops centrally to fill the display. Image paths are saved without copying or modifying the original. Missing images fall back to the theme background. Transparent windows and video backgrounds are not supported.
-
-
 Click the main window before using keyboard shortcuts.
 
 | Action | Function |
@@ -40,8 +37,7 @@ Click the main window before using keyboard shortcuts.
 | Close button or Menu → Exit | Quit immediately |
 | Drag the window border | Resize the display |
 
-Window dimensions are constrained by a minimum size and aspect-ratio adjustments to preserve LED shapes and spacing.
-Width and height cannot be changed completely independently.
+You can freely resize the window width and height (constrained only by a minimum window size to prevent layout breakdown). Depending on the window's aspect ratio, empty margins may appear around the spectrum. You can eliminate these margins by enabling "Adaptive Fill" or clicking the "Auto-adjust" buttons for "LEDs per bar" and "Bar gap" (or enabling automatic adjustments on resize) in Settings. You can also manually fine-tune the number of LEDs and bar spacing to your preference.
 F2 or the menu opens Settings above the main window while keeping fullscreen active. Preview, save, and cancel changes without leaving fullscreen.
 While Settings is open, theme changes through T or the theme badge, and information-bar changes through I, are disabled.
 The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → General → Confirm before quitting with Q / Esc.
@@ -50,26 +46,41 @@ Esc or the close button in the Settings window cancels settings changes rather t
 
 ## Settings and customization
 
-Press **F2** to open Settings. Preview changes in the main display while music continues to play.
+Press **F2** to open Settings. Preview changes in real time in the main display while music continues to play.
 
 | Tab | Main settings |
 | --- | --- |
-| Spectrum | Channel arrangement (separate/mix, stacked/side-by-side), frequency/level orientation, 20 kHz display limit, LED rendering/shape/aspect ratio, Adaptive Fill, auto-adjust LEDs/bar gap |
+| Spectrum | Channel arrangement (separate/mix, stacked/side-by-side), frequency direction, 20 kHz display limit, display gain (dB), LED rendering style/shape/aspect ratio, Adaptive Fill, auto-adjust LEDs/bar gap |
 | Info & Text | Scale and info bar font sizes, dynamic font scaling, Now Playing track display, info bar visibility and position |
 | Themes and colors | Select, create, duplicate, rename, or delete color themes; edit individual colors |
-| Background | Solid color / image, image sizing (Fit / Fill) |
+| Background | Solid color / image, image sizing (Fit / Fill), choose background image |
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
 | General | Window size presets, display language, exit confirmation prompt |
 
-“LED aspect ratio (width/height)” controls the shape: higher values make LEDs wider relative to their height. Resize the window to change the overall display size.
-Under Spectrum → Channel display, choose separate L/R or Stereo Mix.
-Stereo Mix averages left/right power into one spectrum, so opposite-phase signals do not cancel.
-Audio on only one side appears about 3 dB lower than the same audio on both sides.
-Switching keeps capture running and supports preview, Save, Apply, and Cancel.
-L/R arrangement is disabled while mixing and retained for returning to separate channels.
+### Spectrum settings
+- **Channel display**: Choose between separate L/R channels or Stereo Mix. Stereo Mix averages left/right power into a single spectrum so opposite-phase signals do not cancel. Signals on only one side appear about 3 dB lower than the same audio on both sides. Switching does not interrupt audio capture.
+- **Limit display to 20 kHz**: Focus visualization on the audible range (20 Hz–20 kHz) even on high-sample-rate outputs.
+- **Display gain (dB)**: Adjust visual gain from -24.0 dB to +24.0 dB (in 1.0 dB increments). Useful for boosting lower-level sources (e.g., Apple Music) so that the upper and red LEDs light dynamically. Does not affect audio output or RMS calculation; only adjusts visual LED mapping with safe [0.0, 1.0] clamping.
+- **LED rendering, shape, and aspect ratio**: Choose flat or beveled box styles, rectangle/rounded/ellipse shapes, and adjust the width-to-height ratio (0.25–8.0).
+- **Adaptive Fill and auto-adjust**: Enabling "Adaptive Fill" dynamically eliminates empty margins as the window resizes. Use the "Auto-adjust" buttons next to "LEDs per bar" and "Bar gap" to calculate and apply optimal values for the current window size in a single click (functional even if automatic resizing checkboxes are disabled).
 
-Themes store colors only. LED shapes, layout, and motion are separate settings.
-Editing a built-in theme creates a user copy, preserving the original colors.
+### Info & Text settings
+- **Font sizes and dynamic scaling**: Adjust font sizes (10–24 px) for scale labels and the information bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
+- **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via Windows Media Session GSMTC and Sony Music Center for PC v2.7.3; on macOS via Apple Music).
+
+### Themes and colors
+- Themes store colors only; LED shapes, layout, and motion are saved independently.
+- Editing a built-in theme automatically creates a user copy, preserving the original palette. You can also create, duplicate, rename, or delete custom themes.
+
+### Background settings
+- Choose a solid color or a local PNG/JPEG image.
+- **Fit**: Shows the entire image, filling letterbox margins with the theme background color.
+- **Fill**: Scales proportionally to fill the window and crops excess margins centrally.
+- Image paths are saved without modifying or copying original files. If an image is missing or cannot be loaded, Wune automatically falls back to a solid background.
+
+### General settings and window size presets
+- Apply popular resolution presets such as 640x360, 960x540, 1280x720, or 1920x1080 with a single click.
+- Switch display languages (System / English / Japanese) and configure the exit confirmation dialog.
 
 | Button | Behavior |
 | --- | --- |
@@ -138,6 +149,7 @@ This deletes the existing settings file; back it up first if needed.
 | Symptom | What to check |
 | --- | --- |
 | Wune will not start or closes immediately | Extract the entire ZIP and check that _internal is next to the EXE. Check any error message and Wune.log |
+| Blocked by a security prompt on launch | On Windows, if prompted with "Windows protected your PC", click "More info" and select "Run anyway" (see the [Windows guide](INSTALL_WINDOWS.en.md)). On macOS, allow Wune in System Settings → Privacy & Security (see the [macOS guide](INSTALL_MACOS.en.md)) |
 | The spectrum does not move | Resume with Space if paused. Check that audio is playing and that the information bar names the same output device used by your playback app |
 | The display stops after switching to headphones or another output | Check the OS output device and restart Wune |
 | F2 or other shortcuts do not work | Click the main window first. Check whether Settings is open behind another window |
