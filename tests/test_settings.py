@@ -95,7 +95,7 @@ class SettingsTests(unittest.TestCase):
             self.assertNotIn("fullscreen", window)
 
     def test_custom_style_round_trip(self):
-        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=True, leds_per_bar=95, auto_adjust_leds_on_resize=True, bar_gap=8)
+        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=True, leds_per_bar=95, auto_adjust_leds_on_resize=True, bar_gap=8, auto_adjust_bar_gap_on_resize=True)
         self.store.save(cfg, (1000, 700), (50, 60), "CUSTOM")
         loaded, _ = self.store.load(Config())
         self.assertIsNone(loaded.initial_preset)
@@ -105,6 +105,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(loaded.leds_per_bar, 95)
         self.assertTrue(loaded.auto_adjust_leds_on_resize)
         self.assertEqual(loaded.bar_gap, 8)
+        self.assertTrue(loaded.auto_adjust_bar_gap_on_resize)
 
     def test_invalid_values_do_not_reach_layout(self):
         self.write({"version": 1, "appearance": {"bars": True, "channels": 0,

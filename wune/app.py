@@ -15,6 +15,7 @@ from .i18n import Translator
 from .icons import set_app_id, pygame_icon
 from .layout import (
     calculate_optimal_leds_per_bar,
+    calculate_optimal_bar_gap,
     clamp_window_size,
     fit_window_size,
     channel_mode_window_size,
@@ -348,6 +349,11 @@ class App:
             optimal = calculate_optimal_leds_per_bar(size, self.cfg)
             if optimal != self.cfg.leds_per_bar:
                 self.cfg.leds_per_bar = optimal
+                self.save_settings()
+        if getattr(self.cfg, "auto_adjust_bar_gap_on_resize", False):
+            optimal_gap = calculate_optimal_bar_gap(size, self.cfg)
+            if optimal_gap != self.cfg.bar_gap:
+                self.cfg.bar_gap = optimal_gap
                 self.save_settings()
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
             self.toggle_fullscreen()

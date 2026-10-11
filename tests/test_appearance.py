@@ -36,7 +36,7 @@ class AppearanceTests(unittest.TestCase):
                 self.assertEqual(draft.state.preset.name, name)
                 self.assertEqual(draft.state.user_presets, {})
             draft.select("BLUE")
-            self.assertEqual(draft.state.style, dict(gauge_style="box", led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=False, leds_per_bar=20, auto_adjust_leds_on_resize=False, bar_gap=2))
+            self.assertEqual(draft.state.style, dict(gauge_style="box", led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=False, leds_per_bar=20, auto_adjust_leds_on_resize=False, bar_gap=2, auto_adjust_bar_gap_on_resize=False))
         before = draft.snapshot()
         draft.create("mine")
         draft.create("duplicate", draft.state.preset)

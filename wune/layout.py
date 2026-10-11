@@ -246,6 +246,44 @@ def calculate_optimal_leds_per_bar(size, cfg, min_leds: int = 20, max_leds: int 
     return max(10, min(max_leds, best_k))
 
 
+def calculate_optimal_bar_gap(size, cfg, min_gap: int = 1, max_gap: int = 15) -> int:
+    """Calculate the optimal bar_gap to balance bar width and spacing for the window size.
+
+    Finds the gap between bars that best matches a visually balanced bar-to-gap ratio
+    (around 18% of bar width, scaled with UI scale) while ensuring all safety clearances.
+    """
+    min_cfg = replace(cfg, bar_gap=min_gap)
+    size = clamp_window_size(size, min_cfg)
+    scale = calculate_ui_scale(size)
+    best_gap = getattr(cfg, "bar_gap", 2)
+    best_score = float("inf")
+    target_ratio = 0.18
+
+    for g in range(min_gap, max_gap + 1):
+        c = replace(cfg, bar_gap=g)
+        if tuple(size) != clamp_window_size(size, c):
+            continue
+        try:
+            layout = calculate_layout(size, c)
+        except ValueError:
+            continue
+        if not layout_has_clearance(layout, c, size):
+            continue
+        bar_w = layout.bar_width
+        if bar_w <= 0:
+            continue
+        actual_ratio = g / bar_w
+        scaled_pref = 2.0 * scale
+        gap_diff = abs(g - scaled_pref) / max(1.0, scaled_pref)
+        ratio_diff = abs(actual_ratio - target_ratio) / target_ratio
+        score = ratio_diff * 0.7 + gap_diff * 0.3
+        if score < best_score:
+            best_score = score
+            best_gap = g
+
+    return max(0, min(20, best_gap))
+
+
 def calculate_layout(size, cfg):
     width, height = size
     if tuple(size) != clamp_window_size(size, cfg):

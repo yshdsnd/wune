@@ -254,19 +254,29 @@ class _Dialog:
                         command=self.toggle_auto_adjust_leds_on_resize).grid(
                             row=8, column=0, columnspan=2, sticky="w", pady=(0, 8))
         ttk.Label(spectrum, text=self.t('settings.bar_gap')).grid(row=9, column=0, sticky="w", pady=8)
+        bar_gap_frame = ttk.Frame(spectrum)
+        bar_gap_frame.grid(row=9, column=1, sticky="w", padx=(14, 0))
         self.bar_gap = tk.StringVar(root)
-        bar_gap_spin = ttk.Spinbox(spectrum, from_=0, to=20, increment=1, textvariable=self.bar_gap,
+        bar_gap_spin = ttk.Spinbox(bar_gap_frame, from_=0, to=20, increment=1, textvariable=self.bar_gap,
                                    command=self.set_bar_gap, width=8)
-        bar_gap_spin.grid(row=9, column=1, sticky="w", padx=(14, 0))
+        bar_gap_spin.pack(side="left")
         bar_gap_spin.bind("<Return>", lambda event: self.set_bar_gap())
         bar_gap_spin.bind("<FocusOut>", lambda event: self.set_bar_gap())
+        self.auto_adjust_bar_gap_button = ttk.Button(bar_gap_frame, text=self.t('settings.auto_adjust_bar_gap'),
+                                                     command=self.auto_adjust_bar_gap)
+        self.auto_adjust_bar_gap_button.pack(side="left", padx=(8, 0))
+        self.auto_adjust_bar_gap_on_resize = tk.BooleanVar(root)
+        ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_bar_gap_on_resize'),
+                        variable=self.auto_adjust_bar_gap_on_resize,
+                        command=self.toggle_auto_adjust_bar_gap_on_resize).grid(
+                            row=10, column=0, columnspan=2, sticky="w", pady=(0, 8))
         self.adaptive_fill = tk.BooleanVar(root)
         ttk.Checkbutton(spectrum, text=self.t('settings.adaptive_fill'),
                         variable=self.adaptive_fill,
                         command=self.toggle_adaptive_fill).grid(
-                            row=10, column=0, columnspan=2, sticky="w", pady=(0, 8))
+                            row=11, column=0, columnspan=2, sticky="w", pady=(0, 8))
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=11, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=12, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -404,6 +414,7 @@ class _Dialog:
         self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
         self.auto_adjust_leds_on_resize.set(bool(state.style.get("auto_adjust_leds_on_resize", False)))
         self.bar_gap.set(str(state.style.get("bar_gap", 2)))
+        self.auto_adjust_bar_gap_on_resize.set(bool(state.style.get("auto_adjust_bar_gap_on_resize", False)))
         self.adaptive_fill.set(bool(state.style.get("adaptive_fill", False)))
         self.combos["channel_layout"][0].configure(
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
@@ -499,6 +510,27 @@ class _Dialog:
         self.draft.state.style["auto_adjust_leds_on_resize"] = enabled
         if enabled:
             self.auto_adjust_leds()
+        else:
+            self.preview()
+
+    def auto_adjust_bar_gap(self):
+        from .layout import calculate_optimal_bar_gap
+        from .config import Config
+        cfg = Config()
+        self.draft.state.apply(cfg)
+        size = getattr(self, "window_size", None) or (1280, 800)
+        optimal = calculate_optimal_bar_gap(size, cfg)
+        self.bar_gap.set(str(optimal))
+        self.set_bar_gap()
+        self.status.set(self.t('settings.auto_adjusted_bar_gap_to', gap=optimal))
+
+    def toggle_auto_adjust_bar_gap_on_resize(self):
+        if self.loading:
+            return
+        enabled = bool(self.auto_adjust_bar_gap_on_resize.get())
+        self.draft.state.style["auto_adjust_bar_gap_on_resize"] = enabled
+        if enabled:
+            self.auto_adjust_bar_gap()
         else:
             self.preview()
 
@@ -733,6 +765,7 @@ class _Dialog:
                     leds_per_bar=leds,
                     auto_adjust_leds_on_resize=bool(self.auto_adjust_leds_on_resize.get()),
                     bar_gap=bar_gap,
+                    auto_adjust_bar_gap_on_resize=bool(self.auto_adjust_bar_gap_on_resize.get()),
                     adaptive_fill=bool(self.adaptive_fill.get()),
                 )
                 self.draft.state.layout["label_font_size"] = font_size
@@ -787,6 +820,8 @@ class _Dialog:
                     self.update_window_preset_choices()
                     if getattr(self, "auto_adjust_leds_on_resize", None) and self.auto_adjust_leds_on_resize.get():
                         self.auto_adjust_leds()
+                    if getattr(self, "auto_adjust_bar_gap_on_resize", None) and self.auto_adjust_bar_gap_on_resize.get():
+                        self.auto_adjust_bar_gap()
                 elif action == "reply":
                     success, message, close = payload
                     if success and close:

@@ -395,5 +395,30 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(preset_id, "compact")
         self.assertEqual(self.dialog.window_size, (960, 540))
 
+    def test_auto_adjust_bar_gap_button_updates_bar_gap_once(self):
+        self.assertFalse(self.dialog.auto_adjust_bar_gap_on_resize.get())
+        self.dialog.bar_gap.set("15")
+        self.dialog.set_bar_gap()
+        _ = self.events.get_nowait()  # consume preview
+
+        self.dialog.auto_adjust_bar_gap()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertNotEqual(state.style["bar_gap"], 15)
+        self.assertIn(str(state.style["bar_gap"]), self.dialog.status.get())
+
+    def test_auto_adjust_bar_gap_on_resize_toggle_and_submit(self):
+        self.assertFalse(self.dialog.auto_adjust_bar_gap_on_resize.get())
+        self.dialog.auto_adjust_bar_gap_on_resize.set(True)
+        self.dialog.toggle_auto_adjust_bar_gap_on_resize()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertTrue(state.style["auto_adjust_bar_gap_on_resize"])
+
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertTrue(state.style["auto_adjust_bar_gap_on_resize"])
+
 
 
