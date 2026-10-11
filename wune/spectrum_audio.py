@@ -159,10 +159,11 @@ class AudioSpectrum:
             # a single active side measures 10*log10(1/2) = -3.0103 dB.
             powers = [(powers[0] + powers[1]) * 0.5]
         out = np.zeros((len(powers), self.bars), dtype=np.float32)
+        gain_db = float(getattr(self.cfg, "display_gain_db", 0.0))
         for ch, power in enumerate(powers):
             for band, indices in enumerate(self._bin_idx):
                 energy = float(np.sum(power[indices]))
-                db = 10.0 * np.log10(max(energy, 1e-20))
+                db = 10.0 * np.log10(max(energy, 1e-20)) + gain_db
                 out[ch, band] = np.clip(
                     (db - self.cfg.db_min) / (self.cfg.db_max - self.cfg.db_min), 0.0, 1.0
                 )

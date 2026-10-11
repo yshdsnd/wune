@@ -127,6 +127,31 @@ class DialogTests(unittest.TestCase):
         self.assertFalse(self.dialog.pending)
         self.assertIn("0.25", self.dialog.status.get())
 
+    def test_display_gain_preview_and_validation(self):
+        self.dialog.display_gain.set("6.0")
+        self.dialog.set_display_gain()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.style["display_gain_db"], 6.0)
+
+        # Invalid value in set_display_gain shows error
+        self.dialog.display_gain.set("30.0")
+        self.dialog.set_display_gain()
+        self.assertTrue(self.events.empty())
+        self.assertIn("24", self.dialog.status.get())
+
+        # Invalid value on submit blocks save
+        self.dialog.submit("save")
+        self.assertTrue(self.events.empty())
+        self.assertFalse(self.dialog.pending)
+
+        # Valid value applies correctly
+        self.dialog.display_gain.set("-12.0")
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertEqual(state.style["display_gain_db"], -12.0)
+
     def test_invalid_label_font_size_blocks_save_without_discarding_input(self):
         self.dialog.label_font_size.set("99")
         self.dialog.submit("save")

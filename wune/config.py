@@ -15,6 +15,7 @@ class Config:
     gauge_style: str = "flat"     # "flat" (original) or "box" (beveled LED)
     led_shape: str = "rounded"   # rectangle, rounded, ellipse
     led_aspect_ratio: float = 2.0  # width / height, independent of cell size
+    display_gain_db: float = 0.0   # 表示レベルのオフセット(dB)
     initial_preset: str | None = "CLASSIC"  # Color theme only; None keeps custom colors.
     width: int = 1280
     height: int = 800
