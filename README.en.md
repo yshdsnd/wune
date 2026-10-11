@@ -18,7 +18,6 @@ Choose an OS-specific ZIP from [GitHub Releases](https://github.com/yshdsnd/wune
 - Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS installation guide](INSTALL_MACOS.en.md)
 
 No Python installation is needed. The guides also cover updates, removal, and initial audio permissions.
-This main branch is developing the v1.1.0 integration; some controls differ from the released v1.0.1.
 
 ## Controls
 
@@ -131,7 +130,7 @@ This deletes the existing settings file; back it up first if needed.
 
 ## Supported environment and limitations
 
-- Previous releases were tested on Windows 11 x64 and macOS 27 Apple Silicon. The integrated v1.1.0 candidate still needs hardware validation.
+- Hardware-verified environment: Windows 11 x64 and macOS 27 Apple Silicon.
 - Mac packages target Apple Silicon arm64. Core Audio Process Tap requires macOS 14.2 or later; this does not imply hardware verification on every supported OS version.
 - An output device capable of stereo audio playback is required.
 - Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows, Intel Mac, Linux, or FreeBSD.
