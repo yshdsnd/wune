@@ -44,7 +44,7 @@ Window dimensions are constrained by a minimum size and aspect-ratio adjustments
 Width and height cannot be changed completely independently.
 F2 or the menu opens Settings above the main window while keeping fullscreen active. Preview, save, and cancel changes without leaving fullscreen.
 While Settings is open, theme changes through T or the theme badge, and information-bar changes through I, are disabled.
-The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → Layout and LEDs → Confirm before quitting with Q / Esc.
+The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → General → Confirm before quitting with Q / Esc.
 
 Esc or the close button in the Settings window cancels settings changes rather than quitting the application.
 
@@ -54,13 +54,15 @@ Press **F2** to open Settings. Preview changes in the main display while music c
 
 | Tab | Main settings |
 | --- | --- |
-| Layout and LEDs | Language, frequency / level orientation, stacked or side-by-side L/R channels, LED rendering / shape / aspect ratio, information bar, and a 20 kHz display limit |
+| Spectrum | Channel arrangement (separate/mix, stacked/side-by-side), frequency/level orientation, 20 kHz display limit, LED rendering/shape/aspect ratio, Adaptive Fill, auto-adjust LEDs/bar gap |
+| Info & Text | Scale and info bar font sizes, dynamic font scaling, Now Playing track display, info bar visibility and position |
 | Themes and colors | Select, create, duplicate, rename, or delete color themes; edit individual colors |
-| Background | Solid color / image, Fit / Fill |
+| Background | Solid color / image, image sizing (Fit / Fill) |
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
+| General | Window size presets, display language, exit confirmation prompt |
 
 “LED aspect ratio (width/height)” controls the shape: higher values make LEDs wider relative to their height. Resize the window to change the overall display size.
-Under Layout and LEDs → Channel display, choose separate L/R or Stereo Mix.
+Under Spectrum → Channel display, choose separate L/R or Stereo Mix.
 Stereo Mix averages left/right power into one spectrum, so opposite-phase signals do not cancel.
 Audio on only one side appears about 3 dB lower than the same audio on both sides.
 Switching keeps capture running and supports preview, Save, Apply, and Cancel.
@@ -85,7 +87,7 @@ If you quit with Settings still open, unapplied previews are not saved.
 
 ### Switch between English and Japanese
 
-Open F2 → **Layout and LEDs**（配置・LED）→ **Language**（表示言語）and select
+Open F2 → **General**（一般）→ **Language**（表示言語）and select
 System / Auto, English, or 日本語. Automatic selection falls back to English for unsupported system languages.
 The main display updates immediately. To update the Settings window, use Save to close it, or Apply and then close it, and reopen it with F2.
 The standard Windows color picker follows the Windows display language.
