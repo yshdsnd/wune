@@ -10,7 +10,7 @@ from wune.settings_dialog import _Dialog, _focus_dialog
 
 class DialogTests(unittest.TestCase):
     def test_channel_mode_preview_and_apply(self):
-        self.assertEqual(len(self.dialog.notebook.tabs()), 5)
+        self.assertEqual(len(self.dialog.notebook.tabs()), 6)
         for tab_id in self.dialog.notebook.tabs():
             tab_widget = self.dialog.notebook.nametowidget(tab_id)
             cells = {}
@@ -27,7 +27,7 @@ class DialogTests(unittest.TestCase):
                     cells[key] = child
 
         lang_combo, _ = self.dialog.combos["language"]
-        self.assertEqual(int(lang_combo.grid_info()["row"]), 4)
+        self.assertEqual(int(lang_combo.grid_info()["row"]), 1)
 
         self.dialog.layout("channel_mode", "stereo_mix")
         action, state = self.events.get_nowait()

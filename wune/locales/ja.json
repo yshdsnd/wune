@@ -22,6 +22,8 @@
   "settings.preview_changes_on_the_playing_spectrum": "再生中のスペクトラムで見た目を確認できます。",
   "settings.tab_spectrum": "スペクトラム",
   "settings.tab_info_text": "情報・文字",
+  "settings.tab_background": "背景",
+  "settings.tab_general": "一般",
   "settings.tab_background_general": "背景・一般",
   "settings.spectrum_help": "周波数の表示方向、チャンネル配置、LEDの形状を設定します。",
   "settings.info_text_help": "目盛りフォントサイズ、自動拡大、および画面上の情報表示を設定します。",
