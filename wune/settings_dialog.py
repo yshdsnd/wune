@@ -260,8 +260,13 @@ class _Dialog:
         bar_gap_spin.grid(row=9, column=1, sticky="w", padx=(14, 0))
         bar_gap_spin.bind("<Return>", lambda event: self.set_bar_gap())
         bar_gap_spin.bind("<FocusOut>", lambda event: self.set_bar_gap())
+        self.adaptive_fill = tk.BooleanVar(root)
+        ttk.Checkbutton(spectrum, text=self.t('settings.adaptive_fill'),
+                        variable=self.adaptive_fill,
+                        command=self.toggle_adaptive_fill).grid(
+                            row=10, column=0, columnspan=2, sticky="w", pady=(0, 8))
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=10, column=0, columnspan=2, sticky="w", pady=12)
+                  wraplength=500).grid(row=11, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -319,8 +324,16 @@ class _Dialog:
                         variable=self.confirm_keyboard_exit,
                         command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
                             row=5, column=0, columnspan=2, sticky="w", pady=8)
+        ttk.Label(background, text=self.t('settings.window_size_preset')).grid(row=6, column=0, sticky="w", pady=8)
+        preset_frame = ttk.Frame(background)
+        preset_frame.grid(row=6, column=1, sticky="w", padx=(14, 0))
+        self.window_preset_var = tk.StringVar(root)
+        self.window_preset_combo = ttk.Combobox(preset_frame, textvariable=self.window_preset_var, state="readonly", width=24)
+        self.window_preset_combo.pack(side="left")
+        ttk.Button(preset_frame, text=self.t('settings.apply_window_preset'),
+                   command=self.apply_selected_window_preset).pack(side="left", padx=(8, 0))
         ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
-            row=6, column=0, columnspan=2, sticky="w", pady=12)
+            row=7, column=0, columnspan=2, sticky="w", pady=12)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -391,6 +404,7 @@ class _Dialog:
         self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
         self.auto_adjust_leds_on_resize.set(bool(state.style.get("auto_adjust_leds_on_resize", False)))
         self.bar_gap.set(str(state.style.get("bar_gap", 2)))
+        self.adaptive_fill.set(bool(state.style.get("adaptive_fill", False)))
         self.combos["channel_layout"][0].configure(
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
@@ -401,6 +415,7 @@ class _Dialog:
         self.label_font_size.set(str(state.layout.get("label_font_size", 14)))
         self.info_font_size.set(str(state.layout.get("info_font_size", 14)))
         self.auto_scale_fonts.set(state.layout.get("auto_scale_fonts", True))
+        self.update_window_preset_choices()
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")
             self.motion_scales[key].set(value)
@@ -486,6 +501,58 @@ class _Dialog:
             self.auto_adjust_leds()
         else:
             self.preview()
+
+    def toggle_adaptive_fill(self):
+        if self.loading:
+            return
+        enabled = bool(self.adaptive_fill.get())
+        self.draft.state.style["adaptive_fill"] = enabled
+        self.preview()
+
+    def update_window_preset_choices(self):
+        if not hasattr(self, "window_preset_combo"):
+            return
+        from .window_presets import get_all_window_presets
+        user_presets = getattr(self.draft.state, "user_window_presets", None)
+        presets = get_all_window_presets(user_presets)
+        self.preset_map = {}
+        labels = []
+        current_w, current_h = getattr(self, "window_size", (1280, 800))
+        selected_label = None
+        for p in presets:
+            label_name = self.t(p.name_key) if getattr(p, "name_key", None) else p.name
+            label = f"{label_name} ({p.width}x{p.height})"
+            self.preset_map[label] = p.id
+            labels.append(label)
+            if p.width == current_w and p.height == current_h and selected_label is None:
+                selected_label = label
+        self.window_preset_combo.configure(values=labels)
+        if selected_label:
+            self.window_preset_var.set(selected_label)
+        elif labels and not self.window_preset_var.get():
+            self.window_preset_var.set(labels[0])
+
+    def apply_selected_window_preset(self):
+        if self.loading or self.pending:
+            return
+        from .window_presets import find_window_preset
+        label = self.window_preset_var.get()
+        preset_id = getattr(self, "preset_map", {}).get(label)
+        if not preset_id:
+            return
+        preset = find_window_preset(preset_id, getattr(self.draft.state, "user_window_presets", None))
+        if preset is not None:
+            self.window_size = (preset.width, preset.height)
+            if preset.leds_per_bar is not None:
+                self.draft.state.style["leds_per_bar"] = preset.leds_per_bar
+            if preset.led_aspect_ratio is not None:
+                self.draft.state.style["led_aspect_ratio"] = preset.led_aspect_ratio
+            if preset.bar_gap is not None:
+                self.draft.state.style["bar_gap"] = preset.bar_gap
+            if preset.adaptive_fill is not None:
+                self.draft.state.style["adaptive_fill"] = preset.adaptive_fill
+            self.refresh()
+        self.events.put(("window_preset", preset_id))
 
     def set_label_font_size(self):
         from .settings import valid_preference
@@ -666,6 +733,7 @@ class _Dialog:
                     leds_per_bar=leds,
                     auto_adjust_leds_on_resize=bool(self.auto_adjust_leds_on_resize.get()),
                     bar_gap=bar_gap,
+                    adaptive_fill=bool(self.adaptive_fill.get()),
                 )
                 self.draft.state.layout["label_font_size"] = font_size
                 self.draft.state.layout["info_font_size"] = info_size
@@ -716,6 +784,7 @@ class _Dialog:
                     _focus_dialog(self.root)
                 elif action == "window_size":
                     self.window_size = payload
+                    self.update_window_preset_choices()
                     if getattr(self, "auto_adjust_leds_on_resize", None) and self.auto_adjust_leds_on_resize.get():
                         self.auto_adjust_leds()
                 elif action == "reply":

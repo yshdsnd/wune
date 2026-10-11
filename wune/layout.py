@@ -287,19 +287,63 @@ def calculate_layout(size, cfg):
     ratio = cfg.led_aspect_ratio
     nx, ny = grid_counts(cfg)
     bar_gap = getattr(cfg, "bar_gap", 2)
-    led_h = int(min(available_w / (nx * ratio), available_h / ny))
-    while True:
-        bar_w = max(1, round(led_h * ratio))
-        led_gap = max(1, round((led_h - 0.01) / 4))
-        if cfg.spectrum_orientation == "frequency_vertical":
-            x_gap, y_gap = led_gap, bar_gap
+    is_fvert = (cfg.spectrum_orientation == "frequency_vertical")
+    adaptive = getattr(cfg, "adaptive_fill", False)
+
+    if adaptive:
+        min_ratio = max(0.8, round(ratio * 0.6, 2))
+        max_ratio = min(5.0, round(ratio * 2.2, 2))
+        best_area = -1
+        best_h = 3
+        best_w = max(1, round(3 * ratio))
+        max_h = max(3, available_h // ny)
+        for h in range(max_h, 2, -1):
+            led_gap = max(1, round((h - 0.01) / 4))
+            x_gap = led_gap if is_fvert else bar_gap
+            y_gap = bar_gap if is_fvert else led_gap
+            plot_h = ny * h + (ny - 1) * y_gap
+            if plot_h > available_h:
+                continue
+            avail_bar_space = available_w - (nx - 1) * x_gap
+            if avail_bar_space < nx:
+                continue
+            max_w_from_avail = avail_bar_space // nx
+            w_from_ratio = int(h * max_ratio)
+            target_w = max(1, min(max_w_from_avail, w_from_ratio))
+            if target_w < int(h * min_ratio):
+                continue
+            plot_w = nx * target_w + (nx - 1) * x_gap
+            if plot_w <= available_w and plot_h <= available_h:
+                area = plot_w * plot_h
+                if area > best_area:
+                    best_area = area
+                    best_h = h
+                    best_w = target_w
+        if best_area > 0:
+            led_h = best_h
+            bar_w = best_w
+            led_gap = max(1, round((led_h - 0.01) / 4))
+            x_gap = led_gap if is_fvert else bar_gap
+            y_gap = bar_gap if is_fvert else led_gap
+            plot_w = nx * bar_w + (nx - 1) * x_gap
+            plot_h = ny * led_h + (ny - 1) * y_gap
         else:
-            x_gap, y_gap = bar_gap, led_gap
-        plot_w = nx * bar_w + (nx - 1) * x_gap
-        plot_h = ny * led_h + (ny - 1) * y_gap
-        if plot_w <= available_w and plot_h <= available_h:
-            break
-        led_h -= 1
+            adaptive = False
+
+    if not adaptive:
+        led_h = int(min(available_w / (nx * ratio), available_h / ny))
+        while True:
+            bar_w = max(1, round(led_h * ratio))
+            led_gap = max(1, round((led_h - 0.01) / 4))
+            if is_fvert:
+                x_gap, y_gap = led_gap, bar_gap
+            else:
+                x_gap, y_gap = bar_gap, led_gap
+            plot_w = nx * bar_w + (nx - 1) * x_gap
+            plot_h = ny * led_h + (ny - 1) * y_gap
+            if plot_w <= available_w and plot_h <= available_h:
+                break
+            led_h -= 1
 
     plots = []
     packed_w = left + plot_w + 16

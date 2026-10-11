@@ -95,12 +95,13 @@ class SettingsTests(unittest.TestCase):
             self.assertNotIn("fullscreen", window)
 
     def test_custom_style_round_trip(self):
-        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, leds_per_bar=95, auto_adjust_leds_on_resize=True, bar_gap=8)
+        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=True, leds_per_bar=95, auto_adjust_leds_on_resize=True, bar_gap=8)
         self.store.save(cfg, (1000, 700), (50, 60), "CUSTOM")
         loaded, _ = self.store.load(Config())
         self.assertIsNone(loaded.initial_preset)
         self.assertEqual(loaded.led_shape, "ellipse")
         self.assertEqual(loaded.led_aspect_ratio, 1.5)
+        self.assertTrue(loaded.adaptive_fill)
         self.assertEqual(loaded.leds_per_bar, 95)
         self.assertTrue(loaded.auto_adjust_leds_on_resize)
         self.assertEqual(loaded.bar_gap, 8)
@@ -160,6 +161,31 @@ class SettingsTests(unittest.TestCase):
         document = json.loads(self.path.read_text(encoding="utf-8"))
         self.assertEqual(document["appearance"]["future"], 123)
         self.assertEqual(document["future_section"], {"mine": {}})
+
+    def test_user_window_presets_round_trip(self):
+        user_presets = {
+            "custom_monitor": {
+                "name": "My Custom Monitor",
+                "width": 1600,
+                "height": 900,
+                "leds_per_bar": 25,
+                "led_aspect_ratio": 2.5,
+                "adaptive_fill": True,
+            }
+        }
+        self.store.user_window_presets = user_presets
+        self.store.save(Config(), (1280, 800), (0, 0), "CLASSIC")
+
+        loaded_store = SettingsStore(self.path)
+        loaded_store.load(Config())
+        self.assertIn("custom_monitor", loaded_store.user_window_presets)
+        preset = loaded_store.user_window_presets["custom_monitor"]
+        self.assertEqual(preset["name"], "My Custom Monitor")
+        self.assertEqual(preset["width"], 1600)
+        self.assertEqual(preset["height"], 900)
+        self.assertEqual(preset["leds_per_bar"], 25)
+        self.assertEqual(preset["led_aspect_ratio"], 2.5)
+        self.assertTrue(preset["adaptive_fill"])
 
 
 class GeometryTests(unittest.TestCase):

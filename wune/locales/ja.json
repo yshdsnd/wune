@@ -1,6 +1,8 @@
 {
   "menu.open": "メニュー",
   "menu.settings": "設定…",
+  "menu.window_size": "ウィンドウサイズ",
+  "menu.back": "戻る",
   "menu.enter_fullscreen": "全画面にする",
   "menu.exit_fullscreen": "全画面を解除",
   "menu.exit": "終了",
@@ -154,5 +156,14 @@
   "exit.confirm_setting": "Q / Escで終了するときに確認する",
   "settings.channel_mode": "チャンネル表示",
   "settings.stereo_separate": "ステレオ（L/R個別）",
-  "settings.stereo_mix": "ステレオミックス（合成）"
+  "settings.stereo_mix": "ステレオミックス（合成）",
+  "settings.adaptive_fill": "ウィンドウに合わせてLED縦横比を自動調整（Adaptive Fill）",
+  "settings.window_size_preset": "ウィンドウサイズプリセット",
+  "settings.apply_window_preset": "サイズを適用",
+  "presets.window.compact": "コンパクト (960 × 540)",
+  "presets.window.standard": "標準 (1280 × 800)",
+  "presets.window.fhd": "フルHD (1920 × 1080)",
+  "presets.window.ultrawide": "ウルトラワイド (2560 × 1080)",
+  "presets.window.wqhd": "WQHD (2560 × 1440)",
+  "presets.window.4k": "4K UHD (3840 × 2160)"
 }

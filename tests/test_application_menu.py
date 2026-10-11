@@ -21,14 +21,43 @@ class ApplicationMenuTests(unittest.TestCase):
     def test_button_and_right_click_share_commands(self):
         for event in (dict(button=1, pos=self.menu.button_rect(self.font, "en").center),
                       dict(button=3, pos=(470, 390))):
-            for index, expected in enumerate(("settings", "fullscreen", "exit")):
+            for index, expected in enumerate(("settings", "fullscreen", "window_size", "exit")):
                 self.menu.close()
                 self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, **event), (True, None))
                 rect, rows = self.menu.geometry((480, 400), self.font, "en", False)
                 self.assertTrue(pg.Rect(0, 0, 480, 400).contains(rect))
-                self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=rows[index].center),
-                                 (True, expected))
-                self.assertIsNone(self.menu.anchor)
+                if expected == "window_size":
+                    self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=rows[index].center),
+                                     (True, None))
+                    self.assertEqual(self.menu.submenu, "window_size")
+                    self.assertIsNotNone(self.menu.anchor)
+                else:
+                    self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=rows[index].center),
+                                     (True, expected))
+                    self.assertIsNone(self.menu.anchor)
+
+    def test_window_size_submenu_and_presets(self):
+        self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=3, pos=(200, 200)), (True, None))
+        rect, rows = self.menu.geometry((480, 400), self.font, "en", False)
+        items = self.menu.items("en", False)
+        ws_index = [i for i, (cmd, *_) in enumerate(items) if cmd == "window_size"][0]
+        self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=rows[ws_index].center), (True, None))
+        self.assertEqual(self.menu.submenu, "window_size")
+
+        sub_rect, sub_rows = self.menu.geometry((480, 400), self.font, "en", False)
+        sub_items = self.menu.items("en", False)
+        self.assertEqual(sub_items[0][0], "back")
+        self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=sub_rows[0].center), (True, None))
+        self.assertIsNone(self.menu.submenu)
+
+        rect, rows = self.menu.geometry((480, 400), self.font, "en", False)
+        self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=rows[ws_index].center), (True, None))
+        sub_rect, sub_rows = self.menu.geometry((480, 400), self.font, "en", False)
+        sub_items = self.menu.items("en", False)
+        self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, button=1, pos=sub_rows[1].center),
+                         (True, sub_items[1][0]))
+        self.assertIsNone(self.menu.anchor)
+        self.assertIsNone(self.menu.submenu)
 
     def test_dismissal_and_outside_click_do_not_activate_underlying_controls(self):
         for kind, values, consumed in ((pg.KEYDOWN, dict(key=pg.K_ESCAPE), True),
