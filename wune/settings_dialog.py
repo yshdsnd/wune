@@ -157,10 +157,9 @@ class _Dialog:
         root.bind("<Deactivate>", self._on_deactivate)
         frame = ttk.Frame(root, padding=12)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text=self.t('settings.preview_changes_on_the_playing_spectrum'), font=("Hiragino Sans" if sys.platform == "darwin" else "Yu Gothic UI", 11, "bold")).pack(anchor="w")
         notebook = ttk.Notebook(frame)
         self.notebook = notebook
-        notebook.pack(fill="both", expand=True, pady=10)
+        notebook.pack(fill="both", expand=True, pady=(0, 10))
         spectrum = ttk.Frame(notebook, padding=12)
         info_tab = ttk.Frame(notebook, padding=12)
         colors = ttk.Frame(notebook, padding=12)
