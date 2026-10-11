@@ -128,6 +128,7 @@ This deletes the existing settings file; back it up first if needed.
 - The Settings window does not include audio-device selection or band-count controls.
 - At higher sample rates, the display range extends up to 40 kHz. Use “Limit display to 20 kHz (keep capture rate)” to focus on the audible range.
 - Some scale labels are omitted in narrow layouts. Levels are per-band indications, not sound-pressure or true-peak measurements.
+- Now-playing track display in the information bar supports Windows Global System Media Transport Controls (GSMTC) and Sony Music Center for PC (verified with v2.7.3) on Windows, and Apple Music on macOS. Because Music Center for PC metadata is retrieved by parsing its window title, future updates to the player that alter the title format may prevent track information from being displayed.
 - Changes to DPI or display configuration while running have not been tested.
 
 ## Troubleshooting
