@@ -34,6 +34,8 @@ class App:
         os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
         if sys.platform == "win32":
             os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
+        elif sys.platform == "darwin":
+            os.environ.setdefault("SDL_VIDEO_MAC_FULLSCREEN_SPACES", "0")
         pg.init()
         self._icon = pygame_icon()
         pg.display.set_caption(window_title(cfg.language))

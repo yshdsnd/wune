@@ -11,6 +11,8 @@ import sys
 
 if sys.platform == "win32":
     os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
+elif sys.platform == "darwin":
+    os.environ.setdefault("SDL_VIDEO_MAC_FULLSCREEN_SPACES", "0")
 
 import pygame as pg
 import argparse
