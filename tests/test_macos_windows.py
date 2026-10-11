@@ -127,9 +127,9 @@ class MacWindowTests(unittest.TestCase):
     def test_mac_disables_fullscreen_spaces(self):
         import os
         from unittest.mock import patch
-        env = {}
-        with patch('sys.platform', 'darwin'), patch.dict(os.environ, env, clear=True):
-            mock_spectrum = Mock(sr=48000, fmax=20000)
+        mock_spectrum = Mock(sr=48000, fmax=20000)
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('SDL_VIDEO_MAC_FULLSCREEN_SPACES', None)
             with patch('wune.app.sys.platform', 'darwin'), \
                  patch('wune.app.set_app_id'), \
                  patch('pygame.init'), \
