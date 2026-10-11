@@ -8,6 +8,7 @@ from wune.config import Config
 from wune.layout import (
     calculate_layout,
     calculate_optimal_leds_per_bar,
+    calculate_optimal_bar_gap,
     calculate_ui_scale,
     clamp_window_size,
     minimum_window_size,
@@ -197,9 +198,12 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         surface_size = (3840, 2160)
         menu_rect, rows = menu.geometry(surface_size, font_large, "en", False)
         self.assertTrue(pg.Rect((0, 0), surface_size).contains(menu_rect))
-        self.assertEqual(len(rows), 3)
+        self.assertEqual(len(rows), 4)
         for i in range(len(rows) - 1):
             self.assertGreaterEqual(rows[i + 1].top, rows[i].bottom)
+
+        menu_rect_fs, rows_fs = menu.geometry(surface_size, font_large, "en", True)
+        self.assertEqual(len(rows_fs), 3)
 
     def test_flexible_window_sizing_preserves_custom_sizes(self):
         cfg = Config(bars=32)
@@ -527,6 +531,69 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
                 scale_font_h = renderer.font_scale.get_height()
                 freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
                 self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
+    def test_adaptive_fill_clearance_and_width_filling(self):
+        """Verify that adaptive_fill expands LED bars to fill window space while
+        strictly maintaining clearances for all labels and info bars.
+        """
+        from wune.layout import layout_has_clearance
+        cfg_standard = Config(channel_layout="vertical", bars=32, leds_per_bar=20,
+                              adaptive_fill=False, show_now_playing=True, info_position="bottom")
+        cfg_adaptive = Config(channel_layout="vertical", bars=32, leds_per_bar=20,
+                              adaptive_fill=True, show_now_playing=True, info_position="bottom")
+
+        for size in ((1280, 800), (1920, 1080), (2560, 1080), (3440, 1440)):
+            with self.subTest(size=size):
+                std_layout = calculate_layout(size, cfg_standard)
+                ada_layout = calculate_layout(size, cfg_adaptive)
+
+                # Clearance must be strictly maintained
+                self.assertTrue(layout_has_clearance(ada_layout, cfg_adaptive, size))
+
+                # On wide/ultrawide displays, adaptive layout should utilize more bar width
+                if size[0] >= 1920:
+                    self.assertGreaterEqual(ada_layout.bar_width, std_layout.bar_width)
+
+                surf = pg.Surface(size)
+                renderer = LedBarRenderer(surf, cfg_adaptive)
+                np_rect = renderer.now_playing_rect()
+                info_rect = pg.Rect(renderer._layout.info_rect)
+                plot0 = pg.Rect(renderer._layout.plots[0])
+                plot_last = pg.Rect(renderer._layout.plots[-1])
+                scale = getattr(renderer, "ui_scale", 1.0)
+
+                # Top clearance
+                db_unit_offset = max(6, round(cfg_adaptive.db_unit_offset * scale))
+                unit_h = renderer.font_scale.get_height()
+                lr_h = renderer.font_channel.get_height()
+                top_label_y = plot0.y - unit_h - db_unit_offset - lr_h - max(2, round(2 * scale))
+                self.assertGreaterEqual(top_label_y, np_rect.bottom + 4)
+
+                # Bottom clearance
+                text_pad = max(6, round(8 * scale))
+                scale_font_h = renderer.font_scale.get_height()
+                freq_label_bottom = plot_last.bottom + max(3, round(4 * scale)) + text_pad + scale_font_h
+                self.assertGreaterEqual(info_rect.top, freq_label_bottom + 4)
+
+    def test_calculate_optimal_bar_gap(self):
+        from wune.layout import layout_has_clearance
+        cfg = Config(channel_layout="vertical", bars=32, leds_per_bar=20,
+                     show_now_playing=True, info_position="bottom")
+
+        for size in ((960, 540), (1280, 800), (1920, 1080), (2560, 1080), (3840, 2160)):
+            with self.subTest(size=size):
+                optimal = calculate_optimal_bar_gap(size, cfg)
+                self.assertGreaterEqual(optimal, 1)
+                self.assertLessEqual(optimal, 20)
+
+                test_cfg = replace(cfg, bar_gap=optimal)
+                layout = calculate_layout(size, test_cfg)
+                self.assertTrue(layout_has_clearance(layout, test_cfg, size))
+
+        # Check that high-resolution displays receive proportionally larger gap than small displays
+        gap_compact = calculate_optimal_bar_gap((960, 540), cfg)
+        gap_4k = calculate_optimal_bar_gap((3840, 2160), cfg)
+        self.assertGreater(gap_4k, gap_compact)
 
 
 if __name__ == "__main__":

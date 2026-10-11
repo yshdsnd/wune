@@ -22,10 +22,12 @@ class Config:
     bars: int = 64                # バー本数
     leds_per_bar: int = 20        # 縦のLED個数
     auto_adjust_leds_on_resize: bool = False  # リサイズ時にLED段数を自動調整するか
+    adaptive_fill: bool = False   # ウィンドウに合わせてLED縦横比を適応させるか
     led_gap: int = 1              # LEDの隙間(px)
     margin_lr: int = 40           # 左右マージン
     margin_tb: int = 16           # 上下の外側余白
     bar_gap: int = 2              # バー同士の隙間(px)
+    auto_adjust_bar_gap_on_resize: bool = False  # リサイズ時にバー間隔を自動調整するか
 
     # インフォバー（入力仕様）
     info_enabled: bool = True

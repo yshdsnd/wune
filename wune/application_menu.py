@@ -8,16 +8,33 @@ class ApplicationMenu:
     def __init__(self):
         self.anchor = None
         self.selected = 0
+        self.submenu = None
+        self.user_window_presets = {}
 
     def close(self):
         self.anchor = None
+        self.submenu = None
 
     def items(self, language, fullscreen):
         t = Translator(language)
         mac = sys.platform == "darwin"
-        return (("settings", t("menu.settings"), "Cmd+," if mac else "F2"),
-                ("fullscreen", t("menu.exit_fullscreen" if fullscreen else "menu.enter_fullscreen"), "Cmd+F" if mac else "Alt+Enter"),
-                ("exit", t("menu.exit"), "Q" if fullscreen else "Q / Esc"))
+        if self.submenu == "window_size":
+            from .window_presets import get_all_window_presets
+            presets = get_all_window_presets(self.user_window_presets)
+            items = [("back", "< " + t("menu.back"), "")]
+            for p in presets:
+                name = t(p.name_key) if p.name_key.startswith("presets.") else (p.description or f"{p.width} × {p.height}")
+                items.append((f"window_preset:{p.id}", name, f"{p.width}×{p.height}"))
+            return tuple(items)
+
+        items = [
+            ("settings", t("menu.settings"), "Cmd+," if mac else "F2"),
+            ("fullscreen", t("menu.exit_fullscreen" if fullscreen else "menu.enter_fullscreen"), "Cmd+F" if mac else "Alt+Enter"),
+        ]
+        if not fullscreen:
+            items.append(("window_size", t("menu.window_size"), ">"))
+        items.append(("exit", t("menu.exit"), "Q" if fullscreen else "Q / Esc"))
+        return tuple(items)
 
     @staticmethod
     def button_rect(font, language):
@@ -50,10 +67,12 @@ class ApplicationMenu:
         button = self.button_rect(font, language)
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 3:
             self.anchor, self.selected = event.pos, 0
+            self.submenu = None
             return True, None
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and button.collidepoint(event.pos):
             self.anchor = None if self.anchor is not None else button.bottomleft
             self.selected = 0
+            self.submenu = None
             return True, None
         if self.anchor is None:
             return False, None
@@ -63,20 +82,46 @@ class ApplicationMenu:
             return True, None
         if event.type == pg.MOUSEBUTTONDOWN:
             index = next((i for i, row in enumerate(rows) if row.collidepoint(event.pos)), -1)
+            if event.button == 1 and index >= 0:
+                command = self.items(language, fullscreen)[index][0]
+                if command == "window_size":
+                    self.submenu = "window_size"
+                    self.selected = 0
+                    return True, None
+                if command == "back":
+                    self.submenu = None
+                    self.selected = 0
+                    return True, None
+                self.close()
+                return True, command
             self.close()
-            command = self.items(language, fullscreen)[index][0] if event.button == 1 and index >= 0 else None
-            return True, command
+            return True, None
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
+                if self.submenu is not None:
+                    self.submenu = None
+                    self.selected = 0
+                    return True, None
                 self.close()
                 return True, None
             if event.key in (pg.K_UP, pg.K_DOWN):
                 self.selected = (self.selected + (1 if event.key == pg.K_DOWN else -1)) % len(rows)
                 return True, None
             if event.key in (pg.K_RETURN, pg.K_KP_ENTER) and not getattr(event, "mod", 0) & pg.KMOD_ALT:
-                command = self.items(language, fullscreen)[self.selected][0] if self.selected >= 0 else None
+                if self.selected >= 0:
+                    command = self.items(language, fullscreen)[self.selected][0]
+                    if command == "window_size":
+                        self.submenu = "window_size"
+                        self.selected = 0
+                        return True, None
+                    if command == "back":
+                        self.submenu = None
+                        self.selected = 0
+                        return True, None
+                    self.close()
+                    return True, command
                 self.close()
-                return True, command
+                return True, None
             self.close()
         return False, None
 

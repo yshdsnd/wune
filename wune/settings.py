@@ -26,7 +26,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
+PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "auto_adjust_bar_gap_on_resize", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -59,7 +59,7 @@ def valid_preference(key, value):
         return integer(value, 1, 2)
     if key in ("label_font_size", "info_font_size"):
         return integer(value, 10, 24)
-    return key in ("info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "auto_scale_fonts", "auto_adjust_leds_on_resize") and type(value) is bool
+    return key in ("info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "auto_scale_fonts", "auto_adjust_leds_on_resize", "auto_adjust_bar_gap_on_resize", "adaptive_fill") and type(value) is bool
 
 
 
@@ -69,6 +69,7 @@ class SettingsStore:
         self.writable = True
         self._document = {}
         self.user_presets = {}
+        self.user_window_presets = {}
 
     def load(self, defaults):
         self.writable = True
@@ -99,6 +100,10 @@ class SettingsStore:
                 self.user_presets[name] = decode_preset(name, data)
             except ValueError as error:
                 warnings.warn(f"Ignoring user theme {name!r}: {error}", RuntimeWarning)
+        self.user_window_presets = {}
+        for name, data in document.get("user_window_presets", {}).items():
+            if isinstance(data, dict) and "width" in data and "height" in data:
+                self.user_window_presets[name] = data
         saved_preset = document.get("appearance", {}).get("initial_preset")
         for key, value in document.get("appearance", {}).items():
             # The removed built-in is a load-time alias, not a selectable theme.
@@ -151,6 +156,7 @@ class SettingsStore:
         from dataclasses import asdict
         appearance["theme"] = asdict(cfg.theme)
         document["user_themes"] = {name: encode_preset(preset) for name, preset in self.user_presets.items()}
+        document["user_window_presets"] = deepcopy(self.user_window_presets)
         document.setdefault("window", {}).update(width=int(size[0]), height=int(size[1]),
                                                   x=int(position[0]), y=int(position[1]))
         from .monitor_identity import valid_identity
@@ -185,4 +191,5 @@ class SettingsStore:
         self.writable = True
         self._document = {}
         self.user_presets = {}
+        self.user_window_presets = {}
         return Config(), {}

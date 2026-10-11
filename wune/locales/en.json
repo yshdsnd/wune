@@ -1,6 +1,8 @@
 {
   "menu.open": "Menu",
   "menu.settings": "Settings…",
+  "menu.window_size": "Window Size",
+  "menu.back": "Back",
   "menu.enter_fullscreen": "Enter Fullscreen",
   "menu.exit_fullscreen": "Exit Fullscreen",
   "menu.exit": "Exit",
@@ -77,6 +79,9 @@
   "settings.enter_leds_per_bar_between_10_and_100": "Enter an LED segment count between 10 and 100.",
   "settings.bar_gap": "Bar gap (px)",
   "settings.enter_a_bar_gap_between_0_and_20": "Enter a bar gap between 0 and 20.",
+  "settings.auto_adjust_bar_gap": "Auto-adjust",
+  "settings.auto_adjusted_bar_gap_to": "Auto-adjusted bar gap to {gap} px.",
+  "settings.auto_adjust_bar_gap_on_resize": "Auto-adjust bar gap on window resize",
   "settings.auto_adjust_leds": "Auto-adjust",
   "settings.auto_adjusted_leds_to": "Auto-adjusted LED segments to {count}.",
   "settings.auto_adjust_leds_on_resize": "Auto-adjust LED segments on window resize",
@@ -154,5 +159,14 @@
   "exit.confirm_setting": "Confirm before quitting with Q / Esc",
   "settings.channel_mode": "Channel display",
   "settings.stereo_separate": "Stereo (separate L/R)",
-  "settings.stereo_mix": "Stereo Mix (combined)"
+  "settings.stereo_mix": "Stereo Mix (combined)",
+  "settings.adaptive_fill": "Adaptive fill (fit LED aspect ratio to window)",
+  "settings.window_size_preset": "Window size preset",
+  "settings.apply_window_preset": "Apply Size",
+  "presets.window.compact": "Compact (960 × 540)",
+  "presets.window.standard": "Standard (1280 × 800)",
+  "presets.window.fhd": "Full HD (1920 × 1080)",
+  "presets.window.ultrawide": "Ultrawide (2560 × 1080)",
+  "presets.window.wqhd": "WQHD (2560 × 1440)",
+  "presets.window.4k": "4K UHD (3840 × 2160)"
 }

@@ -15,6 +15,7 @@ from .i18n import Translator
 from .icons import set_app_id, pygame_icon
 from .layout import (
     calculate_optimal_leds_per_bar,
+    calculate_optimal_bar_gap,
     clamp_window_size,
     fit_window_size,
     channel_mode_window_size,
@@ -55,6 +56,8 @@ class App:
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
         self.menu = ApplicationMenu()
+        if settings_store is not None:
+            self.menu.user_window_presets = deepcopy(settings_store.user_window_presets)
         self.exit_confirmation = ExitConfirmation()
         self._disable_exit_confirmation = False
         self.renderer.user_presets = deepcopy(settings_store.user_presets) if settings_store is not None else {}
@@ -314,6 +317,11 @@ class App:
                     self.cancel_settings()
                     self._settings_closing = True
                     dialog.reply(True, close=True)
+                elif action == "window_preset":
+                    self.apply_window_preset(state)
+                    if self.settings_dialog is not None:
+                        self.settings_dialog.update_window_size(self.screen.get_size())
+                    continue
                 elif action in ("preview", "apply", "save"):
                     self.preview_appearance(state)
                     if action == "preview":
@@ -341,6 +349,11 @@ class App:
             optimal = calculate_optimal_leds_per_bar(size, self.cfg)
             if optimal != self.cfg.leds_per_bar:
                 self.cfg.leds_per_bar = optimal
+                self.save_settings()
+        if getattr(self.cfg, "auto_adjust_bar_gap_on_resize", False):
+            optimal_gap = calculate_optimal_bar_gap(size, self.cfg)
+            if optimal_gap != self.cfg.bar_gap:
+                self.cfg.bar_gap = optimal_gap
                 self.save_settings()
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
             self.toggle_fullscreen()
@@ -433,8 +446,30 @@ class App:
             self.open_settings()
         elif command == "fullscreen":
             self.toggle_fullscreen()
+        elif command.startswith("window_preset:"):
+            self.apply_window_preset(command.split(":", 1)[1])
         elif command == "exit":
             self.running = False
+
+    def apply_window_preset(self, preset_or_id):
+        from .window_presets import find_window_preset
+        user_presets = self.settings_store.user_window_presets if self.settings_store is not None else {}
+        preset = preset_or_id if hasattr(preset_or_id, "width") else find_window_preset(preset_or_id, user_presets)
+        if preset is None:
+            return
+        if self._fullscreen:
+            self.toggle_fullscreen()
+        if preset.leds_per_bar is not None:
+            self.cfg.leds_per_bar = preset.leds_per_bar
+        if preset.led_aspect_ratio is not None:
+            self.cfg.led_aspect_ratio = preset.led_aspect_ratio
+        if preset.bar_gap is not None:
+            self.cfg.bar_gap = preset.bar_gap
+        if preset.adaptive_fill is not None:
+            self.cfg.adaptive_fill = preset.adaptive_fill
+        target_size = (preset.width, preset.height)
+        self.resize_window(target_size)
+        self.save_settings()
 
     def update_info_text(self):
         # Report actual capture channels, not endpoint capacity or display rows.
