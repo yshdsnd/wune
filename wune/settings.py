@@ -26,7 +26,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "auto_adjust_bar_gap_on_resize", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
+PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "auto_adjust_bar_gap_on_resize", "display_gain_db", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "auto_scale_fonts", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -49,6 +49,8 @@ def valid_preference(key, value):
         return value in CHOICES[key]
     if key == "led_aspect_ratio":
         return type(value) in (int, float) and math.isfinite(value) and 0.25 <= value <= 8
+    if key == "display_gain_db":
+        return type(value) in (int, float) and math.isfinite(value) and -24.0 <= value <= 24.0
     if key == "leds_per_bar":
         return integer(value, 10, 100)
     if key == "bar_gap":

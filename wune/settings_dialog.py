@@ -226,27 +226,34 @@ class _Dialog:
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
                             row=4, column=0, columnspan=2, sticky="w", pady=8)
-        choice(spectrum, 5, "gauge_style", self.t('settings.led_rendering'), {
+        ttk.Label(spectrum, text=self.t('settings.display_gain_db')).grid(row=5, column=0, sticky="w", pady=8)
+        self.display_gain = tk.StringVar(root)
+        display_gain_spin = ttk.Spinbox(spectrum, from_=-24.0, to=24.0, increment=1.0, textvariable=self.display_gain,
+                                        command=self.set_display_gain, width=10)
+        display_gain_spin.grid(row=5, column=1, sticky="w", padx=(14, 0))
+        display_gain_spin.bind("<Return>", lambda event: self.set_display_gain())
+        display_gain_spin.bind("<FocusOut>", lambda event: self.set_display_gain())
+        choice(spectrum, 6, "gauge_style", self.t('settings.led_rendering'), {
             self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
             lambda value: self.style("gauge_style", value))
-        choice(spectrum, 6, "led_shape", self.t('settings.led_shape'), {
+        choice(spectrum, 7, "led_shape", self.t('settings.led_shape'), {
             self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
             lambda value: self.style("led_shape", value))
-        ttk.Label(spectrum, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=7, column=0, sticky="w", pady=8)
+        ttk.Label(spectrum, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=8, column=0, sticky="w", pady=8)
         self.ratio = tk.StringVar(root)
         ratio = ttk.Spinbox(spectrum, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
                             command=self.set_ratio, width=10)
-        ratio.grid(row=7, column=1, sticky="w", padx=(14, 0))
+        ratio.grid(row=8, column=1, sticky="w", padx=(14, 0))
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
         self.adaptive_fill = tk.BooleanVar(root)
         ttk.Checkbutton(spectrum, text=self.t('settings.adaptive_fill'),
                         variable=self.adaptive_fill,
                         command=self.toggle_adaptive_fill).grid(
-                            row=8, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        ttk.Label(spectrum, text=self.t('settings.leds_per_bar')).grid(row=9, column=0, sticky="w", pady=8)
+                            row=9, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ttk.Label(spectrum, text=self.t('settings.leds_per_bar')).grid(row=10, column=0, sticky="w", pady=8)
         leds_frame = ttk.Frame(spectrum)
-        leds_frame.grid(row=9, column=1, sticky="w", padx=(14, 0))
+        leds_frame.grid(row=10, column=1, sticky="w", padx=(14, 0))
         self.leds_per_bar = tk.StringVar(root)
         leds_spin = ttk.Spinbox(leds_frame, from_=10, to=100, increment=1, textvariable=self.leds_per_bar,
                                 command=self.set_leds_per_bar, width=8)
@@ -260,10 +267,10 @@ class _Dialog:
         ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_leds_on_resize'),
                         variable=self.auto_adjust_leds_on_resize,
                         command=self.toggle_auto_adjust_leds_on_resize).grid(
-                            row=10, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        ttk.Label(spectrum, text=self.t('settings.bar_gap')).grid(row=11, column=0, sticky="w", pady=8)
+                            row=11, column=0, columnspan=2, sticky="w", pady=(0, 8))
+        ttk.Label(spectrum, text=self.t('settings.bar_gap')).grid(row=12, column=0, sticky="w", pady=8)
         bar_gap_frame = ttk.Frame(spectrum)
-        bar_gap_frame.grid(row=11, column=1, sticky="w", padx=(14, 0))
+        bar_gap_frame.grid(row=12, column=1, sticky="w", padx=(14, 0))
         self.bar_gap = tk.StringVar(root)
         bar_gap_spin = ttk.Spinbox(bar_gap_frame, from_=0, to=20, increment=1, textvariable=self.bar_gap,
                                    command=self.set_bar_gap, width=8)
@@ -277,7 +284,7 @@ class _Dialog:
         ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_bar_gap_on_resize'),
                         variable=self.auto_adjust_bar_gap_on_resize,
                         command=self.toggle_auto_adjust_bar_gap_on_resize).grid(
-                            row=12, column=0, columnspan=2, sticky="w", pady=(0, 8))
+                            row=13, column=0, columnspan=2, sticky="w", pady=(0, 8))
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
@@ -417,6 +424,7 @@ class _Dialog:
                      state.layout[key] if key in state.layout else state.style[key])
             self.variables[key].set(next(label for label, item in choices.items() if item == value))
         self.ratio.set(str(state.style["led_aspect_ratio"]))
+        self.display_gain.set(f"{state.style.get('display_gain_db', 0.0):g}")
         self.leds_per_bar.set(str(state.style.get("leds_per_bar", 20)))
         self.auto_adjust_leds_on_resize.set(bool(state.style.get("auto_adjust_leds_on_resize", False)))
         self.bar_gap.set(str(state.style.get("bar_gap", 2)))
@@ -471,6 +479,16 @@ class _Dialog:
             self.preview()
         except ValueError as error:
             self.status.set(self.t.error(error))
+
+    def set_display_gain(self):
+        from .settings import valid_preference
+        try:
+            val = float(self.display_gain.get())
+            if not valid_preference("display_gain_db", val):
+                raise ValueError()
+            self.style("display_gain_db", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_a_display_gain_between_minus_24_and_24'))
 
     def set_ratio(self):
         try:
@@ -738,6 +756,13 @@ class _Dialog:
                     self.status.set(self.t('settings.enter_an_led_aspect_ratio_between_0_25_and_8'))
                     return
                 try:
+                    display_gain = float(self.display_gain.get())
+                    if not valid_preference("display_gain_db", display_gain):
+                        raise ValueError()
+                except ValueError:
+                    self.status.set(self.t('settings.enter_a_display_gain_between_minus_24_and_24'))
+                    return
+                try:
                     leds = int(self.leds_per_bar.get())
                     if not valid_preference("leds_per_bar", leds):
                         raise ValueError()
@@ -768,6 +793,7 @@ class _Dialog:
                 self.draft.edit_motion(motion)
                 self.draft.edit_style(
                     led_aspect_ratio=ratio,
+                    display_gain_db=display_gain,
                     leds_per_bar=leds,
                     auto_adjust_leds_on_resize=bool(self.auto_adjust_leds_on_resize.get()),
                     bar_gap=bar_gap,

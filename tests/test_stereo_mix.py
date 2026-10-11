@@ -144,3 +144,31 @@ class StereoMixTests(unittest.TestCase):
                     fitted = fit_window_size(size, mix)
                     self.assertEqual(fit_window_size(fitted, mix), fitted)
                     self.assertEqual(len(calculate_layout(fitted, mix).plots), 1)
+
+    def test_display_gain_shifts_levels_and_clamps(self):
+        mono = self.tone()
+        frames = np.column_stack((mono, mono))
+        cfg_zero = Config(display_gain_db=0.0)
+        spectrum_zero = AudioSpectrum(cfg_zero, cfg_zero.bars, cfg_zero.channels,
+                                      capture_backend=Mock(sample_rate=48000, channels=2))
+        levels_zero = spectrum_zero._map_levels(frames)
+
+        cfg_boost = Config(display_gain_db=6.0)
+        spectrum_boost = AudioSpectrum(cfg_boost, cfg_boost.bars, cfg_boost.channels,
+                                       capture_backend=Mock(sample_rate=48000, channels=2))
+        levels_boost = spectrum_boost._map_levels(frames)
+
+        db_range = cfg_zero.db_max - cfg_zero.db_min
+        expected_delta = 6.0 / db_range
+        mask = levels_zero > 0.05
+        self.assertTrue(np.any(mask))
+        np.testing.assert_allclose(levels_boost[mask], np.clip(levels_zero[mask] + expected_delta, 0.0, 1.0), atol=1e-5)
+
+        # Large gain clamps to 1.0
+        cfg_huge = Config(display_gain_db=24.0)
+        spectrum_huge = AudioSpectrum(cfg_huge, cfg_huge.bars, cfg_huge.channels,
+                                      capture_backend=Mock(sample_rate=48000, channels=2))
+        levels_huge = spectrum_huge._map_levels(frames)
+        self.assertLessEqual(np.max(levels_huge), 1.0)
+        self.assertGreaterEqual(np.min(levels_huge), 0.0)
+        self.assertGreater(np.max(levels_huge), np.max(levels_zero))

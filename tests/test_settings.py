@@ -95,7 +95,7 @@ class SettingsTests(unittest.TestCase):
             self.assertNotIn("fullscreen", window)
 
     def test_custom_style_round_trip(self):
-        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=True, leds_per_bar=95, auto_adjust_leds_on_resize=True, bar_gap=8, auto_adjust_bar_gap_on_resize=True)
+        cfg = Config(initial_preset=None, led_shape="ellipse", led_aspect_ratio=1.5, adaptive_fill=True, leds_per_bar=95, auto_adjust_leds_on_resize=True, bar_gap=8, auto_adjust_bar_gap_on_resize=True, display_gain_db=6.0)
         self.store.save(cfg, (1000, 700), (50, 60), "CUSTOM")
         loaded, _ = self.store.load(Config())
         self.assertIsNone(loaded.initial_preset)
@@ -106,11 +106,19 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(loaded.auto_adjust_leds_on_resize)
         self.assertEqual(loaded.bar_gap, 8)
         self.assertTrue(loaded.auto_adjust_bar_gap_on_resize)
+        self.assertEqual(loaded.display_gain_db, 6.0)
+
+    def test_display_gain_preference_survives_restart(self):
+        for gain in (-24.0, -12.5, 0.0, 6.0, 18.25, 24.0):
+            with self.subTest(gain=gain):
+                self.assertTrue(self.store.save(Config(display_gain_db=gain), (1280, 800), (0, 0), "CLASSIC"))
+                loaded, _ = SettingsStore(self.path).load(Config())
+                self.assertEqual(loaded.display_gain_db, gain)
 
     def test_invalid_values_do_not_reach_layout(self):
         self.write({"version": 1, "appearance": {"bars": True, "channels": 0,
                     "led_aspect_ratio": float('nan'), "leds_per_bar": 999, "auto_adjust_leds_on_resize": "yes", "initial_preset": "missing",
-                    "bar_gap": 999,
+                    "bar_gap": 999, "display_gain_db": 99.0,
                     "spectrum_orientation": "bad", "info_enabled": "yes",
                     "label_font_size": 99, "info_font_size": 99, "auto_scale_fonts": "yes"},
                     "window": {"width": -1, "height": 10**10, "x": "left", "y": False}})
@@ -121,6 +129,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(cfg.led_aspect_ratio, 2)
         self.assertEqual(cfg.leds_per_bar, 20)
         self.assertEqual(cfg.bar_gap, 2)
+        self.assertEqual(cfg.display_gain_db, 0.0)
         self.assertEqual(cfg.label_font_size, 14)
         self.assertEqual(cfg.info_font_size, 14)
         self.assertEqual(cfg.auto_scale_fonts, True)
