@@ -124,6 +124,25 @@ class MacWindowTests(unittest.TestCase):
             with self.assertWarns(RuntimeWarning):
                 self.assertEqual(work_areas(), [(0, 0, 1920, 1080)])
 
+    def test_mac_disables_fullscreen_spaces(self):
+        import os
+        from unittest.mock import patch
+        mock_spectrum = Mock(sr=48000, fmax=20000)
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('SDL_VIDEO_MAC_FULLSCREEN_SPACES', None)
+            with patch('wune.app.sys.platform', 'darwin'), \
+                 patch('wune.app.set_app_id'), \
+                 patch('pygame.init'), \
+                 patch('pygame.display.set_icon'), \
+                 patch('pygame.display.set_caption'), \
+                 patch('pygame.display.set_mode'), \
+                 patch('wune.app.LedBarRenderer'), \
+                 patch('wune.app.AudioSpectrum', return_value=mock_spectrum), \
+                 patch('wune.now_playing.create_default_coordinator'), \
+                 patch('wune.app.clamp_window_size', return_value=(800, 600)):
+                App(Config())
+                self.assertEqual(os.environ.get('SDL_VIDEO_MAC_FULLSCREEN_SPACES'), '0')
+
     @unittest.skipUnless(sys.platform == 'darwin', 'macOS real spawned Tk process')
     def test_real_hidden_mac_settings_process(self):
         subprocess.run([sys.executable, str(Path(__file__).with_name('macos_settings_probe.py'))],
