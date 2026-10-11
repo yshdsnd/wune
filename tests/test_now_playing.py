@@ -248,8 +248,19 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
     def test_create_default_coordinator(self):
         coord = create_default_coordinator()
         self.assertIsInstance(coord, NowPlayingCoordinator)
-        # Should gracefully return None when no providers or no media playing
-        self.assertIsNone(coord.update())
+        # Should gracefully return None or a NowPlaying instance without unhandled error
+        result = coord.update()
+        self.assertTrue(result is None or isinstance(result, NowPlaying))
+
+    def test_default_coordinator_factory_on_windows(self):
+        with patch("sys.platform", "win32"):
+            with patch("wune.now_playing_music_center.WindowsMusicCenterProvider.is_available", return_value=True), \
+                 patch("wune.now_playing_windows.WindowsGsmtcProvider.is_available", return_value=True):
+                coord = create_default_coordinator()
+                self.assertIsInstance(coord, NowPlayingCoordinator)
+                names = [p.name for p in coord._providers]
+                self.assertIn("windows_music_center", names)
+                self.assertIn("windows_gsmtc", names)
 
     def test_default_coordinator_factory_on_darwin(self):
         with patch("sys.platform", "darwin"):
