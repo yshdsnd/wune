@@ -8,12 +8,10 @@ Installation and initial setup instructions for Wune, an LED audio spectrum anal
 
 - **Supported Architecture**: **Apple Silicon (`arm64`: M1/M2/M3/M4, etc.) only**
   - *Note*: Intel Mac (`x86_64`) is not supported as no test hardware is available.
-- **Hardware-Verified OS for released v1.0.1**: **macOS 27** (tested and verified on physical Apple Silicon hardware)
+- **Hardware-Verified OS**: **macOS 27** (tested and verified on physical Apple Silicon hardware)
   - In theory, Wune is compatible with macOS 14.2 (Sonoma) or later where the Core Audio Process Tap API is available; however, physical hardware verification and testing are performed exclusively on the latest macOS 27.
   - macOS 14.1 and earlier are unsupported because the necessary Core Audio API does not exist.
 - Audio output device capable of stereo playback (built-in speakers, headphones, external audio interface, etc.)
-
-The integrated v1.1.0 candidate requires separate hardware verification.
 
 ## Download and Installation
 

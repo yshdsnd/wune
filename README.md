@@ -18,7 +18,6 @@
 - Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS導入ガイド](INSTALL_MACOS.md)
 
 Pythonのインストールは不要です。更新・アンインストール・初回の音声許可も各ガイドに記載しています。
-このmainはv1.1.0統合版の開発中です。公開済みv1.0.1と操作が異なる部分があります。
 
 ## 基本操作
 
@@ -131,7 +130,7 @@ Windowsではエクスプローラーのアドレス欄に次を貼り付けま�
 
 ## 動作環境と制限
 
-- 既存版の実機確認環境: Windows 11 x64／macOS 27 Apple Silicon。v1.1.0統合候補の実機確認は別途実施します。
+- 実機確認済み環境: Windows 11 x64／macOS 27 Apple Silicon。
 - MacはApple Silicon arm64のみ。Core Audio Process TapにはmacOS 14.2以降が必要ですが、14.2以降の全OSでの実機動作を保証するものではありません。
 - ステレオ音声を再生できる出力デバイスが必要です。
 - Windows 10・Windows on ARMは未検証です。Intel Mac、32ビットWindows、Linux、FreeBSD向けの配布物はありません。
