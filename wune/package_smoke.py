@@ -68,6 +68,10 @@ def run(report):
         provider = WindowsGsmtcProvider()
         if not provider.is_available():
             raise RuntimeError("WindowsGsmtcProvider reported unavailable in packaged Windows bundle")
+        from .now_playing_music_center import WindowsMusicCenterProvider
+        mc_provider = WindowsMusicCenterProvider()
+        if not mc_provider.is_available():
+            raise RuntimeError("WindowsMusicCenterProvider reported unavailable in packaged Windows bundle")
     if sys.platform == "darwin":
         import ctypes
         from .tap_macos import _ensure_dylib
