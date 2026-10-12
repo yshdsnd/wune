@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 class PackagingTests(unittest.TestCase):
@@ -33,13 +33,20 @@ class PackagingTests(unittest.TestCase):
             bundle = Path(tmp_dir) / "bundle"
             bundle.mkdir()
             (bundle / "Wune.exe").touch()
+            wune_calls = []
+            def fake_run(cmd, *args, **kwargs):
+                if isinstance(cmd, (list, tuple)) and any(str(p).endswith("Wune.exe") for p in cmd):
+                    wune_calls.append(cmd)
+                    raise sac_error
+                return MagicMock(returncode=0, stdout="", stderr="")
+
             with patch.dict("os.environ", {"SYSTEMROOT": r"C:\Windows"}), \
-                 patch.object(self.builder.subprocess, "run", side_effect=sac_error) as mock_run, \
+                 patch.object(self.builder.subprocess, "run", side_effect=fake_run), \
                  patch.object(self.builder, "try_self_sign") as mock_sign:
                 with self.assertRaises(OSError) as cm:
                     self.builder.smoke_test(bundle)
                 self.assertIs(cm.exception, sac_error)
-                self.assertEqual(mock_run.call_count, 5)
+                self.assertEqual(len(wune_calls), 5)
                 self.assertEqual(mock_sign.call_count, 4)
 
     def mac_builder(self):
@@ -140,4 +147,87 @@ class PackagingTests(unittest.TestCase):
             self.assertIn("Name=Wune", content)
             self.assertIn("Exec=Wune", content)
             self.assertIn("Icon=wune", content)
+
+    def test_linux_rpm_creation_when_rpmbuild_missing_skips(self):
+        builder = self.linux_builder()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bundle = Path(tmp_dir) / "bundle"
+            bundle.mkdir()
+            output = Path(tmp_dir) / "dist"
+            output.mkdir()
+            with patch.object(builder.shutil, "which", return_value=None):
+                result = builder.create_rpm_package(bundle, output, "1.2.0")
+                self.assertIsNone(result)
+
+    def test_linux_rpm_creation_with_mock_rpmbuild(self):
+        builder = self.linux_builder()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bundle = Path(tmp_dir) / "bundle"
+            bundle.mkdir()
+            (bundle / "Wune").touch()
+            (bundle / "wune.desktop").touch()
+            (bundle / "wune.png").touch()
+            output = Path(tmp_dir) / "dist"
+            output.mkdir()
+
+            rpm_calls = []
+            def fake_rpmbuild(cmd, *args, **kwargs):
+                if isinstance(cmd, (list, tuple)) and cmd[0] == "rpmbuild":
+                    rpm_calls.append(cmd)
+                    spec_path = Path(cmd[2])
+                    topdir = spec_path.parents[1]
+                    rpm_dir = topdir / "RPMS" / "x86_64"
+                    rpm_dir.mkdir(parents=True, exist_ok=True)
+                    (rpm_dir / "wune-1.2.0-1.x86_64.rpm").write_bytes(b"dummy_rpm_content")
+                    return MagicMock(returncode=0)
+                return MagicMock(returncode=0, stdout="", stderr="")
+
+            with patch.object(builder.shutil, "which", return_value="/usr/bin/rpmbuild"), \
+                 patch.object(builder.subprocess, "run", side_effect=fake_rpmbuild):
+                result = builder.create_rpm_package(bundle, output, "1.2.0")
+                self.assertIsNotNone(result)
+                self.assertTrue(result.is_file())
+                self.assertEqual(result.name, "Wune-v1.2.0-1.x86_64.rpm")
+                self.assertTrue(result.with_suffix(".rpm.sha256").is_file())
+                self.assertEqual(len(rpm_calls), 1)
+
+    def test_linux_deb_creation_when_dpkg_deb_missing_skips(self):
+        builder = self.linux_builder()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bundle = Path(tmp_dir) / "bundle"
+            bundle.mkdir()
+            output = Path(tmp_dir) / "dist"
+            output.mkdir()
+            with patch.object(builder.shutil, "which", return_value=None):
+                result = builder.create_deb_package(bundle, output, "1.2.0")
+                self.assertIsNone(result)
+
+    def test_linux_deb_creation_with_mock_dpkg_deb(self):
+        builder = self.linux_builder()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bundle = Path(tmp_dir) / "bundle"
+            bundle.mkdir()
+            (bundle / "Wune").touch()
+            (bundle / "wune.desktop").touch()
+            (bundle / "wune.png").touch()
+            output = Path(tmp_dir) / "dist"
+            output.mkdir()
+
+            deb_calls = []
+            def fake_dpkg_deb(cmd, *args, **kwargs):
+                if isinstance(cmd, (list, tuple)) and cmd[0] == "dpkg-deb":
+                    deb_calls.append(cmd)
+                    target_deb = Path(cmd[4])
+                    target_deb.write_bytes(b"dummy_deb_content")
+                    return MagicMock(returncode=0)
+                return MagicMock(returncode=0, stdout="", stderr="")
+
+            with patch.object(builder.shutil, "which", return_value="/usr/bin/dpkg-deb"), \
+                 patch.object(builder.subprocess, "run", side_effect=fake_dpkg_deb):
+                result = builder.create_deb_package(bundle, output, "1.2.0-rc.1")
+                self.assertIsNotNone(result)
+                self.assertTrue(result.is_file())
+                self.assertEqual(result.name, "wune_1.2.0~rc.1_amd64.deb")
+                self.assertTrue(result.with_suffix(".deb.sha256").is_file())
+                self.assertEqual(len(deb_calls), 1)
 

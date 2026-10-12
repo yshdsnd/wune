@@ -33,7 +33,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pulseaudio pulseaudio-utils libpulse-dev libpulse0 libasound2-dev libgl1 libegl1 libx11-6 libxext6 xvfb
+          sudo apt-get install -y pulseaudio pulseaudio-utils libpulse-dev libpulse0 libasound2-dev libgl1 libegl1 libx11-6 libxext6 xvfb rpm
       - name: Start audio daemon
         run: |
           pulseaudio --start --exit-idle-time=-1 || pulseaudio -D --exit-idle-time=-1 || true
@@ -67,6 +67,10 @@ jobs:
             dist/*.tar.gz.sha256
             dist/*.zip
             dist/*.zip.sha256
+            dist/*.rpm
+            dist/*.rpm.sha256
+            dist/*.deb
+            dist/*.deb.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: failure()
