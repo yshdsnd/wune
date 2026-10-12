@@ -97,3 +97,47 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn("INSTALL_WINDOWS.md", mac_script)
         self.assertNotIn("INSTALL_WINDOWS.en.md", mac_script)
 
+        linux_script = (root / "tools" / "build_linux.py").read_text(encoding="utf-8")
+        self.assertIn("INSTALL_LINUX.md", linux_script)
+        self.assertIn("INSTALL.md", linux_script)
+        self.assertNotIn("INSTALL_WINDOWS.md", linux_script)
+        self.assertNotIn("INSTALL_WINDOWS.en.md", linux_script)
+        self.assertNotIn("INSTALL_MACOS.md", linux_script)
+        self.assertNotIn("INSTALL_MACOS.en.md", linux_script)
+
+    def linux_builder(self):
+        path = Path(__file__).resolve().parents[1] / "tools" / "build_linux.py"
+        spec = importlib.util.spec_from_file_location("build_linux", path)
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        return builder
+
+    def test_linux_build_rejects_unsupported_architecture_before_writing(self):
+        builder = self.linux_builder()
+        with patch.object(builder.sys, "platform", "linux"), \
+             patch.object(builder.platform, "machine", return_value="armv7l"), \
+             patch.object(builder.subprocess, "run") as run, patch("sys.stderr"):
+            with self.assertRaises(SystemExit):
+                builder.main(["--version", "1.1.0"])
+            run.assert_not_called()
+
+    def test_linux_version_validation(self):
+        builder = self.linux_builder()
+        self.assertEqual(builder.validate_version("1.1.0"), "1.1.0")
+        self.assertEqual(builder.validate_version("1.1.0-rc.1"), "1.1.0-rc.1")
+        with self.assertRaises(argparse.ArgumentTypeError):
+            builder.validate_version("v1.1.0")
+
+    def test_linux_desktop_file_creation(self):
+        builder = self.linux_builder()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            target = Path(tmp_dir)
+            builder.create_desktop_file(target)
+            desktop_file = target / "wune.desktop"
+            self.assertTrue(desktop_file.is_file())
+            content = desktop_file.read_text(encoding="utf-8")
+            self.assertIn("[Desktop Entry]", content)
+            self.assertIn("Name=Wune", content)
+            self.assertIn("Exec=Wune", content)
+            self.assertIn("Icon=wune", content)
+
