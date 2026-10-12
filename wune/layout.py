@@ -35,6 +35,31 @@ def info_bar_base_height(cfg) -> int:
     return max(20, needed)
 
 
+def header_elements_bottom(cfg, scale: float = 1.0) -> int:
+    """Calculate the estimated bottom boundary of menu button and theme badge."""
+    auto_scale = getattr(cfg, "auto_scale_fonts", True)
+    effective_scale = scale if auto_scale else 1.0
+    info_size = getattr(cfg, "info_font_size", 14)
+
+    # font_small line height is approx 1.6x font size in Pygame SysFont
+    font_pt = max(11, round(info_size * effective_scale))
+    font_h = max(16, round(font_pt * 1.6))
+    btn_scale = max(1.0, font_h / 18.0)
+    btn_y = max(14, round(14 * btn_scale))
+    btn_h = max(30, font_h + round(10 * btn_scale))
+    btn_bottom = btn_y + btn_h
+
+    # font_badge pt is max(14, round(18 * effective_scale))
+    badge_pt = max(14, round(18 * effective_scale))
+    badge_font_h = max(18, round(badge_pt * 1.35))
+    badge_pad_y = max(8, round(8 * scale))
+    badge_glow = max(2, round(2 * scale))
+    badge_y = max(14, round(14 * scale))
+    badge_bottom = badge_y + badge_font_h + badge_pad_y + badge_glow
+
+    return max(btn_bottom, badge_bottom)
+
+
 def _dimensions(cfg):
     if cfg.spectrum_orientation not in ("frequency_horizontal", "frequency_vertical"):
         raise ValueError("spectrum_orientation must be frequency_horizontal or frequency_vertical")
@@ -100,15 +125,16 @@ def _vertical_overhead(size, cfg, scale: float) -> tuple[int, int]:
     gap = max(8, round(8 * scale))
     header_extra = max(0, round(46 * (scale - 1.0)))
     scale_extra = max(0, round(28 * (scale - 1.0)))
-    top = margin + 40
+    header_clearance = header_elements_bottom(cfg, scale) + max(6, round(6 * scale))
+    top = max(margin + 40, header_clearance)
     top_bar_bottom = 0
     if now_playing:
-        np_y = max(top, round(54 * scale) + 4)
+        np_y = top
         top_bar_bottom = np_y + bar_h
     if info and cfg.info_position == "top":
-        info_top = (top_bar_bottom + max(6, round(6 * scale))) if top_bar_bottom > 0 else max(top, round(44 * scale) + 4)
+        info_top = (top_bar_bottom + max(6, round(6 * scale))) if top_bar_bottom > 0 else top
         top_bar_bottom = info_top + bar_h
-    min_group_y = (top_bar_bottom + gap + header_extra) if top_bar_bottom > 0 else margin + 40
+    min_group_y = (top_bar_bottom + gap + header_extra) if top_bar_bottom > 0 else top
     bottom_extra = (gap + scale_extra + bar_h + margin) if (info and cfg.info_position == "bottom") else margin
     return min_group_y, bottom_extra
 
@@ -294,21 +320,22 @@ def calculate_layout(size, cfg):
     bar_scale = scale if auto_scale else 1.0
     bar_h = max(20, round(info_bar_base_height(cfg) * bar_scale))
 
-    top = margin + 40
+    header_clearance = header_elements_bottom(cfg, scale) + max(6, round(6 * scale))
+    top = max(margin + 40, header_clearance)
     bottom = height - margin
 
     now_playing_rect = None
     if now_playing:
-        np_y = max(top, round(54 * scale) + 4)
+        np_y = top
         now_playing_rect = (16, np_y, width - 32, bar_h)
-        top += now_playing
+        top = np_y + bar_h + max(6, round(6 * scale))
 
     info_rect = None
     if info:
         if cfg.info_position == "top":
-            info_top = (now_playing_rect[1] + now_playing_rect[3] + max(6, round(6 * scale))) if now_playing_rect else max(top, round(44 * scale) + 4)
+            info_top = top
             info_rect = (16, info_top, width - 32, bar_h)
-            top += info
+            top = info_top + bar_h + max(6, round(6 * scale))
         else:
             info_rect = (16, height - margin - bar_h, width - 32, bar_h)
             bottom -= info

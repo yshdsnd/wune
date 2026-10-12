@@ -239,21 +239,22 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
 
 
     def test_menu_and_badge_do_not_overlap_with_now_playing(self):
-        for size in ((1280, 800), (3840, 2160)):
-            with self.subTest(size=size):
-                cfg = Config(show_now_playing=True, show_badge=True)
-                surf = pg.Surface(size)
-                renderer = LedBarRenderer(surf, cfg)
-                menu = ApplicationMenu()
-                btn_rect = menu.button_rect(renderer.font_small, cfg.language)
-                badge_rect = renderer.badge_rect()
-                np_rect = renderer.now_playing_rect()
+        for size in ((960, 540), (1280, 720), (1280, 800), (1920, 1080), (3840, 2160)):
+            for font_size in (14, 16, 18, 20, 24):
+                with self.subTest(size=size, font_size=font_size):
+                    cfg = Config(show_now_playing=True, show_badge=True, info_font_size=font_size)
+                    surf = pg.Surface(size)
+                    renderer = LedBarRenderer(surf, cfg)
+                    menu = ApplicationMenu()
+                    btn_rect = menu.button_rect(renderer.font_small, cfg.language)
+                    badge_rect = renderer.badge_rect()
+                    np_rect = renderer.now_playing_rect()
 
-                self.assertIsNotNone(np_rect)
-                self.assertIsNotNone(badge_rect)
-                # Now playing bar must be strictly below menu button and theme badge
-                self.assertGreater(np_rect.top, btn_rect.bottom)
-                self.assertGreater(np_rect.top, badge_rect.bottom)
+                    self.assertIsNotNone(np_rect)
+                    self.assertIsNotNone(badge_rect)
+                    # Now playing bar must be strictly below menu button and theme badge with clearance >= 4
+                    self.assertGreaterEqual(np_rect.top - btn_rect.bottom, 4)
+                    self.assertGreaterEqual(np_rect.top - badge_rect.bottom, 4)
 
     def test_bottom_info_bar_maintains_bottom_margin(self):
         for size in ((1280, 800), (3840, 2160)):
