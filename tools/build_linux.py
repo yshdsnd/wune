@@ -283,10 +283,8 @@ def main(argv=None):
     install_doc_en = ROOT / "INSTALL_LINUX.en.md"
     if install_doc.exists():
         shutil.copy2(install_doc, bundle / "INSTALL.md")
-        shutil.copy2(install_doc, bundle / "INSTALL_LINUX.md")
     if install_doc_en.exists():
         shutil.copy2(install_doc_en, bundle / "INSTALL.en.md")
-        shutil.copy2(install_doc_en, bundle / "INSTALL_LINUX.en.md")
 
     shutil.copytree(ROOT / "docs", bundle / "docs")
     (bundle / "packaging" / "licenses").mkdir(parents=True)

@@ -99,11 +99,15 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("INSTALL.md", win_script)
         self.assertNotIn("INSTALL_MACOS.md", win_script)
         self.assertNotIn("INSTALL_MACOS.en.md", win_script)
+        self.assertNotIn("INSTALL_LINUX.md", win_script)
+        self.assertNotIn("INSTALL_LINUX.en.md", win_script)
 
         self.assertIn("INSTALL_MACOS.md", mac_script)
         self.assertIn("INSTALL.md", mac_script)
         self.assertNotIn("INSTALL_WINDOWS.md", mac_script)
         self.assertNotIn("INSTALL_WINDOWS.en.md", mac_script)
+        self.assertNotIn("INSTALL_LINUX.md", mac_script)
+        self.assertNotIn("INSTALL_LINUX.en.md", mac_script)
 
         linux_script = (root / "tools" / "build_linux.py").read_text(encoding="utf-8")
         self.assertIn("INSTALL_LINUX.md", linux_script)
@@ -112,6 +116,13 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn("INSTALL_WINDOWS.en.md", linux_script)
         self.assertNotIn("INSTALL_MACOS.md", linux_script)
         self.assertNotIn("INSTALL_MACOS.en.md", linux_script)
+
+        # Bundles must replace INSTALL_<OS>.md with INSTALL.md, not keep duplicate original filenames
+        self.assertNotIn('bundle / "INSTALL_WINDOWS.md"', win_script)
+        self.assertNotIn('bundle / name', win_script)
+        self.assertNotIn('bundle_dir / "INSTALL_MACOS.md"', mac_script)
+        self.assertNotIn('bundle_dir / name', mac_script)
+        self.assertNotIn('bundle / "INSTALL_LINUX.md"', linux_script)
 
     def linux_builder(self):
         path = Path(__file__).resolve().parents[1] / "tools" / "build_linux.py"

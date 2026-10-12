@@ -115,9 +115,6 @@ def main(argv=None):
     shutil.copy2(ROOT / "README.en.md", bundle_dir / "README.en.md")
     shutil.copy2(ROOT / "INSTALL_MACOS.md", bundle_dir / "INSTALL.md")
     shutil.copy2(ROOT / "INSTALL_MACOS.en.md", bundle_dir / "INSTALL.en.md")
-    # Preserve the original filenames too, so README links work offline.
-    for name in ("INSTALL_MACOS.md", "INSTALL_MACOS.en.md"):
-        shutil.copy2(ROOT / name, bundle_dir / name)
     shutil.copytree(ROOT / "docs", bundle_dir / "docs")
     (bundle_dir / "packaging" / "licenses").mkdir(parents=True)
     shutil.copy2(ROOT / "packaging" / "licenses" / "README.md", bundle_dir / "packaging" / "licenses" / "README.md")
