@@ -84,7 +84,7 @@ def _focus_dialog(root):
 
 class SettingsDialog:
     def __init__(self, state, path, window_size=None):
-        self._process = sys.platform in ("win32", "darwin")
+        self._process = sys.platform in ("win32", "darwin", "linux") or sys.platform.startswith("freebsd")
         self._closed = False
         if self._process:
             context = mp.get_context("spawn")
