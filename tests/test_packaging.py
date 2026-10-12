@@ -84,7 +84,7 @@ class PackagingTests(unittest.TestCase):
     def test_platform_installation_documents_are_linked(self):
         root = Path(__file__).resolve().parents[1]
         for suffix, readme in ((".md", "README.md"), (".en.md", "README.en.md")):
-            for platform in ("WINDOWS", "MACOS"):
+            for platform in ("WINDOWS", "MACOS", "LINUX"):
                 name = "INSTALL_" + platform + suffix
                 self.assertGreater(len((root / name).read_text(encoding="utf-8")), 100)
                 self.assertIn(name, (root / readme).read_text(encoding="utf-8"))

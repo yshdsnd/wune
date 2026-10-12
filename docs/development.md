@@ -4,16 +4,41 @@
 
 ## 環境と起動
 
-Windows x64、Python 3.13 x64を使用して検証しています。Tkinterを含むPython環境が必要です。
-配布EXEの利用には、このセットアップは不要です。
+Windows x64、macOS Apple Silicon（arm64）、Linux x64（Fedora、Ubuntu等）のPython 3.10+環境に対応しています。Tkinterを含むPython環境が必要です。
+配布パッケージの利用には、このセットアップは不要です。
 ソースは[GitHubリポジトリ](https://github.com/yshdsnd/wune)から取得してください。
 
-リポジトリのルートで実行します。仮想環境の有効化は不要です。
-
+### Windows での起動
 ~~~powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe main.py
+~~~
+
+### Linux での起動（Fedora / Ubuntu 等）
+~~~bash
+# Fedora / RHEL 依存パッケージ
+sudo dnf install -y python3 python3-devel python3-tkinter pulseaudio-libs \
+    sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel freetype-devel playerctl
+
+# Ubuntu / Debian 依存パッケージ
+sudo apt install -y python3 python3-dev python3-pip python3-venv python3-tk \
+    libpulse0 libpulse-dev libasound2-dev libsdl2-dev libsdl2-image-dev \
+    libsdl2-ttf-dev libfreetype6-dev playerctl
+
+# 仮想環境と起動
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 main.py
+~~~
+
+### macOS での起動
+~~~bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 main.py
 ~~~
 
 ビルド時の固定依存物はrequirements-build.txtを参照してください。

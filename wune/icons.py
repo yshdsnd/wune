@@ -24,7 +24,13 @@ def set_app_id():
 def pygame_icon():
     """Load the text-free variant, readable in small title bars and taskbars."""
     import pygame as pg
-    return pg.image.load(str(ASSETS / "wune-window.png"))
+    try:
+        return pg.image.load(str(ASSETS / "wune-window.png"))
+    except (pg.error, OSError):
+        # Fallback surface if pygame lacks extended image (PNG) support
+        surf = pg.Surface((32, 32))
+        surf.fill((30, 144, 255))
+        return surf
 
 
 def set_tk_icon(root):

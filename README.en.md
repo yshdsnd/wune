@@ -2,7 +2,7 @@
 
 [日本語](README.md) / **English**
 
-Wune is an LED audio spectrum analyzer for Windows and macOS, inspired by compact stereo systems from the 1980s and 1990s.
+Wune is an LED audio spectrum analyzer for Windows, macOS, and Linux, inspired by compact stereo systems from the 1980s and 1990s.
 Watch the left and right channels respond while listening to music through your usual speakers or headphones.
 Customize the colors, LED shapes, layout, and response to the beat in Settings.
 
@@ -12,10 +12,11 @@ Display example rendered by the current application using demo data; it is not a
 
 ## Download and installation
 
-Choose an OS-specific ZIP from [GitHub Releases](https://github.com/yshdsnd/wune/releases). The automatic “Source code” archives are not packaged applications.
+Choose an OS-specific package from [GitHub Releases](https://github.com/yshdsnd/wune/releases). The automatic “Source code” archives are not packaged applications.
 
 - Windows: `Wune-vX.Y.Z-win64.zip` — [Windows installation guide](INSTALL_WINDOWS.en.md)
 - Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS installation guide](INSTALL_MACOS.en.md)
+- Linux: `Wune-vX.Y.Z-1.x86_64.rpm` / `wune_X.Y.Z_amd64.deb` / `Wune-vX.Y.Z-linux-x64.tar.gz` — [Linux installation guide](INSTALL_LINUX.en.md)
 
 No Python installation is needed. The guides also cover updates, removal, and initial audio permissions.
 
@@ -130,25 +131,25 @@ This deletes the existing settings file; back it up first if needed.
 
 ## Supported environment and limitations
 
-- Hardware-verified environment: Windows 11 x64 and macOS 27 Apple Silicon.
+- Hardware-verified environment: Windows 11 x64, macOS 27 Apple Silicon, and Linux (Fedora 41+ x64).
 - Mac packages target Apple Silicon arm64. Core Audio Process Tap requires macOS 14.2 or later; this does not imply hardware verification on every supported OS version.
 - An output device capable of stereo audio playback is required.
-- Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows, Intel Mac, Linux, or FreeBSD.
-- Audio is captured from the startup default output through WASAPI on Windows and Core Audio Process Tap on Mac. Microphone input and direct audio-file loading are not supported.
+- Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows, Intel Mac, or FreeBSD.
+- Audio is captured from the startup default output through WASAPI on Windows, Core Audio Process Tap on Mac, and PulseAudio/PipeWire loopback on Linux. Microphone input and direct audio-file loading are not supported.
 - Output-device and sample-rate changes are not followed automatically while Wune is running.
 - Capture uses channels 0 and 1. Full surround downmixing and mono-only devices are not supported.
 - The Settings window does not include audio-device selection or band-count controls.
 - At higher sample rates, the display range extends up to 40 kHz. Use “Limit display to 20 kHz (keep capture rate)” to focus on the audible range.
 - Some scale labels are omitted in narrow layouts. Levels are per-band indications, not sound-pressure or true-peak measurements.
-- Now-playing track display in the information bar supports Windows Global System Media Transport Controls (GSMTC) and Sony Music Center for PC (verified with v2.7.3) on Windows, and Apple Music on macOS. Because Music Center for PC metadata is retrieved by parsing its window title, future updates to the player that alter the title format may prevent track information from being displayed.
+- Now-playing track display in the information bar supports Windows Global System Media Transport Controls (GSMTC) and Sony Music Center for PC (verified with v2.7.3) on Windows, Apple Music on macOS, and MPRIS2 (playerctl/DBus) on Linux. Because Music Center for PC metadata is retrieved by parsing its window title, future updates to the player that alter the title format may prevent track information from being displayed.
 - Changes to DPI or display configuration while running have not been tested.
 
 ## Troubleshooting
 
 | Symptom | What to check |
 | --- | --- |
-| Wune will not start or closes immediately | Extract the entire ZIP and check that _internal is next to the EXE. Check any error message and Wune.log |
-| Blocked by a security prompt on launch | On Windows, if prompted with "Windows protected your PC", click "More info" and select "Run anyway" (see the [Windows guide](INSTALL_WINDOWS.en.md)). On macOS, allow Wune in System Settings → Privacy & Security (see the [macOS guide](INSTALL_MACOS.en.md)) |
+| Wune will not start or closes immediately | Extract the entire ZIP/archive and check that _internal is next to the executable. Check any error message and Wune.log |
+| Blocked by a security prompt on launch | On Windows, if prompted with "Windows protected your PC", click "More info" and select "Run anyway" (see the [Windows guide](INSTALL_WINDOWS.en.md)). On macOS, allow Wune in System Settings → Privacy & Security (see the [macOS guide](INSTALL_MACOS.en.md)). For Linux package installations, see the [Linux guide](INSTALL_LINUX.en.md) |
 | The spectrum does not move | Resume with Space if paused. Check that audio is playing and that the information bar names the same output device used by your playback app |
 | The display stops after switching to headphones or another output | Check the OS output device and restart Wune |
 | F2 or other shortcuts do not work | Click the main window first. Check whether Settings is open behind another window |
