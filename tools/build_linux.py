@@ -195,7 +195,7 @@ Description: LED Bar Audio Spectrum Visualizer
             wune_bin.symlink_to("/opt/wune/Wune")
         except OSError:
             wune_bin.write_text('#!/bin/sh\nexec /opt/wune/Wune "$@"\n', encoding="utf-8")
-        wune_bin.chmod(wune_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+            wune_bin.chmod(wune_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
         if (bundle / "wune.desktop").is_file():
             apps_dir = pkg_root / "usr" / "share" / "applications"
