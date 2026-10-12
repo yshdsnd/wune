@@ -18,6 +18,20 @@ def prepare_soundcard():
     _install_propvariant(mediafoundation)
 
 
+def get_soundcard():
+    """Import and return the soundcard module with platform compatibility applied."""
+    if sys.platform.startswith("freebsd") and "soundcard" not in sys.modules:
+        orig = sys.platform
+        try:
+            sys.platform = "linux"
+            import soundcard as sc
+        finally:
+            sys.platform = orig
+        return sc
+    import soundcard as sc
+    return sc
+
+
 def _install_propvariant(backend):
     if getattr(backend._PropVariant, "_wune_sized", False):
         return
