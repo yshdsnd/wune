@@ -187,8 +187,21 @@ class PulseAudioCaptureBackendTests(unittest.TestCase):
 
         with patch("wune.soundcard_compat.get_soundcard", return_value=mock_sc):
             backend = PulseAudioLoopbackBackend(Config())
-            self.assertEqual(backend.device_name, speaker.name)
+            self.assertEqual(backend.device_name, loopback.name)
             backend.close()
+
+    def test_custom_output_device_without_matching_monitor_does_not_fallback(self):
+        mock_sc = MagicMock()
+        speaker = self._create_mock_speaker(name="Specific DAC", id_val="sink_dac")
+        unrelated_loopback = self._create_mock_loopback(name="Generic Monitor", id_val="generic.monitor")
+        mock_sc.get_speaker.return_value = speaker
+        mock_sc.get_microphone.side_effect = IndexError("Not found")
+        mock_sc.all_microphones.return_value = [unrelated_loopback]
+
+        with patch("wune.soundcard_compat.get_soundcard", return_value=mock_sc):
+            with self.assertRaises(RuntimeError) as ctx:
+                PulseAudioLoopbackBackend(Config(output_device="sink_dac"))
+            self.assertIn("No PulseAudio/PipeWire loopback monitor source found", str(ctx.exception))
 
     def test_no_speaker_raises_error(self):
         mock_sc = MagicMock()

@@ -113,7 +113,9 @@ class PulseAudioLoopbackBackend:
         if speaker is None:
             raise RuntimeError("No playback device is available.")
 
-        loopback = self._find_monitor_source(sc, speaker)
+        loopback, exact_match = self._find_monitor_source(
+            sc, speaker, allow_fallback=(cfg.output_device is None)
+        )
         if loopback is None:
             raise RuntimeError(
                 f"No PulseAudio/PipeWire loopback monitor source found for speaker: {speaker.name}"
@@ -126,7 +128,10 @@ class PulseAudioLoopbackBackend:
         if self._sample_rate <= 0:
             raise ValueError("Sample rate must be positive.")
 
-        self._device_name = str(speaker.name)
+        if exact_match:
+            self._device_name = str(speaker.name)
+        else:
+            self._device_name = str(getattr(loopback, "name", speaker.name))
         self._channels = 2
         self._stack = ExitStack()
 
@@ -148,8 +153,11 @@ class PulseAudioLoopbackBackend:
         self._stream = self._stack.enter_context(recorder)
 
     @staticmethod
-    def _find_monitor_source(sc, speaker):
-        """Find the loopback monitor source corresponding to the given speaker."""
+    def _find_monitor_source(sc, speaker, allow_fallback: bool = True):
+        """Find the loopback monitor source corresponding to the given speaker.
+
+        Returns (loopback_mic, is_exact_match).
+        """
         speaker_id = getattr(speaker, "id", None)
         speaker_name = getattr(speaker, "name", "")
 
@@ -159,7 +167,7 @@ class PulseAudioLoopbackBackend:
                 try:
                     mic = sc.get_microphone(id=candidate_id, include_loopback=True)
                     if mic is not None and getattr(mic, "isloopback", True):
-                        return mic
+                        return mic, True
                 except Exception:
                     pass
 
@@ -174,20 +182,21 @@ class PulseAudioLoopbackBackend:
             for m in mics:
                 if getattr(m, "isloopback", False):
                     if m.id in (f"{speaker_id}.monitor", str(speaker_id)):
-                        return m
+                        return m, True
 
         # Match by speaker ID prefix / substring or name
         for m in mics:
             if getattr(m, "isloopback", False):
                 if (speaker_id and str(speaker_id) in str(m.id)) or m.name == speaker_name or m.name == f"Monitor of {speaker_name}":
-                    return m
+                    return m, True
 
-        # Fallback to any loopback device if available
-        for m in mics:
-            if getattr(m, "isloopback", False):
-                return m
+        # Fallback to any loopback device only if allowed (e.g. default speaker)
+        if allow_fallback:
+            for m in mics:
+                if getattr(m, "isloopback", False):
+                    return m, False
 
-        return None
+        return None, False
 
     def record(self, numframes: int) -> np.ndarray:
         data = self._stream.record(numframes=numframes)

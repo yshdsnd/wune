@@ -44,9 +44,9 @@ sudo apt install ./wune_X.Y.Z_amd64.deb
 - **起動**: アプリケーションランチャーから「Wune」を選択するか、ターミナルで `wune` を実行します。
 - **アンインストール**: `sudo apt remove wune`
 
-### 3. その他のディストリビューション（スタンドアロン tar.gz / zip アーカイブ）
+### 3. スタンドアロンアーカイブ（tar.gz / zip）
 
-ディストリビューションを選ばず利用できるスタンドアロンアーカイブです。Python や外部ライブラリをシステムに導入することなく、展開するだけで動作します。
+Python のインストールは不要で、PulseAudio / PipeWire が動作する Linux x64（glibc 2.35+）環境で動作するスタンドアロンアーカイブです。音声キャプチャ用に `pulseaudio-libs`（Debian/Ubuntu では `libpulse0`）が必要です。
 
 ```bash
 # tar.gz の展開と起動
@@ -55,13 +55,14 @@ cd Wune
 ./Wune
 ```
 
-デスクトップランチャーへ登録したい場合は、同梱されている `wune.desktop` を `~/.local/share/applications/` に配置できます。
+デスクトップランチャーへ登録したい場合は、同梱されている `wune.desktop` を `~/.local/share/applications/` に配置し、`Exec=` および `Icon=` のパスを展開先の絶対パス（例: `/home/user/apps/Wune/Wune`）に合わせて書き換えるか、PATHの通ったディレクトリ（例: `~/.local/bin/wune`）へシンボリックリンクを作成してください。
 
 ## 音声の取得について
 
 - 起動時に Linux の既定の出力先（スピーカーやヘッドホン）を検出し、その **ループバックモニターソース**（`<device>.monitor`）から音声をリアルタイムキャプチャします。
 - Fedora や Ubuntu 等の標準構成である PipeWire（`pipewire-pulseaudio`）および PulseAudio の双方に対応しています。
 - Wune 自身は音を再生したり、出力先を変更したりしません。普段お使いの音楽プレイヤーやブラウザで音声を再生してください。
+- **サンプリングレートの既定値**: 未指定時の既定レートは **48 kHz** です。48 kHz 時の表示上限は最大 20 kHz となります。96 kHz などのハイレゾ音源で 20 kHz 超の高域まで観察したい場合は、設定ファイル（`settings.json` の `sample_rate`）等でサンプルレートを明示的に指定してください。
 - 情報欄（`I`キーで表示／非表示）で、取得中のデバイス名・サンプルレート・チャンネル数を確認できます。
 - 出力先を変更した場合は、Wune を再起動してください。
 

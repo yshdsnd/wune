@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -145,7 +146,7 @@ class PackagingTests(unittest.TestCase):
             content = desktop_file.read_text(encoding="utf-8")
             self.assertIn("[Desktop Entry]", content)
             self.assertIn("Name=Wune", content)
-            self.assertIn("Exec=Wune", content)
+            self.assertIn("Exec=wune", content)
             self.assertIn("Icon=wune", content)
 
     def test_linux_rpm_creation_when_rpmbuild_missing_skips(self):
@@ -175,6 +176,11 @@ class PackagingTests(unittest.TestCase):
                 if isinstance(cmd, (list, tuple)) and cmd[0] == "rpmbuild":
                     rpm_calls.append(cmd)
                     spec_path = Path(cmd[2])
+                    spec_text = spec_path.read_text(encoding="utf-8")
+                    self.assertIn("License:        BSD-2-Clause", spec_text)
+                    self.assertIn("Requires:       pulseaudio-libs", spec_text)
+                    self.assertIn("/usr/bin/wune", spec_text)
+                    self.assertIn("/usr/bin/Wune", spec_text)
                     topdir = spec_path.parents[1]
                     rpm_dir = topdir / "RPMS" / "x86_64"
                     rpm_dir.mkdir(parents=True, exist_ok=True)
@@ -217,6 +223,17 @@ class PackagingTests(unittest.TestCase):
             def fake_dpkg_deb(cmd, *args, **kwargs):
                 if isinstance(cmd, (list, tuple)) and cmd[0] == "dpkg-deb":
                     deb_calls.append(cmd)
+                    pkg_root = Path(cmd[3])
+                    control_text = (pkg_root / "DEBIAN" / "control").read_text(encoding="utf-8")
+                    self.assertIn("Depends: libpulse0", control_text)
+                    wune_bin = pkg_root / "usr" / "bin" / "wune"
+                    wune_upper = pkg_root / "usr" / "bin" / "Wune"
+                    self.assertTrue(os.path.lexists(wune_bin))
+                    self.assertTrue(os.path.lexists(wune_upper))
+                    if wune_bin.is_symlink():
+                        self.assertEqual(os.readlink(wune_bin), "/opt/wune/Wune")
+                    if wune_upper.is_symlink():
+                        self.assertEqual(os.readlink(wune_upper), "/opt/wune/Wune")
                     target_deb = Path(cmd[4])
                     target_deb.write_bytes(b"dummy_deb_content")
                     return MagicMock(returncode=0)
@@ -230,4 +247,21 @@ class PackagingTests(unittest.TestCase):
                 self.assertEqual(result.name, "wune_1.2.0~rc.1_amd64.deb")
                 self.assertTrue(result.with_suffix(".deb.sha256").is_file())
                 self.assertEqual(len(deb_calls), 1)
+
+    def test_linux_licenses_collect_notices(self):
+        try:
+            from tools.linux_licenses import collect_notices
+        except ModuleNotFoundError:
+            from linux_licenses import collect_notices
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            bundle = Path(tmp_dir) / "bundle"
+            bundle.mkdir()
+            (bundle / "Wune").touch()
+            inputs_file = Path(tmp_dir) / "inputs.json"
+            inputs_file.write_text("[]", encoding="utf-8")
+            inventory = collect_notices(bundle, inputs_file)
+            self.assertEqual(inventory["platform"], "Linux")
+            self.assertTrue((bundle / "licenses" / "inventory.json").is_file())
+            self.assertTrue((bundle / "licenses" / "provenance.json").is_file())
+
 
