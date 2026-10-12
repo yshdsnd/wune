@@ -54,9 +54,22 @@ class LedBarRenderer:
 
     def _create_fonts(self, scale: float = 1.0):
         mac = sys.platform == "darwin"
-        display_font = "SF Pro Display,Helvetica Neue,Arial" if mac else "Bahnschrift"
-        japanese_font = ("Hiragino Sans GB,hiraginosansgb,Hiragino Sans,"
-                         "Hiragino Kaku Gothic ProN,arialunicode,AppleGothic,") if mac else ""
+        win = sys.platform == "win32"
+        if mac:
+            display_font = "SF Pro Display,Helvetica Neue,Arial"
+            japanese_font = ("Hiragino Sans GB,hiraginosansgb,Hiragino Sans,"
+                             "Hiragino Kaku Gothic ProN,arialunicode,AppleGothic,")
+            mono_font = "SF Mono,Menlo,Monaco,Consolas,Segoe UI"
+        elif win:
+            display_font = "Bahnschrift,Arial"
+            japanese_font = "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,"
+            mono_font = "Consolas, Segoe UI"
+        else:  # Linux, FreeBSD, and other Unix platforms
+            display_font = "DejaVu Sans,Liberation Sans,Noto Sans,Arial,sans-serif"
+            japanese_font = ("Noto Sans CJK JP,Noto Sans JP,TakaoGothic,TakaoPGothic,"
+                             "VL Gothic,VL PGothic,IPAGothic,IPAPGothic,")
+            mono_font = "DejaVu Sans Mono,Liberation Mono,Noto Sans Mono,monospace"
+
         auto_scale = getattr(self.cfg, "auto_scale_fonts", True)
         effective_scale = scale if auto_scale else 1.0
         label_size = getattr(self.cfg, "label_font_size", 14)
@@ -64,16 +77,16 @@ class LedBarRenderer:
 
         self.font_channel = pg.font.SysFont(display_font, max(12, round(16 * effective_scale)), bold=True)
         self.font_small = pg.font.SysFont(
-            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,"
-            "Noto Sans CJK JP,Noto Sans JP,Segoe UI", max(11, round(info_size * effective_scale))
+            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
+            max(11, round(info_size * effective_scale))
         )
         self.font_badge = pg.font.SysFont(display_font, max(14, round(18 * effective_scale)), bold=True)
         self.font_badge_user = pg.font.SysFont(
-            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI",
+            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,sans-serif",
             max(14, round(18 * effective_scale)), bold=True
         )
         self.font_scale = pg.font.SysFont(
-            "SF Mono,Menlo,Monaco,Consolas, Segoe UI" if mac else "Consolas, Segoe UI",
+            mono_font,
             max(9, round(label_size * effective_scale))
         )
         self._font_scale = scale
