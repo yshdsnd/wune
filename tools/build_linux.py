@@ -201,17 +201,20 @@ Description: LED Bar Audio Spectrum Visualizer
 
         bin_dir = pkg_root / "usr" / "bin"
         bin_dir.mkdir(parents=True)
-        wune_bin = bin_dir / "wune"
-        wune_upper_bin = bin_dir / "Wune"
-        try:
-            wune_bin.symlink_to("/opt/wune/Wune")
-            wune_upper_bin.symlink_to("/opt/wune/Wune")
-        except OSError:
-            script = '#!/bin/sh\nexec /opt/wune/Wune "$@"\n'
-            wune_bin.write_text(script, encoding="utf-8")
-            wune_bin.chmod(wune_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-            wune_upper_bin.write_text(script, encoding="utf-8")
-            wune_upper_bin.chmod(wune_upper_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        for name in ("wune", "Wune"):
+            target_bin = bin_dir / name
+            try:
+                target_bin.symlink_to("/opt/wune/Wune")
+            except FileExistsError:
+                # Case-insensitive filesystem (e.g. Windows/macOS testing): names collide
+                pass
+            except OSError:
+                script = '#!/bin/sh\nexec /opt/wune/Wune "$@"\n'
+                try:
+                    target_bin.write_text(script, encoding="utf-8")
+                    target_bin.chmod(target_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+                except OSError:
+                    pass
 
         if (bundle / "wune.desktop").is_file():
             apps_dir = pkg_root / "usr" / "share" / "applications"

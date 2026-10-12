@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -225,8 +226,14 @@ class PackagingTests(unittest.TestCase):
                     pkg_root = Path(cmd[3])
                     control_text = (pkg_root / "DEBIAN" / "control").read_text(encoding="utf-8")
                     self.assertIn("Depends: libpulse0", control_text)
-                    self.assertTrue((pkg_root / "usr" / "bin" / "wune").exists())
-                    self.assertTrue((pkg_root / "usr" / "bin" / "Wune").exists())
+                    wune_bin = pkg_root / "usr" / "bin" / "wune"
+                    wune_upper = pkg_root / "usr" / "bin" / "Wune"
+                    self.assertTrue(os.path.lexists(wune_bin))
+                    self.assertTrue(os.path.lexists(wune_upper))
+                    if wune_bin.is_symlink():
+                        self.assertEqual(os.readlink(wune_bin), "/opt/wune/Wune")
+                    if wune_upper.is_symlink():
+                        self.assertEqual(os.readlink(wune_upper), "/opt/wune/Wune")
                     target_deb = Path(cmd[4])
                     target_deb.write_bytes(b"dummy_deb_content")
                     return MagicMock(returncode=0)
