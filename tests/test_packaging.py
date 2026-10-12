@@ -81,3 +81,19 @@ class PackagingTests(unittest.TestCase):
                 name = "INSTALL_" + platform + suffix
                 self.assertGreater(len((root / name).read_text(encoding="utf-8")), 100)
                 self.assertIn(name, (root / readme).read_text(encoding="utf-8"))
+
+    def test_packaging_scripts_bundle_platform_specific_install_docs_only(self):
+        root = Path(__file__).resolve().parents[1]
+        win_script = (root / "tools" / "build_windows.py").read_text(encoding="utf-8")
+        mac_script = (root / "tools" / "build_macos.py").read_text(encoding="utf-8")
+
+        self.assertIn("INSTALL_WINDOWS.md", win_script)
+        self.assertIn("INSTALL.md", win_script)
+        self.assertNotIn("INSTALL_MACOS.md", win_script)
+        self.assertNotIn("INSTALL_MACOS.en.md", win_script)
+
+        self.assertIn("INSTALL_MACOS.md", mac_script)
+        self.assertIn("INSTALL.md", mac_script)
+        self.assertNotIn("INSTALL_WINDOWS.md", mac_script)
+        self.assertNotIn("INSTALL_WINDOWS.en.md", mac_script)
+
