@@ -62,3 +62,11 @@ try:
 finally:
     root.destroy()
 """], check=True, timeout=10)
+
+    def test_pygame_icon_falls_back_when_image_load_fails(self):
+        from unittest.mock import patch
+        with patch("pygame.image.load", side_effect=pg.error("File is not a Windows BMP file")):
+            icon = pygame_icon()
+            self.assertIsInstance(icon, pg.Surface)
+            self.assertGreater(icon.get_width(), 0)
+            self.assertGreater(icon.get_height(), 0)

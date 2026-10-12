@@ -1,12 +1,13 @@
-# Windows・macOSパッケージの作成
+# Windows・macOS・Linuxパッケージの作成
 
-配布形式はPyInstallerのonedirをZIP化したWindows x64版です。
-`Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、README、Wune本体のLICENSE、依存物のライセンス、
-`build-info.json` を含みます。Pythonを含むランタイムを同梱し、通常利用時の管理者権限は要求しません。
-設定とログはユーザーの `%LOCALAPPDATA%/Wune` に保存します。
+配布形式はPyInstallerのonedirをアーカイブ／パッケージ化したものです。
+- Windows: `Wune-vX.Y.Z-win64.zip`（`Wune/Wune.exe`、`_internal/` を同梱）
+- macOS: `Wune-vX.Y.Z-macos-arm64.zip`（`Wune.app` を同梱）
+- Linux: `Wune-vX.Y.Z-linux-x64.tar.gz`、`Wune-vX.Y.Z-linux-x64.zip`、`Wune-vX.Y.Z-1.x86_64.rpm`、`wune_X.Y.Z_amd64.deb`
 
 ## 開発者向けローカルビルド
 
+### Windows (x64)
 Windows x64とPython 3.13.14 x64を使い、専用の仮想環境で実行します。
 
 ```powershell
@@ -15,8 +16,18 @@ python -m venv .venv-package
 .venv-package\Scripts\python tools/build_windows.py --version 1.1.0-rc.1
 ```
 
-テスト、PyInstaller、別フォルダーへコピーしたEXEの依存物チェック、ZIPとSHA-256作成を順に行います。
-同じ名前の既存ZIPは上書きしません。出力は `dist/`、作業ファイルは `build/` です。
+### Linux (x86_64)
+Fedora / RHEL または Ubuntu / Debian 上で実行します（`.rpm` 生成には `rpm-build`、`.deb` 生成には `dpkg-deb` が必要です）。
+
+```bash
+python3 -m venv .venv-package
+source .venv-package/bin/activate
+pip install -r requirements-build.txt
+python3 tools/build_linux.py --version 1.1.0-rc.1
+```
+
+テスト、PyInstaller、別フォルダーへコピーしたバイナリの依存物チェック、アーカイブ・パッケージとSHA-256作成を順に行います。
+同じ名前の既存成果物は上書きしません。出力は `dist/`、作業ファイルは `build/` です。
 依存物チェックの結果とログは `%TEMP%/Wune-package-check-*` に残します。
 音声機器のないCIでもチェックできるよう、この確認では録音せずWASAPIライブラリの読み込みまでを検証します。
 
