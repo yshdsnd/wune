@@ -77,6 +77,147 @@ Terminal=false
     (target_dir / "wune.desktop").write_text(desktop_content, encoding="utf-8")
 
 
+def create_rpm_package(bundle: Path, output_dir: Path, version: str) -> Path | None:
+    """Package the standalone bundle into a Fedora/RHEL/openSUSE RPM package."""
+    if not shutil.which("rpmbuild"):
+        print("rpmbuild not found; skipping RPM package creation.")
+        return None
+
+    rpm_version = version.replace("-", "_")
+    work_dir = Path(tempfile.mkdtemp(prefix="wune-rpm-"))
+    try:
+        topdir = work_dir / "rpmbuild"
+        for sub in ("BUILD", "RPMS", "SOURCES", "SPECS", "SRPMS"):
+            (topdir / sub).mkdir(parents=True, exist_ok=True)
+
+        spec_file = topdir / "SPECS" / "wune.spec"
+        spec_content = f"""%define _topdir {topdir}
+%define _build_id_links none
+%define debug_package %{{nil}}
+%global __os_install_post %{{nil}}
+
+Name:           wune
+Version:        {rpm_version}
+Release:        1
+Summary:        LED Bar Audio Spectrum Visualizer
+License:        GPL-3.0-only
+URL:            https://github.com/yshdsnd/wune
+AutoReqProv:    no
+
+%description
+Wune is a customizable LED-bar audio spectrum visualizer featuring real-time
+frequency analysis, smooth ballistics, theme presets, and Now Playing metadata.
+
+%install
+rm -rf %{{buildroot}}
+mkdir -p %{{buildroot}}/opt/wune
+cp -a {bundle}/* %{{buildroot}}/opt/wune/
+
+mkdir -p %{{buildroot}}/usr/bin
+ln -s /opt/wune/Wune %{{buildroot}}/usr/bin/wune
+
+mkdir -p %{{buildroot}}/usr/share/applications
+if [ -f {bundle}/wune.desktop ]; then
+    cp {bundle}/wune.desktop %{{buildroot}}/usr/share/applications/
+fi
+
+mkdir -p %{{buildroot}}/usr/share/pixmaps
+if [ -f {bundle}/wune.png ]; then
+    cp {bundle}/wune.png %{{buildroot}}/usr/share/pixmaps/wune.png
+fi
+
+%clean
+rm -rf %{{buildroot}}
+
+%files
+/opt/wune
+/usr/bin/wune
+/usr/share/applications/wune.desktop
+{"/usr/share/pixmaps/wune.png" if (bundle / "wune.png").is_file() else ""}
+"""
+        spec_file.write_text(spec_content, encoding="utf-8")
+
+        subprocess.run(["rpmbuild", "-bb", str(spec_file)], check=True)
+
+        rpm_files = list((topdir / "RPMS").glob("**/*.rpm"))
+        if not rpm_files:
+            raise RuntimeError("RPM package was not created by rpmbuild")
+
+        built_rpm = rpm_files[0]
+        target_rpm = output_dir / f"Wune-v{version}-1.x86_64.rpm"
+        shutil.copy2(built_rpm, target_rpm)
+
+        digest = hashlib.sha256(target_rpm.read_bytes()).hexdigest()
+        target_rpm.with_suffix(".rpm.sha256").write_text(f"{digest}  {target_rpm.name}\n", encoding="ascii")
+        print(f"Built RPM package: {target_rpm}")
+        return target_rpm
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def create_deb_package(bundle: Path, output_dir: Path, version: str) -> Path | None:
+    """Package the standalone bundle into a Debian/Ubuntu DEB package."""
+    if not shutil.which("dpkg-deb"):
+        print("dpkg-deb not found; skipping DEB package creation.")
+        return None
+
+    deb_version = version.replace("-", "~")
+    work_dir = Path(tempfile.mkdtemp(prefix="wune-deb-"))
+    try:
+        pkg_root = work_dir / "pkg"
+        debian_dir = pkg_root / "DEBIAN"
+        debian_dir.mkdir(parents=True)
+
+        control_content = f"""Package: wune
+Version: {deb_version}
+Section: sound
+Priority: optional
+Architecture: amd64
+Maintainer: Yoshihide Sonoda <yshd.snd@gmail.com>
+Description: LED Bar Audio Spectrum Visualizer
+ Wune is a customizable LED-bar audio spectrum visualizer featuring real-time
+ frequency analysis, smooth ballistics, theme presets, and Now Playing metadata.
+"""
+        (debian_dir / "control").write_text(control_content, encoding="utf-8")
+
+        opt_dir = pkg_root / "opt" / "wune"
+        opt_dir.mkdir(parents=True)
+        for item in bundle.iterdir():
+            if item.is_dir():
+                shutil.copytree(item, opt_dir / item.name)
+            else:
+                shutil.copy2(item, opt_dir / item.name)
+
+        bin_dir = pkg_root / "usr" / "bin"
+        bin_dir.mkdir(parents=True)
+        wune_bin = bin_dir / "wune"
+        try:
+            wune_bin.symlink_to("/opt/wune/Wune")
+        except OSError:
+            wune_bin.write_text('#!/bin/sh\nexec /opt/wune/Wune "$@"\n', encoding="utf-8")
+        wune_bin.chmod(wune_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+
+        if (bundle / "wune.desktop").is_file():
+            apps_dir = pkg_root / "usr" / "share" / "applications"
+            apps_dir.mkdir(parents=True)
+            shutil.copy2(bundle / "wune.desktop", apps_dir / "wune.desktop")
+
+        if (bundle / "wune.png").is_file():
+            pixmaps_dir = pkg_root / "usr" / "share" / "pixmaps"
+            pixmaps_dir.mkdir(parents=True)
+            shutil.copy2(bundle / "wune.png", pixmaps_dir / "wune.png")
+
+        target_deb = output_dir / f"wune_{deb_version}_amd64.deb"
+        subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(pkg_root), str(target_deb)], check=True)
+
+        digest = hashlib.sha256(target_deb.read_bytes()).hexdigest()
+        target_deb.with_suffix(".deb.sha256").write_text(f"{digest}  {target_deb.name}\n", encoding="ascii")
+        print(f"Built DEB package: {target_deb}")
+        return target_deb
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True, type=validate_version)
@@ -166,6 +307,10 @@ def main(argv=None):
     zip_digest = hashlib.sha256(zip_archive.read_bytes()).hexdigest()
     zip_archive.with_suffix(".zip.sha256").write_text(f"{zip_digest}  {zip_archive.name}\n", encoding="ascii")
     print(zip_archive)
+
+    # 8. Create distro packages (RPM for Fedora/RHEL, DEB for Debian/Ubuntu)
+    create_rpm_package(bundle, output, args.version)
+    create_deb_package(bundle, output, args.version)
 
 
 if __name__ == "__main__":
