@@ -170,11 +170,13 @@ def collect_sources(bundle, cache):
             for source in sorted((ROOT / name).rglob("*")):
                 if source.is_file() and "__pycache__" not in source.parts:
                     archive.write(source, source.relative_to(ROOT))
-        for name in ("LICENSE", "README.md", "README.en.md", "Wune.spec", "Wune-macos.spec",
+        for name in ("LICENSE", "README.md", "README.en.md", "Wune.spec", "Wune-macos.spec", "Wune-linux.spec",
                      "INSTALL_WINDOWS.md", "INSTALL_WINDOWS.en.md", "INSTALL_MACOS.md", "INSTALL_MACOS.en.md",
+                     "INSTALL_LINUX.md", "INSTALL_LINUX.en.md",
                      "main.py", "requirements.txt", "requirements-build.txt",
                      ".gitattributes", ".gitignore"):
-            archive.write(ROOT / name, name)
+            if (ROOT / name).is_file():
+                archive.write(ROOT / name, name)
 
 
 def download_source(spec, target):
