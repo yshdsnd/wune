@@ -46,7 +46,7 @@ sudo apt install ./wune_X.Y.Z_amd64.deb
 
 ### 3. Standalone Archive (.tar.gz / .zip)
 
-A self-contained standalone archive compatible with all Linux distributions. No Python installation or external libraries need to be installed on the system.
+A standalone archive that runs on 64-bit Linux (glibc 2.35+) with PulseAudio or PipeWire without requiring Python to be installed. Audio capture requires `pulseaudio-libs` (or `libpulse0` on Debian/Ubuntu).
 
 ```bash
 # Extract tar.gz and run
@@ -55,13 +55,14 @@ cd Wune
 ./Wune
 ```
 
-To integrate with your desktop launcher, place the bundled `wune.desktop` file into `~/.local/share/applications/`.
+To integrate with your desktop application launcher, copy the bundled `wune.desktop` file into `~/.local/share/applications/` and adjust `Exec=` and `Icon=` to the absolute path of the extracted `Wune` executable, or create a symlink in a directory on your PATH (e.g. `~/.local/bin/wune`).
 
 ## Audio Capture Notes
 
 - At startup, Wune automatically detects the default Linux audio output device (speakers, headphones, etc.) and connects to its **loopback monitor source** (`<device>.monitor`) to capture playback audio in real time.
 - Both PipeWire (`pipewire-pulseaudio`) and PulseAudio configurations are supported.
 - Wune does not output sound or alter your default audio device. Play music or video in your preferred media player or web browser to see the visualization.
+- **Default Sample Rate**: When unspecified, the capture sample rate defaults to **48 kHz** (max display range up to 20 kHz). To observe frequencies beyond 20 kHz on high-resolution audio sources (such as 96 kHz), specify `sample_rate` explicitly in `settings.json`.
 - The information bar (toggle with `I`) displays the active device name, sample rate, and channels.
 - If you change your default audio output device, restart Wune.
 

@@ -19,6 +19,12 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from wune.build_identity import VERSION_PATTERN, format_identity, source_commit
+try:
+    from tools.license_audit import collect_sources
+    from tools.linux_licenses import collect_notices
+except ModuleNotFoundError:
+    from license_audit import collect_sources
+    from linux_licenses import collect_notices
 
 
 def validate_version(value):
@@ -69,10 +75,11 @@ def create_desktop_file(target_dir):
 Type=Application
 Name=Wune
 Comment=LED Bar Audio Spectrum Visualizer
-Exec=Wune
+Exec=wune
 Icon=wune
 Categories=AudioVideo;Audio;
 Terminal=false
+StartupWMClass=Wune
 """
     (target_dir / "wune.desktop").write_text(desktop_content, encoding="utf-8")
 
@@ -100,9 +107,10 @@ Name:           wune
 Version:        {rpm_version}
 Release:        1
 Summary:        LED Bar Audio Spectrum Visualizer
-License:        GPL-3.0-only
+License:        BSD-2-Clause
 URL:            https://github.com/yshdsnd/wune
 AutoReqProv:    no
+Requires:       pulseaudio-libs
 
 %description
 Wune is a customizable LED-bar audio spectrum visualizer featuring real-time
@@ -115,6 +123,7 @@ cp -a {bundle}/* %{{buildroot}}/opt/wune/
 
 mkdir -p %{{buildroot}}/usr/bin
 ln -s /opt/wune/Wune %{{buildroot}}/usr/bin/wune
+ln -s /opt/wune/Wune %{{buildroot}}/usr/bin/Wune
 
 mkdir -p %{{buildroot}}/usr/share/applications
 if [ -f {bundle}/wune.desktop ]; then
@@ -132,6 +141,7 @@ rm -rf %{{buildroot}}
 %files
 /opt/wune
 /usr/bin/wune
+/usr/bin/Wune
 /usr/share/applications/wune.desktop
 {"/usr/share/pixmaps/wune.png" if (bundle / "wune.png").is_file() else ""}
 """
@@ -173,6 +183,7 @@ Version: {deb_version}
 Section: sound
 Priority: optional
 Architecture: amd64
+Depends: libpulse0
 Maintainer: Yoshihide Sonoda <yshd.snd@gmail.com>
 Description: LED Bar Audio Spectrum Visualizer
  Wune is a customizable LED-bar audio spectrum visualizer featuring real-time
@@ -191,11 +202,16 @@ Description: LED Bar Audio Spectrum Visualizer
         bin_dir = pkg_root / "usr" / "bin"
         bin_dir.mkdir(parents=True)
         wune_bin = bin_dir / "wune"
+        wune_upper_bin = bin_dir / "Wune"
         try:
             wune_bin.symlink_to("/opt/wune/Wune")
+            wune_upper_bin.symlink_to("/opt/wune/Wune")
         except OSError:
-            wune_bin.write_text('#!/bin/sh\nexec /opt/wune/Wune "$@"\n', encoding="utf-8")
+            script = '#!/bin/sh\nexec /opt/wune/Wune "$@"\n'
+            wune_bin.write_text(script, encoding="utf-8")
             wune_bin.chmod(wune_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+            wune_upper_bin.write_text(script, encoding="utf-8")
+            wune_upper_bin.chmod(wune_upper_bin.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
         if (bundle / "wune.desktop").is_file():
             apps_dir = pkg_root / "usr" / "share" / "applications"
@@ -277,6 +293,9 @@ def main(argv=None):
     create_desktop_file(bundle)
     if (ROOT / "wune" / "assets" / "wune.png").is_file():
         shutil.copy2(ROOT / "wune" / "assets" / "wune.png", bundle / "wune.png")
+
+    collect_notices(bundle, work / "work" / "license-inputs.json")
+    collect_sources(bundle, ROOT / "build" / "license-sources")
 
     # 4. Build info
     info = {
