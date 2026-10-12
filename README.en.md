@@ -65,7 +65,7 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 
 ### Info & Text settings
 - **Font sizes and dynamic scaling**: Adjust font sizes (10–24 px) for scale labels and the information bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
-- **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via Windows Media Session GSMTC and Sony Music Center for PC v2.7.3; on macOS via Apple Music).
+- **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via standard media session [GSMTC] across browsers like YouTube, Apple Music, Spotify, etc., and Sony Music Center for PC v2.7.3; on macOS via Apple Music).
 
 ### Themes and colors
 - Themes store colors only; LED shapes, layout, and motion are saved independently.
