@@ -399,5 +399,14 @@ def create_default_coordinator() -> NowPlayingCoordinator:
                 providers.append(provider)
         except Exception:
             pass
+    elif sys.platform == "linux" or sys.platform.startswith("freebsd"):
+        try:
+            from .now_playing_mpris import LinuxMpris2Provider
+
+            provider = LinuxMpris2Provider()
+            if provider.is_available():
+                providers.append(provider)
+        except Exception:
+            pass
     return NowPlayingCoordinator(providers=providers)
 
