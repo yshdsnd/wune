@@ -33,7 +33,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libpulse-dev libpulse0 libasound2-dev libgl1 libegl1 libx11-6 libxext6 xvfb
+          sudo apt-get install -y pulseaudio pulseaudio-utils libpulse-dev libpulse0 libasound2-dev libgl1 libegl1 libx11-6 libxext6 xvfb
+      - name: Start audio daemon
+        run: |
+          pulseaudio --start --exit-idle-time=-1 || pulseaudio -D --exit-idle-time=-1 || true
+          pactl info || true
+          pactl load-module module-null-sink sink_name=wune_dummy sink_properties=device.description="Wune_Dummy_Speaker" || true
       - name: Install build dependencies
         run: python3 -m pip install -r requirements-build.txt
       - name: Test and build packages
