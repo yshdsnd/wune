@@ -7,10 +7,10 @@ Installation and setup instructions for Wune, an LED audio spectrum analyzer ins
 ## System Requirements
 
 - **Supported Architecture**: **x86_64 (64-bit PC)**
-- **Verified Distributions**:
-  - **Fedora 41+ / RHEL 9+** (tested and verified on physical hardware)
-  - **Ubuntu 24.04+ / Debian 12+** (tested in CI and compatibility environments)
-  - *Note*: Standard Linux desktop environments running PulseAudio or PipeWire (`pipewire-pulseaudio`) are supported.
+- **Hardware-Verified Distribution**:
+  - **Fedora 44 (x86_64)** (tested and verified on physical hardware)
+  - **RHEL / CentOS Stream, Ubuntu / Debian, and others**: While RPM/DEB packages and standalone archives are provided and smoke-tested in CI (Ubuntu 24.04), they have not been verified on physical hardware. We welcome users who can test Wune on these distributions—if you encounter any issues, please report them via **[GitHub Issues](https://github.com/yshdsnd/wune/issues)**.
+  - *Note*: By design, standard Linux desktop environments running PulseAudio or PipeWire (`pipewire-pulseaudio`) are supported.
 - **Audio Server**: **PulseAudio** or **PipeWire** (with PulseAudio compatibility layer)
 - **Display Server**: **X11** or **Wayland** (via XWayland)
 - Audio output device capable of stereo playback (speakers, headphones, external DAC, etc.)

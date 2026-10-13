@@ -131,8 +131,9 @@ Windowsではエクスプローラーのアドレス欄に次を貼り付けま�
 
 ## 動作環境と制限
 
-- 実機確認済み環境: Windows 11 x64／macOS 27 Apple Silicon／Linux (Fedora 41+ x64)。
+- 実機確認済み環境: Windows 11 x64／macOS 27 Apple Silicon／Linux (Fedora 44 x64)。
 - MacはApple Silicon arm64のみ。Core Audio Process TapにはmacOS 14.2以降が必要ですが、14.2以降の全OSでの実機動作を保証するものではありません。
+- Linuxの実機動作確認はFedora 44のみです。RHEL系やUbuntu／Debian系はパッケージ提供およびCI上でのビルド・スモークテストのみ実施しており実機未確認のため、動かしていただける方を募集しています（問題があれば[GitHub Issues](https://github.com/yshdsnd/wune/issues)へご報告ください）。
 - ステレオ音声を再生できる出力デバイスが必要です。
 - Windows 10・Windows on ARMは未検証です。Intel Mac、32ビットWindows、FreeBSD向けの配布物はありません。
 - 起動時の既定出力をWindowsではWASAPI、MacではCore Audio Process Tap、LinuxではPulseAudio/PipeWireループバックで取得します。マイク入力・音声ファイルの直接読み込みには対応していません。
