@@ -131,8 +131,9 @@ This deletes the existing settings file; back it up first if needed.
 
 ## Supported environment and limitations
 
-- Hardware-verified environment: Windows 11 x64, macOS 27 Apple Silicon, and Linux (Fedora 41+ x64).
+- Hardware-verified environment: Windows 11 x64, macOS 27 Apple Silicon, and Linux (Fedora 44 x64).
 - Mac packages target Apple Silicon arm64. Core Audio Process Tap requires macOS 14.2 or later; this does not imply hardware verification on every supported OS version.
+- On Linux, hardware verification has only been performed on Fedora 44. RHEL and Ubuntu/Debian packages are provided and smoke-tested in CI but have not been tested on physical hardware; we welcome users who can test them and report any issues on [GitHub Issues](https://github.com/yshdsnd/wune/issues).
 - An output device capable of stereo audio playback is required.
 - Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows, Intel Mac, or FreeBSD.
 - Audio is captured from the startup default output through WASAPI on Windows, Core Audio Process Tap on Mac, and PulseAudio/PipeWire loopback on Linux. Microphone input and direct audio-file loading are not supported.

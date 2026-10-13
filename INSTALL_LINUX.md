@@ -7,10 +7,10 @@
 ## 動作環境
 
 - **対応アーキテクチャ**: **x86_64（64ビット PC）**
-- **動作確認済みディストリビューション**:
-  - **Fedora 41+ / RHEL 9+**（実機にて動作確認済み）
-  - **Ubuntu 24.04+ / Debian 12+**（CIおよび互換環境にて検証済み）
-  - ※ PulseAudio または PipeWire（`pipewire-pulseaudio`）が動作する一般的な Linux デスクトップ環境に対応しています。
+- **実機確認済みディストリビューション**:
+  - **Fedora 44 (x86_64)**（実機にて動作確認済み）
+  - **RHEL / CentOS Stream、Ubuntu / Debian 等**: パッケージ（RPM / DEB）やスタンドアロンアーカイブの提供および CI（Ubuntu 24.04）でのビルド・スモークテストは実施していますが、実機環境での確認は行っていません。これらのディストリビューションで動かしていただける方を募集しています。問題や気づいた点があれば、ぜひ **[GitHub Issues](https://github.com/yshdsnd/wune/issues)** までご報告ください。
+  - ※ 仕組み上は PulseAudio または PipeWire（`pipewire-pulseaudio`）が動作する一般的な Linux デスクトップ環境に対応しています。
 - **音声サーバー**: **PulseAudio** または **PipeWire**（PulseAudio互換レイヤー）
 - **ディスプレイ**: **X11** または **Wayland**（XWayland）
 - **ステレオ音声を再生できる出力デバイス**（スピーカー、ヘッドホン等）

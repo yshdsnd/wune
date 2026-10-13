@@ -85,7 +85,7 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 
 ## 実機確認
 
-両OSで再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限も確認します。CIの非録音テストはこれらの代わりにはなりません。
+各OS（Windows 11、macOS Apple Silicon、Linux Fedora 44）で再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限、LinuxはPipeWire／PulseAudioのループバック取得とMPRIS2曲名表示も確認します（RHEL系やUbuntu／Debian系はCIでのパッケージ生成・スモークテストのみ実施）。CIの非録音テストはこれらの代わりにはなりません。
 
 参考: [PyInstaller spec files](https://pyinstaller.org/en/stable/spec-files.html)、
 [windowedの標準入出力](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html)、
@@ -103,7 +103,7 @@ python3 -m venv .venv-package
 
 arm64専用です。Core Audioライブラリをソースから再生成し、全テスト、PyInstaller、アドホック署名・検証、移動後のアプリ起動チェックを実行します。チェックは音声権限を要求せず、ライブラリ読み込み、背景・メニュー・確認画面、日本語／英語、設定保存、実際の設定用子プロセスを検証します。
 
-出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド、LICENSE、licenses、build-info.jsonを含みます。全OSのガイドも元のファイル名で同梱し、相対リンクを維持します。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
+出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド（`INSTALL.md` / `INSTALL.en.md`）、LICENSE、licenses、build-info.jsonを含みます。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
 
 Macの `licenses/inventory.json` は署名後アプリのファイルハッシュ、PyInstaller収集元、依存wheelの通知を記録します。Windows専用のDLLハッシュ照合をMacへ流用しません。Macのネイティブ依存物の最終ライセンス確認はリリース確認項目として残ります。通知と対応ソースはZIP内の実データでも照合します。
 
