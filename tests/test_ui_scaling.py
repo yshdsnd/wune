@@ -314,6 +314,23 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertGreaterEqual(np_max.top - btn_max.bottom, 4)
         self.assertGreaterEqual(np_max.top - badge_max.bottom, 4)
 
+    def test_renderer_resize_updates_fonts_on_header_font_size_change(self):
+        size = (1280, 800)
+        surf = pg.Surface(size)
+        cfg = Config(button_font_size=14, badge_font_size=18)
+        renderer = LedBarRenderer(surf, cfg)
+
+        initial_menu_h = renderer.font_menu.get_height()
+        initial_badge_h = renderer.font_badge.get_height()
+
+        cfg.button_font_size = 24
+        cfg.badge_font_size = 28
+        renderer.resize(surf)
+
+        # Fonts must be recreated when header font sizes change without window resize
+        self.assertGreater(renderer.font_menu.get_height(), initial_menu_h)
+        self.assertGreater(renderer.font_badge.get_height(), initial_badge_h)
+
     def test_bottom_info_bar_maintains_bottom_margin(self):
         for size in ((1280, 800), (3840, 2160)):
             with self.subTest(size=size):

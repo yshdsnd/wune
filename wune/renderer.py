@@ -96,7 +96,15 @@ class LedBarRenderer:
             max(9, round(label_size * effective_scale))
         )
         self._font_scale = scale
-        self._font_cache_key = (scale, label_size, info_size, auto_scale)
+        self._font_cache_key = (
+            scale,
+            label_size,
+            info_size,
+            button_size,
+            badge_size,
+            auto_scale,
+            getattr(self.cfg, "japanese_font_family", ""),
+        )
 
     def resize(self, surf):
         """Refresh geometry/surfaces without resetting levels, peaks or presets."""
@@ -120,7 +128,15 @@ class LedBarRenderer:
             self._layout = None
         layout = calculate_layout(surf.get_size(), self.cfg)
         self.ui_scale = layout.ui_scale
-        cache_key = (self.ui_scale, getattr(self.cfg, "label_font_size", 14), getattr(self.cfg, "info_font_size", 14), getattr(self.cfg, "auto_scale_fonts", True))
+        cache_key = (
+            self.ui_scale,
+            getattr(self.cfg, "label_font_size", 14),
+            getattr(self.cfg, "info_font_size", 14),
+            getattr(self.cfg, "button_font_size", 14),
+            getattr(self.cfg, "badge_font_size", 18),
+            getattr(self.cfg, "auto_scale_fonts", True),
+            getattr(self.cfg, "japanese_font_family", ""),
+        )
         if self._font_cache_key != cache_key:
             self._create_fonts(self.ui_scale)
         size_changed = self.trail is None or self.trail.get_size() != surf.get_size()
