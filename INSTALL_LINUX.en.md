@@ -46,7 +46,7 @@ sudo apt install ./wune_X.Y.Z_amd64.deb
 
 ### 3. Standalone Archive (.tar.gz / .zip)
 
-A standalone archive that runs on 64-bit Linux (glibc 2.35+) with PulseAudio or PipeWire without requiring Python to be installed. Audio capture requires `pulseaudio-libs` (or `libpulse0` on Debian/Ubuntu).
+A standalone archive that runs on 64-bit Linux environments with PulseAudio or PipeWire without requiring Python to be installed (tested on Fedora 44 hardware and Ubuntu 24.04 CI; requires `pulseaudio-libs` or `libpulse0` for audio capture).
 
 ```bash
 # Extract tar.gz and run
@@ -62,7 +62,7 @@ To integrate with your desktop application launcher, copy the bundled `wune.desk
 - At startup, Wune automatically detects the default Linux audio output device (speakers, headphones, etc.) and connects to its **loopback monitor source** (`<device>.monitor`) to capture playback audio in real time.
 - Both PipeWire (`pipewire-pulseaudio`) and PulseAudio configurations are supported.
 - Wune does not output sound or alter your default audio device. Play music or video in your preferred media player or web browser to see the visualization.
-- **Default Sample Rate**: When unspecified, the capture sample rate defaults to **48 kHz** (max display range up to 20 kHz). To observe frequencies beyond 20 kHz on high-resolution audio sources (such as 96 kHz), specify `sample_rate` explicitly in `settings.json`.
+- **Default Sample Rate**: When unspecified on Linux/macOS, the capture sample rate defaults to **48 kHz** (max display range up to 20 kHz). To observe frequencies beyond 20 kHz on high-resolution audio sources (such as 96 kHz), launch from source code with `Config(sample_rate=...)` in `main.py` (packaged standalone builds currently do not support custom sample rate configuration).
 - The information bar (toggle with `I`) displays the active device name, sample rate, and channels.
 - If you change your default audio output device, restart Wune.
 
@@ -83,15 +83,18 @@ On Linux, Wune uses the MPRIS2 D-Bus interface to fetch the title and artist of 
 
 ## Basic Controls and Shortcuts
 
+Click the main window before pressing keys.
+
 | Key / Action | Function |
 | --- | --- |
-| S or F2 | Open Settings dialog |
-| F or F11 (or Alt+Enter) | Toggle fullscreen / windowed mode |
+| F2 | Open Settings dialog |
+| Top-left menu or right-click | Menu for Settings, Fullscreen, and Exit |
+| Alt+Enter / F11 | Toggle fullscreen / windowed mode |
 | Space | Pause / resume visualization (audio playback continues) |
 | T or click theme badge | Cycle to next color theme |
 | I | Toggle info bar (output device, sample rate, channels) |
 | Esc | Exit fullscreen in fullscreen mode; exit confirmation dialog in windowed mode |
-| Ctrl+Q or Q | Exit confirmation dialog |
+| Q | Exit confirmation dialog (same in fullscreen) |
 | Drag window edges | Resize window (LED grid scales smoothly) |
 
 ## Configuration and Logs
