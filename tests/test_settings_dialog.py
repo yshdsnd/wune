@@ -265,6 +265,51 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "preview")
         self.assertEqual(state.layout["info_font_size"], 20)
 
+    def test_button_and_badge_font_size_with_sync(self):
+        self.dialog.sync_header_font_sizes.set(True)
+        self.dialog.toggle_sync_header_font_sizes()
+        self.events.get_nowait()
+        self.assertEqual(str(self.dialog.badge_size_spin.cget("state")), "disabled")
+
+        self.dialog.button_font_size.set("18")
+        self.dialog.set_button_font_size()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["button_font_size"], 18)
+        self.assertEqual(state.layout["badge_font_size"], 22)
+        self.assertEqual(self.dialog.badge_font_size.get(), "22")
+
+    def test_button_and_badge_font_size_without_sync(self):
+        self.dialog.sync_header_font_sizes.set(False)
+        self.dialog.toggle_sync_header_font_sizes()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertFalse(state.layout["sync_header_font_sizes"])
+        self.assertEqual(str(self.dialog.badge_size_spin.cget("state")), "normal")
+
+        self.dialog.button_font_size.set("16")
+        self.dialog.set_button_font_size()
+        action, state = self.events.get_nowait()
+        self.assertEqual(state.layout["button_font_size"], 16)
+        # Badge size should remain unchanged
+        self.assertNotEqual(state.layout.get("badge_font_size"), 20)
+
+        self.dialog.badge_font_size.set("26")
+        self.dialog.set_badge_font_size()
+        action, state = self.events.get_nowait()
+        self.assertEqual(state.layout["badge_font_size"], 26)
+
+    def test_invalid_button_and_badge_font_size_shows_status_error(self):
+        self.dialog.button_font_size.set("9")
+        self.dialog.set_button_font_size()
+        self.assertTrue(self.events.empty())
+        self.assertIn("10", self.dialog.status.get())
+
+        self.dialog.badge_font_size.set("30")
+        self.dialog.set_badge_font_size()
+        self.assertTrue(self.events.empty())
+        self.assertIn("28", self.dialog.status.get())
+
     def test_apply_acknowledgment_reenables_controls(self):
         self.dialog.submit("apply")
         self.assertTrue(self.dialog.pending)

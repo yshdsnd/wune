@@ -281,6 +281,39 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertIsNotNone(np_24)
         self.assertGreaterEqual(np_24.top - btn_24.bottom, 8)
 
+    def test_configurable_button_and_badge_font_sizes(self):
+        size = (1280, 800)
+        surf = pg.Surface(size)
+        menu = ApplicationMenu()
+
+        cfg_min = Config(button_font_size=10, badge_font_size=12, show_now_playing=True, show_badge=True)
+        cfg_max = Config(button_font_size=24, badge_font_size=28, show_now_playing=True, show_badge=True)
+
+        renderer_min = LedBarRenderer(surf, cfg_min)
+        renderer_max = LedBarRenderer(surf, cfg_max)
+
+        # Menu button dimensions must scale with button_font_size
+        btn_min = menu.button_rect(renderer_min.font_menu, "en")
+        btn_max = menu.button_rect(renderer_max.font_menu, "en")
+        self.assertGreater(btn_max.width, btn_min.width)
+        self.assertGreater(btn_max.height, btn_min.height)
+        self.assertGreater(renderer_max.font_menu.get_height(), renderer_min.font_menu.get_height())
+
+        # Badge dimensions must scale with badge_font_size
+        badge_min = renderer_min.badge_rect()
+        badge_max = renderer_max.badge_rect()
+        self.assertIsNotNone(badge_min)
+        self.assertIsNotNone(badge_max)
+        self.assertGreater(badge_max.width, badge_min.width)
+        self.assertGreater(badge_max.height, badge_min.height)
+        self.assertGreater(renderer_max.font_badge.get_height(), renderer_min.font_badge.get_height())
+
+        # Now playing clearance remains preserved even with maximum header font sizes
+        np_max = renderer_max.now_playing_rect()
+        self.assertIsNotNone(np_max)
+        self.assertGreaterEqual(np_max.top - btn_max.bottom, 4)
+        self.assertGreaterEqual(np_max.top - badge_max.bottom, 4)
+
     def test_bottom_info_bar_maintains_bottom_margin(self):
         for size in ((1280, 800), (3840, 2160)):
             with self.subTest(size=size):

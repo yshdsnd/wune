@@ -74,6 +74,8 @@ class LedBarRenderer:
         effective_scale = scale if auto_scale else 1.0
         label_size = getattr(self.cfg, "label_font_size", 14)
         info_size = getattr(self.cfg, "info_font_size", 14)
+        button_size = getattr(self.cfg, "button_font_size", 14)
+        badge_size = getattr(self.cfg, "badge_font_size", 18)
 
         self.font_channel = pg.font.SysFont(display_font, max(12, round(16 * effective_scale)), bold=True)
         self.font_small = pg.font.SysFont(
@@ -82,12 +84,12 @@ class LedBarRenderer:
         )
         self.font_menu = pg.font.SysFont(
             japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
-            max(12, round(14 * scale))
+            max(12, round(button_size * effective_scale))
         )
-        self.font_badge = pg.font.SysFont(display_font, max(14, round(18 * effective_scale)), bold=True)
+        self.font_badge = pg.font.SysFont(display_font, max(14, round(badge_size * effective_scale)), bold=True)
         self.font_badge_user = pg.font.SysFont(
             japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,sans-serif",
-            max(14, round(18 * effective_scale)), bold=True
+            max(14, round(badge_size * effective_scale)), bold=True
         )
         self.font_scale = pg.font.SysFont(
             mono_font,
