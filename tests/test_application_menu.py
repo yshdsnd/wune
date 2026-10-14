@@ -86,10 +86,10 @@ class ApplicationMenuTests(unittest.TestCase):
                     surface = pg.Surface(size)
                     renderer = LedBarRenderer(surface, cfg)
                     renderer.preset_name = "LONG THEME NAME " * 5
-                    button = self.menu.button_rect(renderer.font_small, language)
+                    button = self.menu.button_rect(renderer.font_menu, language)
                     self.assertFalse(button.colliderect(renderer.badge_rect()))
                     renderer.draw_panel()
                     self.menu.anchor = (size[0] - 1, size[1] - 1)
-                    rect, _ = self.menu.geometry(size, renderer.font_small, language, True)
+                    rect, _ = self.menu.geometry(size, renderer.font_menu, language, True)
                     self.assertTrue(surface.get_rect().contains(rect))
-                    self.menu.draw(surface, renderer.font_small, language, True, cfg.theme)
+                    self.menu.draw(surface, renderer.font_menu, language, True, cfg.theme)

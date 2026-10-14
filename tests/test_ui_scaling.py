@@ -246,7 +246,7 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
                     surf = pg.Surface(size)
                     renderer = LedBarRenderer(surf, cfg)
                     menu = ApplicationMenu()
-                    btn_rect = menu.button_rect(renderer.font_small, cfg.language)
+                    btn_rect = menu.button_rect(renderer.font_menu, cfg.language)
                     badge_rect = renderer.badge_rect()
                     np_rect = renderer.now_playing_rect()
 
@@ -255,6 +255,31 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
                     # Now playing bar must be strictly below menu button and theme badge with clearance >= 4
                     self.assertGreaterEqual(np_rect.top - btn_rect.bottom, 4)
                     self.assertGreaterEqual(np_rect.top - badge_rect.bottom, 4)
+
+    def test_menu_button_size_independent_of_info_font_size(self):
+        size = (1280, 800)
+        surf = pg.Surface(size)
+        cfg_14 = Config(info_font_size=14, show_now_playing=True)
+        cfg_24 = Config(info_font_size=24, show_now_playing=True)
+
+        renderer_14 = LedBarRenderer(surf, cfg_14)
+        renderer_24 = LedBarRenderer(surf, cfg_24)
+
+        menu = ApplicationMenu()
+        btn_14 = menu.button_rect(renderer_14.font_menu, "en")
+        btn_24 = menu.button_rect(renderer_24.font_menu, "en")
+
+        # Menu button dimensions should remain completely unchanged when info_font_size changes
+        self.assertEqual(btn_14.size, btn_24.size)
+        self.assertEqual(btn_14.topleft, btn_24.topleft)
+
+        # In contrast, info bar font height does change
+        self.assertGreater(renderer_24.font_small.get_height(), renderer_14.font_small.get_height())
+
+        # Now playing bar clearance remains comfortable even with large info_font_size
+        np_24 = renderer_24.now_playing_rect()
+        self.assertIsNotNone(np_24)
+        self.assertGreaterEqual(np_24.top - btn_24.bottom, 8)
 
     def test_bottom_info_bar_maintains_bottom_margin(self):
         for size in ((1280, 800), (3840, 2160)):
