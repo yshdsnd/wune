@@ -46,6 +46,14 @@ def user_locale():
                     cf.CFRelease(languages)
         except (AttributeError, OSError, ValueError):
             pass
+    else:
+        import os
+        for env_var in ("LC_ALL", "LC_MESSAGES", "LANG"):
+            val = os.environ.get(env_var)
+            if val and val != "C" and val != "POSIX":
+                lang = val.split(".", 1)[0].split("@", 1)[0]
+                if lang:
+                    return lang
     try:
         return locale.getlocale()[0] or "en"
     except (ValueError, TypeError):

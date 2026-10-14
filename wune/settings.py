@@ -32,7 +32,12 @@ PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill",
 def settings_path():
     if sys.platform == "darwin":
         return Path.home() / "Library" / "Application Support" / "Wune" / "settings.json"
-    base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    if sys.platform == "win32":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+        return base / "Wune" / "settings.json"
+    # Linux, FreeBSD, and other Unix-like platforms (XDG Base Directory)
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    base = Path(xdg_config) if xdg_config else Path.home() / ".config"
     return base / "Wune" / "settings.json"
 
 

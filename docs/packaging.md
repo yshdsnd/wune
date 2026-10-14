@@ -1,12 +1,13 @@
-# Windows・macOSパッケージの作成
+# Windows・macOS・Linuxパッケージの作成
 
-配布形式はPyInstallerのonedirをZIP化したWindows x64版です。
-`Wune-vX.Y.Z-win64.zip` の中に `Wune/Wune.exe`、`_internal/`、README、Wune本体のLICENSE、依存物のライセンス、
-`build-info.json` を含みます。Pythonを含むランタイムを同梱し、通常利用時の管理者権限は要求しません。
-設定とログはユーザーの `%LOCALAPPDATA%/Wune` に保存します。
+配布形式はPyInstallerのonedirをアーカイブ／パッケージ化したものです。
+- Windows: `Wune-vX.Y.Z-win64.zip`（`Wune/Wune.exe`、`_internal/` を同梱）
+- macOS: `Wune-vX.Y.Z-macos-arm64.zip`（`Wune.app` を同梱）
+- Linux: `Wune-vX.Y.Z-linux-x64.tar.gz`、`Wune-vX.Y.Z-linux-x64.zip`、`Wune-vX.Y.Z-1.x86_64.rpm`、`wune_X.Y.Z_amd64.deb`
 
 ## 開発者向けローカルビルド
 
+### Windows (x64)
 Windows x64とPython 3.13.14 x64を使い、専用の仮想環境で実行します。
 
 ```powershell
@@ -15,8 +16,18 @@ python -m venv .venv-package
 .venv-package\Scripts\python tools/build_windows.py --version 1.1.0-rc.1
 ```
 
-テスト、PyInstaller、別フォルダーへコピーしたEXEの依存物チェック、ZIPとSHA-256作成を順に行います。
-同じ名前の既存ZIPは上書きしません。出力は `dist/`、作業ファイルは `build/` です。
+### Linux (x86_64)
+Fedora / RHEL または Ubuntu / Debian 上で実行します（`.rpm` 生成には `rpm-build`、`.deb` 生成には `dpkg-deb` が必要です）。
+
+```bash
+python3 -m venv .venv-package
+source .venv-package/bin/activate
+pip install -r requirements-build.txt
+python3 tools/build_linux.py --version 1.1.0-rc.1
+```
+
+テスト、PyInstaller、別フォルダーへコピーしたバイナリの依存物チェック、アーカイブ・パッケージとSHA-256作成を順に行います。
+同じ名前の既存成果物は上書きしません。出力は `dist/`、作業ファイルは `build/` です。
 依存物チェックの結果とログは `%TEMP%/Wune-package-check-*` に残します。
 音声機器のないCIでもチェックできるよう、この確認では録音せずWASAPIライブラリの読み込みまでを検証します。
 
@@ -74,7 +85,7 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 
 ## 実機確認
 
-両OSで再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限も確認します。CIの非録音テストはこれらの代わりにはなりません。
+各OS（Windows 11、macOS Apple Silicon、Linux Fedora 44）で再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限、LinuxはPipeWire／PulseAudioのループバック取得とMPRIS2曲名表示も確認します（RHEL系やUbuntu／Debian系はCIでのパッケージ生成・スモークテストのみ実施）。CIの非録音テストはこれらの代わりにはなりません。
 
 参考: [PyInstaller spec files](https://pyinstaller.org/en/stable/spec-files.html)、
 [windowedの標準入出力](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html)、
@@ -92,7 +103,7 @@ python3 -m venv .venv-package
 
 arm64専用です。Core Audioライブラリをソースから再生成し、全テスト、PyInstaller、アドホック署名・検証、移動後のアプリ起動チェックを実行します。チェックは音声権限を要求せず、ライブラリ読み込み、背景・メニュー・確認画面、日本語／英語、設定保存、実際の設定用子プロセスを検証します。
 
-出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド、LICENSE、licenses、build-info.jsonを含みます。全OSのガイドも元のファイル名で同梱し、相対リンクを維持します。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
+出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド（`INSTALL.md` / `INSTALL.en.md`）、LICENSE、licenses、build-info.jsonを含みます。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
 
 Macの `licenses/inventory.json` は署名後アプリのファイルハッシュ、PyInstaller収集元、依存wheelの通知を記録します。Windows専用のDLLハッシュ照合をMacへ流用しません。Macのネイティブ依存物の最終ライセンス確認はリリース確認項目として残ります。通知と対応ソースはZIP内の実データでも照合します。
 

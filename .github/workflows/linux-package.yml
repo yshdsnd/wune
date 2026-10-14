@@ -1,0 +1,104 @@
+name: Linux package
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version without v (e.g. 1.0.0-rc.1)
+        required: true
+        default: 0.0.0-dev
+      release_identity:
+        description: Build a release-identified candidate without creating a tag or publishing
+        type: boolean
+        default: false
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.14'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-build.txt
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pulseaudio pulseaudio-utils libpulse-dev libpulse0 libasound2-dev libgl1 libegl1 libx11-6 libxext6 xvfb rpm
+      - name: Start audio daemon
+        run: |
+          pulseaudio --start --exit-idle-time=-1 || pulseaudio -D --exit-idle-time=-1 || true
+          pactl info || true
+          pactl load-module module-null-sink sink_name=wune_dummy sink_properties=device.description="Wune_Dummy_Speaker" || true
+      - name: Install build dependencies
+        run: python3 -m pip install -r requirements-build.txt
+      - name: Test and build packages
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          RELEASE_IDENTITY: ${{ inputs.release_identity }}
+        run: |
+          version="0.0.0-dev"
+          release_args=()
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+            release_args=("--release")
+          elif [ -n "$REQUESTED_VERSION" ]; then
+            version="$REQUESTED_VERSION"
+            if [ "$RELEASE_IDENTITY" = "true" ]; then
+              release_args=("--release")
+            fi
+          fi
+          xvfb-run -a python3 tools/build_linux.py --version "$version" "${release_args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wune-linux-x64
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.zip
+            dist/*.zip.sha256
+            dist/*.rpm
+            dist/*.rpm.sha256
+            dist/*.deb
+            dist/*.deb.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Linux-build-diagnostics
+          path: |
+            build/**/warn-*.txt
+            /tmp/Wune-package-check-*/user-data/.config/Wune/Wune.log
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Wune-linux-x64
+          path: artifacts
+      - name: Attach to a release (new releases remain drafts)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --notes 'Standalone packages. Validate installation and update release notes before publishing.' || true
+          fi
+          gh release upload "$RELEASE_TAG" artifacts/*

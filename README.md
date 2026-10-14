@@ -2,7 +2,7 @@
 
 **日本語** / [English](README.en.md)
 
-80～90年代のミニコンポをイメージした、Windows・macOS用のLEDスペクトラムアナライザーです。
+80～90年代のミニコンポをイメージした、Windows・macOS・Linux用のLEDスペクトラムアナライザーです。
 いつものスピーカーやヘッドホンで音楽を聴きながら、左右の音の動きを楽しめます。
 配色、LEDの形、配置、ビートへの反応を設定画面から調整できます。
 
@@ -12,10 +12,11 @@
 
 ## ダウンロードと導入
 
-[GitHub Releases](https://github.com/yshdsnd/wune/releases)からOSに合うZIPを選びます。「Source code」は実行用パッケージではありません。
+[GitHub Releases](https://github.com/yshdsnd/wune/releases)からOSに合うパッケージを選びます。「Source code」は実行用パッケージではありません。
 
 - Windows: `Wune-vX.Y.Z-win64.zip` — [Windows導入ガイド](INSTALL_WINDOWS.md)
 - Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS導入ガイド](INSTALL_MACOS.md)
+- Linux: `Wune-vX.Y.Z-1.x86_64.rpm` / `wune_X.Y.Z_amd64.deb` / `Wune-vX.Y.Z-linux-x64.tar.gz` — [Linux導入ガイド](INSTALL_LINUX.md)
 
 Pythonのインストールは不要です。更新・アンインストール・初回の音声許可も各ガイドに記載しています。
 
@@ -130,25 +131,26 @@ Windowsではエクスプローラーのアドレス欄に次を貼り付けま�
 
 ## 動作環境と制限
 
-- 実機確認済み環境: Windows 11 x64／macOS 27 Apple Silicon。
+- 実機確認済み環境: Windows 11 x64／macOS 27 Apple Silicon／Linux (Fedora 44 x64)。
 - MacはApple Silicon arm64のみ。Core Audio Process TapにはmacOS 14.2以降が必要ですが、14.2以降の全OSでの実機動作を保証するものではありません。
+- Linuxの実機動作確認はFedora 44のみです。RHEL系やUbuntu／Debian系はパッケージ提供およびCI上でのビルド・スモークテストのみ実施しており実機未確認のため、動かしていただける方を募集しています（問題があれば[GitHub Issues](https://github.com/yshdsnd/wune/issues)へご報告ください）。
 - ステレオ音声を再生できる出力デバイスが必要です。
-- Windows 10・Windows on ARMは未検証です。Intel Mac、32ビットWindows、Linux、FreeBSD向けの配布物はありません。
-- 起動時の既定出力をWindowsではWASAPI、MacではCore Audio Process Tapで取得します。マイク入力・音声ファイルの直接読み込みには対応していません。
+- Windows 10・Windows on ARMは未検証です。Intel Mac、32ビットWindows、FreeBSD向けの配布物はありません。
+- 起動時の既定出力をWindowsではWASAPI、MacではCore Audio Process Tap、LinuxではPulseAudio/PipeWireループバックで取得します。マイク入力・音声ファイルの直接読み込みには対応していません。
 - 起動中の出力デバイス切り替えやサンプルレート変更には自動追従しません。
 - 取得対象はチャンネル0/1です。サラウンド全体のダウンミックスやモノラル専用デバイスには対応していません。
 - 音声デバイス・バンド数の変更は設定画面にはありません。
 - 高いサンプルレートでは表示上限が最大40 kHzになります。「表示上限を20 kHzに制限」で可聴帯域に絞れます。
 - 狭い表示では目盛りの一部を省略します。レベル表示は帯域ごとの目安で、音圧・トゥルーピークの測定器ではありません。
-- 情報欄の再生中楽曲（Now Playing）表示は、Windowsではシステム標準のメディアセッション（GSMTC）およびSony Music Center for PC（v2.7.3で動作確認）、macOSではApple Musicに対応しています。Music Center for PCはウィンドウタイトルの解析により曲名を取得しているため、プレイヤー側のアップデート等でタイトル形式が変更された場合は表示できなくなる可能性があります。
+- 情報欄の再生中楽曲（Now Playing）表示は、Windowsではシステム標準のメディアセッション（GSMTC）およびSony Music Center for PC（v2.7.3で動作確認）、macOSではApple Music、LinuxではMPRIS2（playerctl/DBus）に対応しています。Music Center for PCはウィンドウタイトルの解析により曲名を取得しているため、プレイヤー側のアップデート等でタイトル形式が変更された場合は表示できなくなる可能性があります。
 - 実行中のDPI変更・ディスプレイ構成変更は未検証です。
 
 ## 困ったとき
 
 | 症状 | 確認すること |
 | --- | --- |
-| 起動しない、すぐ閉じる | ZIP全体を展開したか、_internalがEXEと同じフォルダーにあるかを確認。表示されたエラーとWune.logを確認 |
-| セキュリティ警告で起動できない | Windowsで「PCが保護されました」と出た場合は「詳細情報」→「実行」を選択（[Windows導入ガイド](INSTALL_WINDOWS.md)を参照）。Macでブロックされた場合は「システム設定」→「プライバシーとセキュリティ」で許可（[macOS導入ガイド](INSTALL_MACOS.md)を参照） |
+| 起動しない、すぐ閉じる | ZIP/アーカイブ全体を展開したか、_internalが実行ファイルと同じフォルダーにあるかを確認。表示されたエラーとWune.logを確認 |
+| セキュリティ警告で起動できない | Windowsで「PCが保護されました」と出た場合は「詳細情報」→「実行」を選択（[Windows導入ガイド](INSTALL_WINDOWS.md)を参照）。Macでブロックされた場合は「システム設定」→「プライバシーとセキュリティ」で許可（[macOS導入ガイド](INSTALL_MACOS.md)を参照）。Linuxの各パッケージ導入は[Linux導入ガイド](INSTALL_LINUX.md)を参照 |
 | スペクトラムが動かない | Spaceで一時停止を解除し、音が再生されているか、情報欄の出力先が再生アプリの出力先と同じかを確認 |
 | ヘッドホンなどに替えると動かない | OSの出力先を確認し、Wuneを再起動 |
 | F2などのキーが効かない | メイン画面をクリックしてから操作。設定画面が背後に開いていないかも確認 |

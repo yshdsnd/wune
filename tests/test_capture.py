@@ -8,6 +8,7 @@ from wune.capture import (
     CaptureBackend,
     WasapiLoopbackBackend,
     MacOsCaptureBackend,
+    PulseAudioLoopbackBackend,
     create_capture_backend,
 )
 from wune.spectrum_audio import AudioSpectrum
@@ -59,6 +60,22 @@ class CaptureBackendTests(unittest.TestCase):
             backend = create_capture_backend(cfg, blocksize=4096)
             mock_win.assert_called_once_with(cfg, blocksize=4096)
             self.assertEqual(backend, mock_win.return_value)
+
+    def test_create_capture_backend_selects_pulseaudio_on_linux(self):
+        with patch("sys.platform", "linux"), \
+             patch("wune.capture.PulseAudioLoopbackBackend") as mock_pulse:
+            cfg = Config()
+            backend = create_capture_backend(cfg, blocksize=4096)
+            mock_pulse.assert_called_once_with(cfg, blocksize=4096)
+            self.assertEqual(backend, mock_pulse.return_value)
+
+    def test_create_capture_backend_selects_pulseaudio_on_freebsd(self):
+        with patch("sys.platform", "freebsd14"), \
+             patch("wune.capture.PulseAudioLoopbackBackend") as mock_pulse:
+            cfg = Config()
+            backend = create_capture_backend(cfg, blocksize=4096)
+            mock_pulse.assert_called_once_with(cfg, blocksize=4096)
+            self.assertEqual(backend, mock_pulse.return_value)
 
     def test_audio_spectrum_uses_injected_capture_backend(self):
         dummy = DummyCaptureBackend(sample_rate=44100, channels=2, device_name="Test Input")

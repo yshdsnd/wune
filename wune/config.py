@@ -87,9 +87,9 @@ class Config:
     vis_attack_ms: int = 5
     vis_release_ms: int = 120
 
-    # Windows render endpoint: None follows the default at startup.
+    # Audio capture endpoint: None follows the default at startup.
     output_device: str | None = None
-    sample_rate: int | None = None  # None: selected output's mix rate at startup.
+    sample_rate: int | None = None  # None: device mix rate (Windows) or 48000 Hz default (Linux/macOS).
     block_size: int = 4096
     output_floor: float = 0.05   # Display-only cutoff; envelope state is retained.
 

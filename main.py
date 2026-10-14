@@ -14,6 +14,9 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     os.environ.setdefault("SDL_VIDEO_MAC_FULLSCREEN_SPACES", "0")
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*avx2 capable.*")
+
 import pygame as pg
 import argparse
 

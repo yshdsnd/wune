@@ -6,7 +6,7 @@ from queue import Queue
 import sys
 
 
-def check_macos_settings(cfg):
+def check_spawn_settings(cfg):
     """Exercise the frozen spawn entry, not Tk in the pygame process."""
     from .appearance import AppearanceState
     from .settings import settings_path
@@ -24,6 +24,9 @@ def check_macos_settings(cfg):
         dialog.close()
     if dialog.thread.is_alive() or dialog.thread.exitcode != 0:
         raise RuntimeError("Settings process did not exit cleanly")
+
+
+check_macos_settings = check_spawn_settings
 
 
 def run(report):
@@ -83,6 +86,12 @@ def run(report):
         provider = MacAppleMusicProvider()
         if not provider.is_available():
             raise RuntimeError("MacAppleMusicProvider reported unavailable in packaged macOS bundle")
+    if sys.platform == "linux" or sys.platform.startswith("freebsd"):
+        if not (ASSETS / "wune.png").is_file() and not (ASSETS / "Wune.png").is_file():
+            raise RuntimeError("Missing bundled Linux icon resources")
+        from .now_playing_mpris import LinuxMpris2Provider
+        provider = LinuxMpris2Provider()
+        provider.get_now_playing()
     set_app_id()
     pg.display.init()
     pg.display.set_icon(pygame_icon())
@@ -117,8 +126,8 @@ def run(report):
         prompt.draw(renderer.surf, renderer.font_small, language, cfg.theme)
         if Translator(language)("app.paused") == "app.paused":
             raise RuntimeError("Missing locale data")
-        if sys.platform == "darwin":
-            check_macos_settings(cfg)
+        if sys.platform in ("darwin", "linux") or sys.platform.startswith("freebsd"):
+            check_spawn_settings(cfg)
             continue
         root = tk.Tk()
         root.withdraw()

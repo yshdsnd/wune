@@ -110,9 +110,6 @@ def main(argv=None):
     shutil.copy2(ROOT / "README.en.md", bundle / "README.en.md")
     shutil.copy2(ROOT / "INSTALL_WINDOWS.md", bundle / "INSTALL.md")
     shutil.copy2(ROOT / "INSTALL_WINDOWS.en.md", bundle / "INSTALL.en.md")
-    # Preserve the original filenames too, so README links work offline.
-    for name in ("INSTALL_WINDOWS.md", "INSTALL_WINDOWS.en.md"):
-        shutil.copy2(ROOT / name, bundle / name)
     shutil.copytree(ROOT / "docs", bundle / "docs")  # Keep README links/images usable offline.
     # Preserve the source README's third-party-notice link in the offline package.
     (bundle / "packaging" / "licenses").mkdir(parents=True)

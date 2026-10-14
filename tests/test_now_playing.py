@@ -269,6 +269,20 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
                 self.assertIsInstance(coord, NowPlayingCoordinator)
                 self.assertTrue(any(p.name == "mac_apple_music" for p in coord._providers))
 
+    def test_default_coordinator_factory_on_linux(self):
+        with patch("sys.platform", "linux"):
+            with patch("wune.now_playing_mpris.LinuxMpris2Provider.is_available", return_value=True):
+                coord = create_default_coordinator()
+                self.assertIsInstance(coord, NowPlayingCoordinator)
+                self.assertTrue(any(p.name == "linux_mpris2" for p in coord._providers))
+
+    def test_default_coordinator_factory_on_freebsd(self):
+        with patch("sys.platform", "freebsd14"):
+            with patch("wune.now_playing_mpris.LinuxMpris2Provider.is_available", return_value=True):
+                coord = create_default_coordinator()
+                self.assertIsInstance(coord, NowPlayingCoordinator)
+                self.assertTrue(any(p.name == "linux_mpris2" for p in coord._providers))
+
 
 class NowPlayingRendererTests(unittest.TestCase):
     @classmethod
