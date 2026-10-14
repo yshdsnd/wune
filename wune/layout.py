@@ -39,11 +39,10 @@ def header_elements_bottom(cfg, scale: float = 1.0) -> int:
     """Calculate the estimated bottom boundary of menu button and theme badge."""
     auto_scale = getattr(cfg, "auto_scale_fonts", True)
     effective_scale = scale if auto_scale else 1.0
-    info_size = getattr(cfg, "info_font_size", 14)
 
-    # font_small line height is approx 1.6x font size in Pygame SysFont
-    font_pt = max(11, round(info_size * effective_scale))
-    font_h = max(16, round(font_pt * 1.6))
+    # Menu button uses a fixed 14pt font scaled by UI scale (independent of info_font_size)
+    menu_pt = max(12, round(14 * scale))
+    font_h = max(16, round(menu_pt * 1.6))
     btn_scale = max(1.0, font_h / 18.0)
     btn_y = max(14, round(14 * btn_scale))
     btn_h = max(30, font_h + round(10 * btn_scale))

@@ -383,7 +383,7 @@ class App:
                     self.execute_command("exit")
             if event.type not in (pg.VIDEORESIZE, pg.WINDOWSIZECHANGED):
                 return
-        consumed, command = self.menu.handle(event, self.screen.get_size(), self.renderer.font_small,
+        consumed, command = self.menu.handle(event, self.screen.get_size(), self.renderer.font_menu,
                                              self.cfg.language, self._fullscreen)
         if command is not None:
             self.execute_command(command)
@@ -527,7 +527,7 @@ class App:
                 self.renderer.draw(self.levels, dt=0.0 if self.paused else dt)
                 if self.paused:
                     self.renderer.draw_pause_overlay()
-                self.menu.draw(self.screen, self.renderer.font_small, self.cfg.language,
+                self.menu.draw(self.screen, self.renderer.font_menu, self.cfg.language,
                                self._fullscreen, self.cfg.theme)
                 self.exit_confirmation.draw(self.screen, self.renderer.font_small,
                                             self.cfg.language, self.cfg.theme)

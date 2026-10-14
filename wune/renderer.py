@@ -80,6 +80,10 @@ class LedBarRenderer:
             japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
             max(11, round(info_size * effective_scale))
         )
+        self.font_menu = pg.font.SysFont(
+            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
+            max(12, round(14 * scale))
+        )
         self.font_badge = pg.font.SysFont(display_font, max(14, round(18 * effective_scale)), bold=True)
         self.font_badge_user = pg.font.SysFont(
             japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,sans-serif",
@@ -156,7 +160,7 @@ class LedBarRenderer:
     def badge_text(self):
         font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
         name = self.preset_name
-        available = self.width - ApplicationMenu.button_rect(self.font_small, self.cfg.language).right - 64
+        available = self.width - ApplicationMenu.button_rect(self.font_menu, self.cfg.language).right - 64
         if font.size(name)[0] > available:
             while name and font.size(name + "…")[0] > available:
                 name = name[:-1]
