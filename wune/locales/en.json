@@ -66,6 +66,8 @@
   "settings.button_font_size": "Menu button font size",
   "settings.badge_font_size": "Theme badge font size",
   "settings.sync_header_font_sizes": "Link button and badge sizes",
+  "settings.info_font_family": "Font family (Info & UI)",
+  "settings.font_system_default": "(System default)",
   "settings.auto_scale_fonts": "Auto-scale fonts with window size",
   "settings.theme": "Theme",
   "settings.new": "New",

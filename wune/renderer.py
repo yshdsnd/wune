@@ -77,18 +77,21 @@ class LedBarRenderer:
         button_size = getattr(self.cfg, "button_font_size", 14)
         badge_size = getattr(self.cfg, "badge_font_size", 18)
 
+        info_font_family = getattr(self.cfg, "info_font_family", "").strip()
+        custom_prefix = f"{info_font_family}," if info_font_family else ""
+
         self.font_channel = pg.font.SysFont(display_font, max(12, round(16 * effective_scale)), bold=True)
         self.font_small = pg.font.SysFont(
-            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
+            custom_prefix + japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
             max(11, round(info_size * effective_scale))
         )
         self.font_menu = pg.font.SysFont(
-            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
+            custom_prefix + japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Noto Sans JP,Segoe UI,sans-serif",
             max(12, round(button_size * effective_scale))
         )
         self.font_badge = pg.font.SysFont(display_font, max(14, round(badge_size * effective_scale)), bold=True)
         self.font_badge_user = pg.font.SysFont(
-            japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,sans-serif",
+            custom_prefix + japanese_font + "Meiryo,Yu Gothic UI,Yu Gothic,MS Gothic,Noto Sans CJK JP,Segoe UI,sans-serif",
             max(14, round(badge_size * effective_scale)), bold=True
         )
         self.font_scale = pg.font.SysFont(
@@ -103,7 +106,7 @@ class LedBarRenderer:
             button_size,
             badge_size,
             auto_scale,
-            getattr(self.cfg, "japanese_font_family", ""),
+            info_font_family,
         )
 
     def resize(self, surf):
@@ -135,7 +138,7 @@ class LedBarRenderer:
             getattr(self.cfg, "button_font_size", 14),
             getattr(self.cfg, "badge_font_size", 18),
             getattr(self.cfg, "auto_scale_fonts", True),
-            getattr(self.cfg, "japanese_font_family", ""),
+            getattr(self.cfg, "info_font_family", "").strip(),
         )
         if self._font_cache_key != cache_key:
             self._create_fonts(self.ui_scale)

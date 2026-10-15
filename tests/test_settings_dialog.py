@@ -265,6 +265,20 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "preview")
         self.assertEqual(state.layout["info_font_size"], 20)
 
+    def test_info_font_family_preview(self):
+        self.dialog.info_font_family.set("Noto Sans CJK JP")
+        self.dialog.set_info_font_family()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["info_font_family"], "Noto Sans CJK JP")
+
+        # System default option sets empty string
+        self.dialog.info_font_family.set(self.dialog.t("settings.font_system_default"))
+        self.dialog.set_info_font_family()
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["info_font_family"], "")
+
     def test_button_and_badge_font_size_with_sync(self):
         self.dialog.sync_header_font_sizes.set(True)
         self.dialog.toggle_sync_header_font_sizes()

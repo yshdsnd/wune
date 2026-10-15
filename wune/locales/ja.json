@@ -66,6 +66,8 @@
   "settings.button_font_size": "メニューボタンフォントサイズ",
   "settings.badge_font_size": "テーマバッジフォントサイズ",
   "settings.sync_header_font_sizes": "ボタンとバッジのサイズを連動",
+  "settings.info_font_family": "フォント名 (情報バー・UI)",
+  "settings.font_system_default": "(システム既定)",
   "settings.auto_scale_fonts": "ウィンドウサイズに合わせてフォントを自動拡大",
   "settings.theme": "テーマ",
   "settings.new": "新規",
