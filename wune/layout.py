@@ -39,17 +39,19 @@ def header_elements_bottom(cfg, scale: float = 1.0) -> int:
     """Calculate the estimated bottom boundary of menu button and theme badge."""
     auto_scale = getattr(cfg, "auto_scale_fonts", True)
     effective_scale = scale if auto_scale else 1.0
+    button_size = getattr(cfg, "button_font_size", 14)
+    badge_size = getattr(cfg, "badge_font_size", 18)
 
-    # Menu button uses a fixed 14pt font scaled by UI scale (independent of info_font_size)
-    menu_pt = max(12, round(14 * scale))
+    # Menu button uses button_font_size scaled by UI scale (independent of info_font_size)
+    menu_pt = max(12, round(button_size * effective_scale))
     font_h = max(16, round(menu_pt * 1.6))
     btn_scale = max(1.0, font_h / 18.0)
     btn_y = max(14, round(14 * btn_scale))
     btn_h = max(30, font_h + round(10 * btn_scale))
     btn_bottom = btn_y + btn_h
 
-    # font_badge pt is max(14, round(18 * effective_scale))
-    badge_pt = max(14, round(18 * effective_scale))
+    # font_badge pt uses badge_font_size
+    badge_pt = max(14, round(badge_size * effective_scale))
     badge_font_h = max(18, round(badge_pt * 1.35))
     badge_pad_y = max(8, round(8 * scale))
     badge_glow = max(2, round(2 * scale))

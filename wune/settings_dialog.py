@@ -304,19 +304,38 @@ class _Dialog:
         info_size_spin.grid(row=2, column=1, sticky="w", padx=(14, 0))
         info_size_spin.bind("<Return>", lambda event: self.set_info_font_size())
         info_size_spin.bind("<FocusOut>", lambda event: self.set_info_font_size())
+        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=3, column=0, sticky="w", pady=8)
+        self.button_font_size = tk.StringVar(root)
+        self.button_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.button_font_size,
+                                            command=self.set_button_font_size, width=10)
+        self.button_size_spin.grid(row=3, column=1, sticky="w", padx=(14, 0))
+        self.button_size_spin.bind("<Return>", lambda event: self.set_button_font_size())
+        self.button_size_spin.bind("<FocusOut>", lambda event: self.set_button_font_size())
+        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=4, column=0, sticky="w", pady=8)
+        self.badge_font_size = tk.StringVar(root)
+        self.badge_size_spin = ttk.Spinbox(info_tab, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
+                                           command=self.set_badge_font_size, width=10)
+        self.badge_size_spin.grid(row=4, column=1, sticky="w", padx=(14, 0))
+        self.badge_size_spin.bind("<Return>", lambda event: self.set_badge_font_size())
+        self.badge_size_spin.bind("<FocusOut>", lambda event: self.set_badge_font_size())
+        self.sync_header_font_sizes = tk.BooleanVar(root)
+        ttk.Checkbutton(info_tab, text=self.t('settings.sync_header_font_sizes'),
+                        variable=self.sync_header_font_sizes,
+                        command=self.toggle_sync_header_font_sizes).grid(
+                            row=5, column=0, columnspan=2, sticky="w", pady=8)
         self.auto_scale_fonts = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
                         command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
-                            row=3, column=0, columnspan=2, sticky="w", pady=8)
+                            row=6, column=0, columnspan=2, sticky="w", pady=8)
         self.show_now_playing = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
                         command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=4, column=0, columnspan=2, sticky="w", pady=8)
+                            row=7, column=0, columnspan=2, sticky="w", pady=8)
         self.info = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_output_information'), variable=self.info,
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(
-                            row=5, column=0, sticky="w", pady=8)
-        choice(info_tab, 6, "info_position", self.t('settings.information_position'), {
+                            row=8, column=0, sticky="w", pady=8)
+        choice(info_tab, 9, "info_position", self.t('settings.information_position'), {
             self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
 
@@ -439,6 +458,12 @@ class _Dialog:
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         self.label_font_size.set(str(state.layout.get("label_font_size", 14)))
         self.info_font_size.set(str(state.layout.get("info_font_size", 14)))
+        self.button_font_size.set(str(state.layout.get("button_font_size", 14)))
+        self.badge_font_size.set(str(state.layout.get("badge_font_size", 18)))
+        sync = state.layout.get("sync_header_font_sizes", True)
+        self.sync_header_font_sizes.set(sync)
+        if hasattr(self, "badge_size_spin"):
+            self.badge_size_spin.configure(state="disabled" if sync else "normal")
         self.auto_scale_fonts.set(state.layout.get("auto_scale_fonts", True))
         self.update_window_preset_choices()
         for key, value in state.motion.items():
@@ -470,6 +495,11 @@ class _Dialog:
             self.auto_adjust_leds()
         else:
             self.preview()
+
+    def layout_multiple(self, updates):
+        for key, value in updates.items():
+            self.draft.state.layout[key] = value
+        self.preview()
 
     def style(self, key, value):
         if self.loading or self.draft.state.style[key] == value:
@@ -629,6 +659,46 @@ class _Dialog:
             self.layout("info_font_size", val)
         except ValueError:
             self.status.set(self.t('settings.enter_an_info_font_size_between_10_and_24'))
+
+    def set_button_font_size(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.button_font_size.get())
+            if not valid_preference("button_font_size", val):
+                raise ValueError()
+            if self.sync_header_font_sizes.get():
+                badge_val = min(28, max(10, val + 4))
+                self.badge_font_size.set(str(badge_val))
+                self.layout_multiple({"button_font_size": val, "badge_font_size": badge_val})
+            else:
+                self.layout("button_font_size", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_a_button_font_size_between_10_and_24'))
+
+    def set_badge_font_size(self):
+        from .settings import valid_preference
+        try:
+            val = int(self.badge_font_size.get())
+            if not valid_preference("badge_font_size", val):
+                raise ValueError()
+            self.layout("badge_font_size", val)
+        except ValueError:
+            self.status.set(self.t('settings.enter_a_badge_font_size_between_10_and_28'))
+
+    def toggle_sync_header_font_sizes(self):
+        sync = self.sync_header_font_sizes.get()
+        if hasattr(self, "badge_size_spin"):
+            self.badge_size_spin.configure(state="disabled" if sync else "normal")
+        if sync:
+            try:
+                val = int(self.button_font_size.get())
+                badge_val = min(28, max(10, val + 4))
+                self.badge_font_size.set(str(badge_val))
+                self.layout_multiple({"sync_header_font_sizes": True, "badge_font_size": badge_val})
+                return
+            except ValueError:
+                pass
+        self.layout("sync_header_font_sizes", sync)
 
     def background(self, key, value):
         if self.loading or self.pending:
