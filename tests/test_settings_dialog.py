@@ -279,6 +279,27 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "preview")
         self.assertEqual(state.layout["info_font_family"], "")
 
+    def test_japanese_font_filter_toggle(self):
+        self.dialog.all_font_families = ["Arial", "Courier New", "Noto Sans CJK JP", "Meiryo"]
+        self.dialog.ja_font_families = ["Noto Sans CJK JP", "Meiryo"]
+
+        # When filter is enabled, only Japanese fonts (+ system default) are displayed
+        self.dialog.filter_ja_fonts.set(True)
+        self.dialog._update_font_combo_choices()
+        values_filtered = list(self.dialog.font_combo.cget("values"))
+        self.assertIn("Noto Sans CJK JP", values_filtered)
+        self.assertIn("Meiryo", values_filtered)
+        self.assertNotIn("Arial", values_filtered)
+        self.assertNotIn("Courier New", values_filtered)
+
+        # When filter is disabled, all fonts are displayed
+        self.dialog.filter_ja_fonts.set(False)
+        self.dialog._update_font_combo_choices()
+        values_all = list(self.dialog.font_combo.cget("values"))
+        self.assertIn("Arial", values_all)
+        self.assertIn("Courier New", values_all)
+        self.assertIn("Noto Sans CJK JP", values_all)
+
     def test_button_and_badge_font_size_with_sync(self):
         self.dialog.sync_header_font_sizes.set(True)
         self.dialog.toggle_sync_header_font_sizes()
