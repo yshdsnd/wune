@@ -281,10 +281,11 @@ class DialogTests(unittest.TestCase):
 
     def test_japanese_font_filter_toggle(self):
         self.dialog.all_font_families = ["Arial", "Courier New", "Noto Sans CJK JP", "Meiryo"]
-        self.dialog.ja_font_families = ["Noto Sans CJK JP", "Meiryo"]
+        self.dialog.lang_font_families = ["Noto Sans CJK JP", "Meiryo"]
+        self.dialog.ja_font_families = self.dialog.lang_font_families
 
         # When filter is enabled, only Japanese fonts (+ system default) are displayed
-        self.dialog.filter_ja_fonts.set(True)
+        self.dialog.filter_lang_fonts.set(True)
         self.dialog._update_font_combo_choices()
         values_filtered = list(self.dialog.font_combo.cget("values"))
         self.assertIn("Noto Sans CJK JP", values_filtered)
@@ -293,12 +294,35 @@ class DialogTests(unittest.TestCase):
         self.assertNotIn("Courier New", values_filtered)
 
         # When filter is disabled, all fonts are displayed
-        self.dialog.filter_ja_fonts.set(False)
+        self.dialog.filter_lang_fonts.set(False)
         self.dialog._update_font_combo_choices()
         values_all = list(self.dialog.font_combo.cget("values"))
         self.assertIn("Arial", values_all)
         self.assertIn("Courier New", values_all)
         self.assertIn("Noto Sans CJK JP", values_all)
+
+    def test_language_filter_check_visibility_by_language(self):
+        # In English mode, font filter checkbox should not be displayed
+        cfg_en = Config(language="en")
+        draft_en = AppearanceDraft(AppearanceState.capture(cfg_en, "CLASSIC", {}))
+        events_en, commands_en = Queue(), Queue()
+        dialog_en = _Dialog(self.root, draft_en, "test/settings.json", events_en, commands_en)
+        try:
+            self.assertIsNone(dialog_en.filter_check)
+            self.assertFalse(dialog_en.is_lang_filter_supported)
+        finally:
+            dialog_en.close()
+
+        # In Japanese mode, font filter checkbox should be displayed
+        cfg_ja = Config(language="ja")
+        draft_ja = AppearanceDraft(AppearanceState.capture(cfg_ja, "CLASSIC", {}))
+        events_ja, commands_ja = Queue(), Queue()
+        dialog_ja = _Dialog(self.root, draft_ja, "test/settings.json", events_ja, commands_ja)
+        try:
+            self.assertIsNotNone(dialog_ja.filter_check)
+            self.assertTrue(dialog_ja.is_lang_filter_supported)
+        finally:
+            dialog_ja.close()
 
     def test_button_and_badge_font_size_with_sync(self):
         self.dialog.sync_header_font_sizes.set(True)

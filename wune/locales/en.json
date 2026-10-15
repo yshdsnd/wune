@@ -69,6 +69,7 @@
   "settings.info_font_family": "Font family (Info & UI)",
   "settings.font_system_default": "(System default)",
   "settings.filter_japanese_fonts": "Show Japanese fonts only",
+  "settings.filter_language_fonts": "Show {language} fonts only",
   "settings.auto_scale_fonts": "Auto-scale fonts with window size",
   "settings.theme": "Theme",
   "settings.new": "New",

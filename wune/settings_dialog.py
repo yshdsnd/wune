@@ -293,14 +293,25 @@ class _Dialog:
         ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=8)
         self.info_font_family = tk.StringVar(root)
         self.all_font_families = self._get_available_font_families()
-        from .font_finder import filter_japanese_fonts
-        self.ja_font_families = filter_japanese_fonts(self.all_font_families)
-
-        is_ja_locale = self.draft.state.layout.get("language") == "ja" or (
-            self.draft.state.layout.get("language", "auto") == "auto" and
-            getattr(self.t, "locale", "") == "ja"
+        from .font_finder import (
+            filter_fonts_for_language,
+            is_language_filter_supported,
         )
-        self.filter_ja_fonts = tk.BooleanVar(root, value=bool(is_ja_locale and self.ja_font_families))
+
+        current_lang = getattr(self.t, "language", "en")
+        self.current_lang = current_lang
+        self.is_lang_filter_supported = is_language_filter_supported(current_lang)
+
+        if self.is_lang_filter_supported:
+            self.lang_font_families = filter_fonts_for_language(self.all_font_families, current_lang)
+            self.ja_font_families = self.lang_font_families
+            self.filter_lang_fonts = tk.BooleanVar(root, value=bool(self.lang_font_families))
+            self.filter_ja_fonts = self.filter_lang_fonts
+        else:
+            self.lang_font_families = []
+            self.ja_font_families = []
+            self.filter_lang_fonts = tk.BooleanVar(root, value=False)
+            self.filter_ja_fonts = self.filter_lang_fonts
 
         self.font_combo = ttk.Combobox(info_tab, textvariable=self.info_font_family, width=28)
         self.font_combo.grid(row=1, column=1, sticky="w", padx=(14, 0))
@@ -308,10 +319,19 @@ class _Dialog:
         self.font_combo.bind("<Return>", lambda event: self.set_info_font_family())
         self.font_combo.bind("<FocusOut>", lambda event: self.set_info_font_family())
 
-        filter_check = ttk.Checkbutton(info_tab, text=self.t('settings.filter_japanese_fonts'),
-                                       variable=self.filter_ja_fonts,
-                                       command=self._update_font_combo_choices)
-        filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 6))
+        if self.is_lang_filter_supported:
+            lang_name = self.t("language.name")
+            filter_label = self.t("settings.filter_language_fonts", language=lang_name)
+            self.filter_check = ttk.Checkbutton(
+                info_tab,
+                text=filter_label,
+                variable=self.filter_lang_fonts,
+                command=self._update_font_combo_choices,
+            )
+            self.filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 6))
+        else:
+            self.filter_check = None
+
         self._update_font_combo_choices()
 
         ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=3, column=0, sticky="w", pady=8)
@@ -692,8 +712,11 @@ class _Dialog:
 
     def _update_font_combo_choices(self):
         default_label = self.t('settings.font_system_default')
-        if getattr(self, "filter_ja_fonts", None) and self.filter_ja_fonts.get() and getattr(self, "ja_font_families", None):
-            base_fonts = self.ja_font_families
+        filter_var = getattr(self, "filter_lang_fonts", getattr(self, "filter_ja_fonts", None))
+        lang_fonts = getattr(self, "lang_font_families", getattr(self, "ja_font_families", None))
+
+        if filter_var and filter_var.get() and lang_fonts:
+            base_fonts = lang_fonts
         else:
             base_fonts = getattr(self, "all_font_families", [])
 
