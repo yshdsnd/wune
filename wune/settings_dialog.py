@@ -151,7 +151,7 @@ class _Dialog:
         root.title(self.t('settings.wune_display_settings'))
         set_tk_icon(root)
         root.resizable(True, True)
-        root.minsize(660, 520)
+        root.minsize(740, 560)
         root.protocol("WM_DELETE_WINDOW", lambda: self.submit("cancel"))
         root.bind("<Escape>", lambda event: self.submit("cancel"))
         root.bind("<Deactivate>", self._on_deactivate)
@@ -191,9 +191,9 @@ class _Dialog:
                                command=lambda value, k=key: self.slide_motion(k, value))
             slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=2)
             self.motion_scales[key] = slider
-            ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high), wraplength=600).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
+            ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high), wraplength=700).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
         ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=8)
-        ttk.Label(motion, text=self.t('motion.help'), wraplength=600).grid(row=13, column=0, columnspan=2, sticky="w")
+        ttk.Label(motion, text=self.t('motion.help'), wraplength=700).grid(row=13, column=0, columnspan=2, sticky="w")
         self.variables = {}
         self.combos = {}
 
@@ -209,7 +209,7 @@ class _Dialog:
         # Tab 0: Spectrum
         spectrum.columnconfigure(1, weight=1)
         ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=600).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+                  wraplength=700).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
         choice(spectrum, 1, "channel_mode", self.t("settings.channel_mode"), {
             self.t("settings.stereo_separate"): "stereo",
             self.t("settings.stereo_mix"): "stereo_mix"},
@@ -289,7 +289,7 @@ class _Dialog:
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
         ttk.Label(info_tab, text=self.t('settings.info_text_help'),
-                  wraplength=600).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+                  wraplength=700).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
         ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=8)
         self.info_font_family = tk.StringVar(root)
         self.all_font_families = self._get_available_font_families()
@@ -396,7 +396,7 @@ class _Dialog:
         self.background_path = tk.StringVar(root)
         ttk.Entry(bg_file_frame, textvariable=self.background_path, state="readonly").pack(side="left", fill="x", expand=True)
         ttk.Button(bg_file_frame, text=self.t("background.choose"), command=self.choose_background).pack(side="left", padx=(8, 0))
-        ttk.Label(background, text=self.t("background.help"), wraplength=600).grid(
+        ttk.Label(background, text=self.t("background.help"), wraplength=700).grid(
             row=3, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 5: General
@@ -413,7 +413,7 @@ class _Dialog:
         language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
         choice(general, 1, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
-        ttk.Label(general, text=self.t("language.help"), wraplength=600).grid(
+        ttk.Label(general, text=self.t("language.help"), wraplength=700).grid(
             row=2, column=0, columnspan=2, sticky="w", pady=(0, 8))
         self.confirm_keyboard_exit = tk.BooleanVar()
         ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
@@ -458,10 +458,10 @@ class _Dialog:
         self.hex_entry.bind("<Return>", lambda event: self.set_hex())
         ttk.Button(edit, text=self.t('settings.apply_color'), command=self.set_hex).pack(side="left", padx=6)
         ttk.Button(edit, text=self.t('settings.color_picker'), command=self.pick_color).pack(side="left")
-        ttk.Label(colors, text=self.t('colors.help'), wraplength=600).pack(anchor="w")
+        ttk.Label(colors, text=self.t('colors.help'), wraplength=700).pack(anchor="w")
 
         self.status = tk.StringVar(root, self.t('settings.previewing_changes_save_to_keep_them_for_the_next_launch'))
-        self.status_label = ttk.Label(frame, textvariable=self.status, wraplength=620)
+        self.status_label = ttk.Label(frame, textvariable=self.status, wraplength=700)
         self.status_label.pack(anchor="w", pady=(0, 8))
         row = ttk.Frame(frame)
         row.pack(fill="x")
@@ -471,13 +471,13 @@ class _Dialog:
             button = ttk.Button(row, text=label, command=lambda a=action: self.submit(a))
             button.pack(side="right", padx=(6, 0))
             self.action_buttons.append(button)
-        self.actions_help_label = ttk.Label(frame, text=self.t('settings.actions_help'), wraplength=620)
+        self.actions_help_label = ttk.Label(frame, text=self.t('settings.actions_help'), wraplength=700)
         self.actions_help_label.pack(anchor="w", pady=(8, 0))
-        self.path_label = ttk.Label(frame, text=self.t("settings.path", path=path), wraplength=620)
+        self.path_label = ttk.Label(frame, text=self.t("settings.path", path=path), wraplength=700)
         self.path_label.pack(anchor="w", pady=(6, 0))
 
         def _on_frame_configure(event):
-            wrap = max(600, event.width - 20)
+            wrap = max(680, event.width - 24)
             self.status_label.configure(wraplength=wrap)
             self.actions_help_label.configure(wraplength=wrap)
             self.path_label.configure(wraplength=wrap)
@@ -485,8 +485,8 @@ class _Dialog:
         frame.bind("<Configure>", _on_frame_configure)
         self.refresh()
         root.update_idletasks()
-        req_w = max(660, root.winfo_reqwidth())
-        req_h = max(520, root.winfo_reqheight())
+        req_w = max(740, root.winfo_reqwidth())
+        req_h = max(560, root.winfo_reqheight())
         root.minsize(req_w, req_h)
         root.geometry(f"{req_w}x{req_h}")
         self._poll_id = root.after(30, self.poll)
