@@ -51,7 +51,7 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 | Tab | Main settings |
 | --- | --- |
 | Spectrum | Channel arrangement (separate/mix, stacked/side-by-side), frequency direction, 20 kHz display limit, display gain (dB), LED rendering style/shape/aspect ratio, Adaptive Fill, auto-adjust LEDs/bar gap |
-| Info & Text | Scale and info bar font sizes, dynamic font scaling, Now Playing track display, info bar visibility and position |
+| Info & Text | Scale, info bar, and button/badge font sizes, font family selection, dynamic font scaling, Now Playing track display, info bar visibility and position |
 | Themes and colors | Select, create, duplicate, rename, or delete color themes; edit individual colors |
 | Background | Solid color / image, image sizing (Fit / Fill), choose background image |
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
@@ -65,8 +65,9 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 - **Adaptive Fill and auto-adjust**: Enabling "Adaptive Fill" dynamically eliminates empty margins as the window resizes. Use the "Auto-adjust" buttons next to "LEDs per bar" and "Bar gap" to calculate and apply optimal values for the current window size in a single click (functional even if automatic resizing checkboxes are disabled).
 
 ### Info & Text settings
-- **Font sizes and dynamic scaling**: Adjust font sizes (10–24 px) for scale labels and the information bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
-- **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via standard media session [GSMTC] across browsers like YouTube, Apple Music, Spotify, etc., and Sony Music Center for PC v2.7.3; on macOS via Apple Music).
+- **Font sizes and dynamic scaling**: Adjust font sizes independently for scale labels, the info bar, menu buttons, and preset badges. Enable "Sync with info font size" to keep button and badge sizes matched with the info bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
+- **Font family selection**: Choose a custom font family for the information bar from detected system fonts, or enter a font family name manually. When running in non-Latin locales (e.g., Japanese, Chinese, Korean), a filter checkbox is available to show only fonts that support the active language's glyphs.
+- **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via standard media session [GSMTC] across browsers like YouTube, Apple Music, Spotify, etc., and Sony Music Center for PC v2.7.3; on macOS via Apple Music; on Linux via MPRIS2 [playerctl / DBus]).
 
 ### Themes and colors
 - Themes store colors only; LED shapes, layout, and motion are saved independently.
@@ -105,11 +106,13 @@ The standard Windows color picker follows the Windows display language.
 
 ## Settings location and reset
 
-On Windows, paste the following into File Explorer. On Mac, use Finder → Go to Folder with `~/Library/Application Support/Wune`:
+On Windows, paste `%LOCALAPPDATA%\Wune` into File Explorer. On Mac, use Finder → Go to Folder with `~/Library/Application Support/Wune`. On Linux, navigate to `~/.config/Wune`:
 
-~~~text
-%LOCALAPPDATA%\Wune
-~~~
+| Platform | Settings and Log Path |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\Wune` |
+| macOS | `~/Library/Application Support/Wune` |
+| Linux | `~/.config/Wune` |
 
 | File | Contents |
 | --- | --- |
@@ -122,11 +125,17 @@ To reset everything, close Wune, **move settings.json to another location**, the
 This also resets user themes and window placement. To restore your backup, close Wune and put the file back.
 Corrupt files or unsupported settings formats are left untouched while Wune starts with defaults, so this reset method can also help when settings are not being saved.
 
-To reset from the command line, open PowerShell in the folder containing Wune.exe.
+To reset from the command line, open a terminal in the folder containing the executable and pass `--reset-settings`.
 This deletes the existing settings file; back it up first if needed.
 
 ~~~powershell
+# Windows (PowerShell)
 .\Wune.exe --reset-settings
+~~~
+
+~~~bash
+# Linux / macOS
+./Wune --reset-settings
 ~~~
 
 ## Supported environment and limitations

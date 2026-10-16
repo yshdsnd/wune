@@ -51,8 +51,8 @@ python3 main.py
 ~~~
 
 この起動では末尾の独自CFGも使用せず、Config()の既定値から開始します。
-通常のソース起動は配布EXEと同じユーザー別設定を使います。
-配布EXEのWune.logとは異なり、ソース実行時のエラーはコンソールへ出力します。
+通常のソース起動は配布パッケージと同じユーザー別設定を使います。
+配布パッケージ（WindowsのEXE、macOSのApp、Linuxのバイナリ）のWune.logとは異なり、ソース実行時のエラーはコンソールへ出力します。
 
 ### Microsoft Store版Pythonの保存先
 
@@ -68,7 +68,7 @@ Python.3.13の部分は使用中のPythonで変わります。この説明はSto
 
 ## 音声入力
 
-- output_device = None：起動時のWindows既定の出力デバイス。
+- output_device = None：起動時のOS既定の出力デバイス。
 - sample_rate = None：起動時にその出力先の共有モードのミックスレートを取得。
 - block_size = 4096：読み取り／FFTサイズ。
 - channels = 2、bars = 64：既定のステレオ表示とバンド数。
@@ -76,7 +76,7 @@ Python.3.13の部分は使用中のPythonで変わります。この説明はSto
 音源ファイルのレートやDAC内部の動作レートを検出するものではありません。
 起動後のデバイス・レート変更には追従せず、再起動が必要です。
 自動取得に失敗した場合はエラーで終了し、別のレート・マイク・疑似音声へ切り替えません。
-SoundCardによる共有モードのWASAPIループバックを使います。
+WindowsではSoundCardによる共有モードのWASAPIループバック、macOSではCore Audio Process Tap、LinuxではPulseAudio/PipeWireモニターキャプチャを使います。
 
 別の出力先を検証するには、次で一覧を取得し、IDまたは名前をConfigのoutput_deviceに指定します。
 確実な指定にはIDを使用してください。再生アプリも同じ出力先を使う必要があります。
@@ -207,8 +207,22 @@ python3 -m venv .venv
 
 Core Audio補助ライブラリはソース起動時に未生成ならコンパイルします。配布ビルドでは毎回再生成します。
 システムオーディオの許可は[Mac導入ガイド](../INSTALL_MACOS.md)を参照してください。
-Windows向け音声設定の説明はWASAPIに適用され、Macは[音声バックエンド](audio-backends.md)の条件に従います。
+Windows向け音声設定の説明はWASAPIに適用され、MacおよびLinuxは[音声バックエンド](audio-backends.md)の条件に従います。
 Macの設定は `~/Library/Application Support/Wune/settings.json` に保存されます。
-Macの設定画面はspawnプロセス、Windowsは専用スレッドで動作します。
+設定画面は各OS（Windows、macOS、Linux）ともにspawnプロセスで動作します。
 
-次期リリースはv1.1.0、開発本線はmainです。[統合記録](integration-v1.1.0.md)を参照してください。
+## Linux開発
+
+Linux x64（Fedora、Ubuntu等）とTkinterを含むPython 3.10+環境を使用します。
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3 main.py
+```
+
+PulseAudio / PipeWire環境でシステムのモニター音声を自動取得します。楽曲メタデータはMPRIS2（`playerctl`）から取得します。
+Linuxの設定は `~/.config/Wune/settings.json`、ログは `~/.config/Wune/Wune.log` に保存されます。
+
+次期リリースはv1.2.0、開発本線はmainです。[統合記録](integration-v1.2.0.md)を参照してください。
