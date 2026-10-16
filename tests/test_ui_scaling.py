@@ -331,6 +331,28 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         self.assertGreater(renderer.font_menu.get_height(), initial_menu_h)
         self.assertGreater(renderer.font_badge.get_height(), initial_badge_h)
 
+    def test_info_font_family_applied_to_renderer(self):
+        size = (1280, 800)
+        surf = pg.Surface(size)
+        cfg = Config(info_font_family="")
+        renderer = LedBarRenderer(surf, cfg)
+
+        initial_font_small = renderer.font_small
+
+        cfg.info_font_family = "Arial"
+        renderer.resize(surf)
+
+        # font_small must be recreated with the new custom font family
+        self.assertNotEqual(id(renderer.font_small), id(initial_font_small))
+        self.assertIsNotNone(renderer.font_small)
+        self.assertIsNotNone(renderer.font_menu)
+        self.assertIsNotNone(renderer.font_badge_user)
+
+        # Calling resize with identical config should keep the same font objects
+        current_font = renderer.font_small
+        renderer.resize(surf)
+        self.assertIs(renderer.font_small, current_font)
+
     def test_bottom_info_bar_maintains_bottom_margin(self):
         for size in ((1280, 800), (3840, 2160)):
             with self.subTest(size=size):

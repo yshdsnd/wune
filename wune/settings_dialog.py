@@ -151,7 +151,9 @@ class _Dialog:
         root.title(self.t('settings.wune_display_settings'))
         set_tk_icon(root)
         root.resizable(True, True)
-        root.minsize(570, 480)
+        min_w = 580 if sys.platform == "win32" else 640
+        min_h = 480 if sys.platform == "win32" else 500
+        root.minsize(min_w, min_h)
         root.protocol("WM_DELETE_WINDOW", lambda: self.submit("cancel"))
         root.bind("<Escape>", lambda event: self.submit("cancel"))
         root.bind("<Deactivate>", self._on_deactivate)
@@ -191,9 +193,9 @@ class _Dialog:
                                command=lambda value, k=key: self.slide_motion(k, value))
             slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=2)
             self.motion_scales[key] = slider
-            ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high), wraplength=500).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
+            ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high)).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
         ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=8)
-        ttk.Label(motion, text=self.t('motion.help'), wraplength=500).grid(row=13, column=0, columnspan=2, sticky="w")
+        ttk.Label(motion, text=self.t('motion.help')).grid(row=13, column=0, columnspan=2, sticky="w")
         self.variables = {}
         self.combos = {}
 
@@ -208,8 +210,7 @@ class _Dialog:
 
         # Tab 0: Spectrum
         spectrum.columnconfigure(1, weight=1)
-        ttk.Label(spectrum, text=self.t('settings.spectrum_help'),
-                  wraplength=500).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+        ttk.Label(spectrum, text=self.t('settings.spectrum_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
         choice(spectrum, 1, "channel_mode", self.t("settings.channel_mode"), {
             self.t("settings.stereo_separate"): "stereo",
             self.t("settings.stereo_mix"): "stereo_mix"},
@@ -288,54 +289,97 @@ class _Dialog:
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
-        ttk.Label(info_tab, text=self.t('settings.info_text_help'),
-                  wraplength=500).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
-        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=1, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.info_text_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+        ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=8)
+        self.info_font_family = tk.StringVar(root)
+        self.all_font_families = self._get_available_font_families()
+        from .font_finder import (
+            filter_fonts_for_language,
+            is_language_filter_supported,
+        )
+
+        current_lang = getattr(self.t, "language", "en")
+        self.current_lang = current_lang
+        self.is_lang_filter_supported = is_language_filter_supported(current_lang)
+
+        if self.is_lang_filter_supported:
+            self.lang_font_families = filter_fonts_for_language(self.all_font_families, current_lang)
+            self.ja_font_families = self.lang_font_families
+            self.filter_lang_fonts = tk.BooleanVar(root, value=bool(self.lang_font_families))
+            self.filter_ja_fonts = self.filter_lang_fonts
+        else:
+            self.lang_font_families = []
+            self.ja_font_families = []
+            self.filter_lang_fonts = tk.BooleanVar(root, value=False)
+            self.filter_ja_fonts = self.filter_lang_fonts
+
+        self.font_combo = ttk.Combobox(info_tab, textvariable=self.info_font_family, width=28)
+        self.font_combo.grid(row=1, column=1, sticky="w", padx=(14, 0))
+        self.font_combo.bind("<<ComboboxSelected>>", lambda event: self.set_info_font_family())
+        self.font_combo.bind("<Return>", lambda event: self.set_info_font_family())
+        self.font_combo.bind("<FocusOut>", lambda event: self.set_info_font_family())
+
+        if self.is_lang_filter_supported:
+            lang_name = self.t("language.name")
+            filter_label = self.t("settings.filter_language_fonts", language=lang_name)
+            self.filter_check = ttk.Checkbutton(
+                info_tab,
+                text=filter_label,
+                variable=self.filter_lang_fonts,
+                command=self._update_font_combo_choices,
+            )
+            self.filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 6))
+        else:
+            self.filter_check = None
+
+        self._update_font_combo_choices()
+
+        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=3, column=0, sticky="w", pady=8)
         self.label_font_size = tk.StringVar(root)
         label_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.label_font_size,
                                       command=self.set_label_font_size, width=10)
-        label_size_spin.grid(row=1, column=1, sticky="w", padx=(14, 0))
+        label_size_spin.grid(row=3, column=1, sticky="w", padx=(14, 0))
         label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
         label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
-        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=2, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=4, column=0, sticky="w", pady=8)
         self.info_font_size = tk.StringVar(root)
         info_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.info_font_size,
                                      command=self.set_info_font_size, width=10)
-        info_size_spin.grid(row=2, column=1, sticky="w", padx=(14, 0))
+        info_size_spin.grid(row=4, column=1, sticky="w", padx=(14, 0))
         info_size_spin.bind("<Return>", lambda event: self.set_info_font_size())
         info_size_spin.bind("<FocusOut>", lambda event: self.set_info_font_size())
-        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=3, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=5, column=0, sticky="w", pady=8)
         self.button_font_size = tk.StringVar(root)
         self.button_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.button_font_size,
                                             command=self.set_button_font_size, width=10)
-        self.button_size_spin.grid(row=3, column=1, sticky="w", padx=(14, 0))
+        self.button_size_spin.grid(row=5, column=1, sticky="w", padx=(14, 0))
         self.button_size_spin.bind("<Return>", lambda event: self.set_button_font_size())
         self.button_size_spin.bind("<FocusOut>", lambda event: self.set_button_font_size())
-        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=4, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=6, column=0, sticky="w", pady=8)
         self.badge_font_size = tk.StringVar(root)
         self.badge_size_spin = ttk.Spinbox(info_tab, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
                                            command=self.set_badge_font_size, width=10)
-        self.badge_size_spin.grid(row=4, column=1, sticky="w", padx=(14, 0))
+        self.badge_size_spin.grid(row=6, column=1, sticky="w", padx=(14, 0))
         self.badge_size_spin.bind("<Return>", lambda event: self.set_badge_font_size())
         self.badge_size_spin.bind("<FocusOut>", lambda event: self.set_badge_font_size())
         self.sync_header_font_sizes = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.sync_header_font_sizes'),
                         variable=self.sync_header_font_sizes,
                         command=self.toggle_sync_header_font_sizes).grid(
-                            row=5, column=0, columnspan=2, sticky="w", pady=8)
+                            row=7, column=0, columnspan=2, sticky="w", pady=8)
         self.auto_scale_fonts = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
                         command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
-                            row=6, column=0, columnspan=2, sticky="w", pady=8)
+                            row=8, column=0, columnspan=2, sticky="w", pady=8)
         self.show_now_playing = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
                         command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=7, column=0, columnspan=2, sticky="w", pady=8)
+                            row=9, column=0, columnspan=2, sticky="w", pady=8)
         self.info = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_output_information'), variable=self.info,
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(
-                            row=8, column=0, sticky="w", pady=8)
-        choice(info_tab, 9, "info_position", self.t('settings.information_position'), {
+                            row=10, column=0, sticky="w", pady=8)
+        choice(info_tab, 11, "info_position", self.t('settings.information_position'), {
             self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
 
@@ -352,7 +396,7 @@ class _Dialog:
         self.background_path = tk.StringVar(root)
         ttk.Entry(bg_file_frame, textvariable=self.background_path, state="readonly").pack(side="left", fill="x", expand=True)
         ttk.Button(bg_file_frame, text=self.t("background.choose"), command=self.choose_background).pack(side="left", padx=(8, 0))
-        ttk.Label(background, text=self.t("background.help"), wraplength=500).grid(
+        ttk.Label(background, text=self.t("background.help")).grid(
             row=3, column=0, columnspan=2, sticky="w", pady=12)
 
         # Tab 5: General
@@ -369,7 +413,7 @@ class _Dialog:
         language_options.update({catalog(code).get("language.name", code): code for code in languages() if code != "auto"})
         choice(general, 1, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
-        ttk.Label(general, text=self.t("language.help"), wraplength=500).grid(
+        ttk.Label(general, text=self.t("language.help")).grid(
             row=2, column=0, columnspan=2, sticky="w", pady=(0, 8))
         self.confirm_keyboard_exit = tk.BooleanVar()
         ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
@@ -414,10 +458,11 @@ class _Dialog:
         self.hex_entry.bind("<Return>", lambda event: self.set_hex())
         ttk.Button(edit, text=self.t('settings.apply_color'), command=self.set_hex).pack(side="left", padx=6)
         ttk.Button(edit, text=self.t('settings.color_picker'), command=self.pick_color).pack(side="left")
-        ttk.Label(colors, text=self.t('colors.help'), wraplength=500).pack(anchor="w")
+        ttk.Label(colors, text=self.t('colors.help')).pack(anchor="w")
 
         self.status = tk.StringVar(root, self.t('settings.previewing_changes_save_to_keep_them_for_the_next_launch'))
-        ttk.Label(frame, textvariable=self.status, wraplength=540).pack(anchor="w", pady=(0, 8))
+        self.status_label = ttk.Label(frame, textvariable=self.status)
+        self.status_label.pack(anchor="w", pady=(0, 8))
         row = ttk.Frame(frame)
         row.pack(fill="x")
         ttk.Button(row, text=self.t('settings.reset_display'), command=self.reset).pack(side="left")
@@ -426,11 +471,23 @@ class _Dialog:
             button = ttk.Button(row, text=label, command=lambda a=action: self.submit(a))
             button.pack(side="right", padx=(6, 0))
             self.action_buttons.append(button)
-        ttk.Label(frame, text=self.t('settings.actions_help'), wraplength=540).pack(anchor="w", pady=(8, 0))
-        ttk.Label(frame, text=self.t("settings.path", path=path), wraplength=540).pack(anchor="w", pady=(6, 0))
+        self.actions_help_label = ttk.Label(frame, text=self.t('settings.actions_help'))
+        self.actions_help_label.pack(anchor="w", pady=(8, 0))
+        self.path_label = ttk.Label(frame, text=self.t("settings.path", path=path))
+        self.path_label.pack(anchor="w", pady=(6, 0))
+
+        def _on_frame_configure(event):
+            self.path_label.configure(wraplength=max(300, event.width - 24))
+
+        frame.bind("<Configure>", _on_frame_configure)
         self.refresh()
         root.update_idletasks()
-        root.minsize(max(560, root.winfo_reqwidth()), max(480, root.winfo_reqheight()))
+        min_w = 580 if sys.platform == "win32" else 640
+        min_h = 480 if sys.platform == "win32" else 500
+        req_w = max(min_w, root.winfo_reqwidth())
+        req_h = max(min_h, root.winfo_reqheight())
+        root.minsize(min_w, min_h)
+        root.geometry(f"{req_w}x{req_h}")
         self._poll_id = root.after(30, self.poll)
 
     def refresh(self):
@@ -458,6 +515,9 @@ class _Dialog:
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         self.label_font_size.set(str(state.layout.get("label_font_size", 14)))
         self.info_font_size.set(str(state.layout.get("info_font_size", 14)))
+        saved_font = state.layout.get("info_font_family", "")
+        self.info_font_family.set(saved_font if saved_font else self.t('settings.font_system_default'))
+        self._update_font_combo_choices()
         self.button_font_size.set(str(state.layout.get("button_font_size", 14)))
         self.badge_font_size.set(str(state.layout.get("badge_font_size", 18)))
         sync = state.layout.get("sync_header_font_sizes", True)
@@ -639,6 +699,39 @@ class _Dialog:
                 self.draft.state.style["adaptive_fill"] = preset.adaptive_fill
             self.refresh()
         self.events.put(("window_preset", preset_id))
+
+    def _get_available_font_families(self):
+        try:
+            import tkinter.font as tkfont
+            raw = tkfont.families(self.root)
+            fams = sorted(set(f for f in raw if f and not f.startswith("@") and not f.startswith("~")))
+            return fams
+        except Exception:
+            return []
+
+    def _update_font_combo_choices(self):
+        default_label = self.t('settings.font_system_default')
+        filter_var = getattr(self, "filter_lang_fonts", getattr(self, "filter_ja_fonts", None))
+        lang_fonts = getattr(self, "lang_font_families", getattr(self, "ja_font_families", None))
+
+        if filter_var and filter_var.get() and lang_fonts:
+            base_fonts = lang_fonts
+        else:
+            base_fonts = getattr(self, "all_font_families", [])
+
+        current_val = self.info_font_family.get().strip() if hasattr(self, "info_font_family") else ""
+        choices = [default_label] + list(base_fonts)
+        if current_val and current_val != default_label and current_val not in choices:
+            choices.append(current_val)
+        if hasattr(self, "font_combo"):
+            self.font_combo.configure(values=choices)
+
+    def set_info_font_family(self):
+        val = self.info_font_family.get().strip()
+        default_label = self.t('settings.font_system_default')
+        if val == default_label:
+            val = ""
+        self.layout("info_font_family", val)
 
     def set_label_font_size(self):
         from .settings import valid_preference

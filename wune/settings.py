@@ -26,7 +26,7 @@ CHOICES = {
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
 }
-PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "auto_adjust_bar_gap_on_resize", "display_gain_db", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "button_font_size", "badge_font_size", "sync_header_font_sizes", "auto_scale_fonts", *MOTION_LIMITS)
+PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "auto_adjust_bar_gap_on_resize", "display_gain_db", "bars", "channels", "info_enabled", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "label_font_size", "info_font_size", "button_font_size", "badge_font_size", "sync_header_font_sizes", "info_font_family", "auto_scale_fonts", *MOTION_LIMITS)
 
 
 def settings_path():
@@ -46,8 +46,8 @@ def integer(value, low, high):
 
 
 def valid_preference(key, value):
-    if key == "background_path":
-        return isinstance(value, str) and "\x00" not in value
+    if key in ("background_path", "info_font_family"):
+        return isinstance(value, str) and "\x00" not in value and len(value) <= 100
     if key in MOTION_LIMITS:
         return valid_motion(key, value)
     if key in CHOICES:
