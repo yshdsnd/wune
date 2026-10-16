@@ -290,7 +290,7 @@ class _Dialog:
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
         ttk.Label(info_tab, text=self.t('settings.info_text_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
-        ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=4)
         self.info_font_family = tk.StringVar(root)
         self.all_font_families = self._get_available_font_families()
         from .font_finder import (
@@ -328,34 +328,34 @@ class _Dialog:
                 variable=self.filter_lang_fonts,
                 command=self._update_font_combo_choices,
             )
-            self.filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 6))
+            self.filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 4))
         else:
             self.filter_check = None
 
         self._update_font_combo_choices()
 
-        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=3, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=3, column=0, sticky="w", pady=4)
         self.label_font_size = tk.StringVar(root)
         label_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.label_font_size,
                                       command=self.set_label_font_size, width=10)
         label_size_spin.grid(row=3, column=1, sticky="w", padx=(14, 0))
         label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
         label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
-        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=4, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=4, column=0, sticky="w", pady=4)
         self.info_font_size = tk.StringVar(root)
         info_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.info_font_size,
                                      command=self.set_info_font_size, width=10)
         info_size_spin.grid(row=4, column=1, sticky="w", padx=(14, 0))
         info_size_spin.bind("<Return>", lambda event: self.set_info_font_size())
         info_size_spin.bind("<FocusOut>", lambda event: self.set_info_font_size())
-        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=5, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=5, column=0, sticky="w", pady=4)
         self.button_font_size = tk.StringVar(root)
         self.button_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.button_font_size,
                                             command=self.set_button_font_size, width=10)
         self.button_size_spin.grid(row=5, column=1, sticky="w", padx=(14, 0))
         self.button_size_spin.bind("<Return>", lambda event: self.set_button_font_size())
         self.button_size_spin.bind("<FocusOut>", lambda event: self.set_button_font_size())
-        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=6, column=0, sticky="w", pady=8)
+        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=6, column=0, sticky="w", pady=4)
         self.badge_font_size = tk.StringVar(root)
         self.badge_size_spin = ttk.Spinbox(info_tab, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
                                            command=self.set_badge_font_size, width=10)
@@ -366,22 +366,53 @@ class _Dialog:
         ttk.Checkbutton(info_tab, text=self.t('settings.sync_header_font_sizes'),
                         variable=self.sync_header_font_sizes,
                         command=self.toggle_sync_header_font_sizes).grid(
-                            row=7, column=0, columnspan=2, sticky="w", pady=8)
+                            row=7, column=0, columnspan=2, sticky="w", pady=3)
         self.auto_scale_fonts = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
                         command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
-                            row=8, column=0, columnspan=2, sticky="w", pady=8)
+                            row=8, column=0, columnspan=2, sticky="w", pady=3)
+        self.info_font_bold = tk.BooleanVar(root)
+        ttk.Checkbutton(info_tab, text=self.t('settings.info_font_bold'), variable=self.info_font_bold,
+                        command=lambda: self.layout("info_font_bold", self.info_font_bold.get())).grid(
+                            row=9, column=0, columnspan=2, sticky="w", pady=3)
         self.show_now_playing = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
                         command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=9, column=0, columnspan=2, sticky="w", pady=8)
+                            row=10, column=0, columnspan=2, sticky="w", pady=3)
         self.info = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_output_information'), variable=self.info,
                         command=lambda: self.layout("info_enabled", self.info.get())).grid(
-                            row=10, column=0, sticky="w", pady=8)
-        choice(info_tab, 11, "info_position", self.t('settings.information_position'), {
+                            row=11, column=0, sticky="w", pady=3)
+        choice(info_tab, 12, "info_position", self.t('settings.information_position'), {
             self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
+
+        color_group = ttk.LabelFrame(info_tab, text=self.t('settings.info_bar_colors'), padding=(8, 4))
+        color_group.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        colors_row = ttk.Frame(color_group)
+        colors_row.pack(fill="x", pady=2)
+        self.info_color_widgets = {}
+
+        for key, label_key in (
+            ("info_text", "settings.info_text_color"),
+            ("info_background", "settings.info_background_color"),
+            ("info_border", "settings.info_border_color"),
+        ):
+            item = ttk.Frame(colors_row)
+            item.pack(side="left", expand=True)
+
+            ttk.Label(item, text=self.t(label_key)).pack(side="left", padx=(0, 4))
+            swatch = tk.Label(item, width=2, height=1, relief="sunken", cursor="hand2")
+            swatch.pack(side="left", padx=(0, 4))
+            swatch.bind("<Button-1>", lambda event, k=key: self.pick_info_color(k))
+            btn = ttk.Button(item, text=self.t("settings.change_color"), width=6,
+                             command=lambda k=key: self.pick_info_color(k))
+            btn.pack(side="left")
+            self.info_color_widgets[key] = swatch
+
+        action_btn = ttk.Button(color_group, text=self.t("settings.edit_in_themes_tab"),
+                                command=self.jump_to_theme_colors)
+        action_btn.pack(anchor="e", pady=(2, 0))
 
         # Tab 3: Background
         background.columnconfigure(1, weight=1)
@@ -525,6 +556,11 @@ class _Dialog:
         if hasattr(self, "badge_size_spin"):
             self.badge_size_spin.configure(state="disabled" if sync else "normal")
         self.auto_scale_fonts.set(state.layout.get("auto_scale_fonts", True))
+        if hasattr(self, "info_font_bold"):
+            self.info_font_bold.set(state.layout.get("info_font_bold", False))
+        if hasattr(self, "info_color_widgets"):
+            for key, swatch in self.info_color_widgets.items():
+                swatch.configure(background=self.color_hex(key))
         self.update_window_preset_choices()
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")
@@ -857,6 +893,24 @@ class _Dialog:
         if color:
             self.hex_color.set(color)
             self.set_hex()
+
+    def pick_info_color(self, key):
+        from tkinter import colorchooser
+        current = self.color_hex(key)
+        _, color = colorchooser.askcolor(current, parent=self.root, title=self.t(COLOR_LABELS[key]))
+        if color:
+            text = color.strip().lstrip("#")
+            if len(text) == 6:
+                rgb = tuple(int(text[i:i+2], 16) for i in (0, 2, 4))
+                theme = replace(self.draft.state.preset.theme, **{key: rgb})
+                self.draft.edit(theme=theme)
+                self.preview()
+
+    def jump_to_theme_colors(self):
+        self.notebook.select(2)
+        self.colors.selection_set("info_text")
+        self.colors.see("info_text")
+        self.refresh_color()
 
     def reset(self):
         self.draft.reset()

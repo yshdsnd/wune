@@ -549,5 +549,38 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "apply")
         self.assertTrue(state.style["auto_adjust_bar_gap_on_resize"])
 
+    def test_info_font_bold_toggle_and_submit(self):
+        self.assertFalse(self.dialog.info_font_bold.get())
+        self.dialog.info_font_bold.set(True)
+        self.dialog.layout("info_font_bold", True)
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertTrue(state.layout["info_font_bold"])
+
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertTrue(state.layout["info_font_bold"])
+
+    def test_info_bar_colors_pick_and_swatch_update(self):
+        with patch("tkinter.colorchooser.askcolor", return_value=(None, "#123456")):
+            self.dialog.pick_info_color("info_text")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.preset.theme.info_text, (0x12, 0x34, 0x56))
+        self.assertEqual(self.dialog.info_color_widgets["info_text"].cget("background").upper(), "#123456")
+
+        with patch("tkinter.colorchooser.askcolor", return_value=(None, "#abcdef")):
+            self.dialog.pick_info_color("info_background")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.preset.theme.info_background, (0xab, 0xcd, 0xef))
+        self.assertEqual(self.dialog.info_color_widgets["info_background"].cget("background").upper(), "#ABCDEF")
+
+    def test_jump_to_theme_colors(self):
+        self.dialog.jump_to_theme_colors()
+        self.assertEqual(self.dialog.notebook.index(self.dialog.notebook.select()), 2)
+        self.assertEqual(self.dialog.colors.selection(), ("info_text",))
+
 
 

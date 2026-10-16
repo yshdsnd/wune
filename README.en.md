@@ -51,7 +51,7 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 | Tab | Main settings |
 | --- | --- |
 | Spectrum | Channel arrangement (separate/mix, stacked/side-by-side), frequency direction, 20 kHz display limit, display gain (dB), LED rendering style/shape/aspect ratio, Adaptive Fill, auto-adjust LEDs/bar gap |
-| Info & Text | Scale, info bar, and button/badge font sizes, font family selection, dynamic font scaling, Now Playing track display, info bar visibility and position |
+| Info & Text | Scale, info bar, and button/badge font sizes, font family selection, bold text option, info bar colors, dynamic font scaling, Now Playing track display, info bar visibility and position |
 | Themes and colors | Select, create, duplicate, rename, or delete color themes; edit individual colors |
 | Background | Solid color / image, image sizing (Fit / Fill), choose background image |
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
@@ -66,7 +66,8 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 
 ### Info & Text settings
 - **Font sizes and dynamic scaling**: Adjust font sizes independently for scale labels, the info bar, menu buttons, and preset badges. Enable "Sync with info font size" to keep button and badge sizes matched with the info bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
-- **Font family selection**: Choose a custom font family for the information bar from detected system fonts, or enter a font family name manually. When running in non-Latin locales (e.g., Japanese, Chinese, Korean), a filter checkbox is available to show only fonts that support the active language's glyphs.
+- **Font family selection and bold text**: Choose a custom font family for the information bar from detected system fonts, or enter a font family name manually. When running in non-Latin locales (e.g., Japanese, Chinese, Korean), a filter checkbox is available to show only fonts that support the active language's glyphs. Enable "Bold text" to improve readability on darker backgrounds or with thin font weights.
+- **Info bar colors**: Preview and adjust text, background, and border colors directly using the color picker without navigating through the full theme color palette.
 - **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via standard media session [GSMTC] across browsers like YouTube, Apple Music, Spotify, etc., and Sony Music Center for PC v2.7.3; on macOS via Apple Music; on Linux via MPRIS2 [playerctl / DBus]).
 
 ### Themes and colors
