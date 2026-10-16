@@ -16,7 +16,7 @@
   "background.choose": "Choose image…",
   "background.images": "PNG / JPEG images",
   "background.all_files": "All files",
-  "background.help": "Choose a local image without modifying the original. Fit preserves the entire image; Fill crops the edges. Missing or unreadable files use the theme's solid background. Images remain independent of color themes.",
+  "background.help": "Choose a local image without modifying the original.\nFit preserves the entire image; Fill crops the edges.\nMissing or unreadable files use the theme's solid background.\nImages remain independent of color themes.",
   "background.invalid": "Invalid background setting",
   "settings.wune_display_settings": "Wune — Display settings",
   "settings.preview_changes_on_the_playing_spectrum": "Preview changes on the playing spectrum.",

@@ -152,22 +152,22 @@ class _Dialog:
         set_tk_icon(root)
         root.resizable(True, True)
         min_w = 580 if sys.platform == "win32" else 640
-        min_h = 480 if sys.platform == "win32" else 500
+        min_h = 460 if sys.platform == "win32" else 480
         root.minsize(min_w, min_h)
         root.protocol("WM_DELETE_WINDOW", lambda: self.submit("cancel"))
         root.bind("<Escape>", lambda event: self.submit("cancel"))
         root.bind("<Deactivate>", self._on_deactivate)
-        frame = ttk.Frame(root, padding=12)
+        frame = ttk.Frame(root, padding=(12, 6))
         frame.pack(fill="both", expand=True)
         notebook = ttk.Notebook(frame)
         self.notebook = notebook
-        notebook.pack(fill="both", expand=True, pady=(0, 10))
-        spectrum = ttk.Frame(notebook, padding=12)
-        info_tab = ttk.Frame(notebook, padding=12)
-        colors = ttk.Frame(notebook, padding=12)
-        background = ttk.Frame(notebook, padding=12)
-        motion = ttk.Frame(notebook, padding=12)
-        general = ttk.Frame(notebook, padding=12)
+        notebook.pack(fill="both", expand=True, pady=(0, 6))
+        spectrum = ttk.Frame(notebook, padding=(12, 8))
+        info_tab = ttk.Frame(notebook, padding=(12, 8))
+        colors = ttk.Frame(notebook, padding=(12, 8))
+        background = ttk.Frame(notebook, padding=(12, 8))
+        motion = ttk.Frame(notebook, padding=(12, 8))
+        general = ttk.Frame(notebook, padding=(12, 8))
 
         notebook.add(spectrum, text=self.t('settings.tab_spectrum'))
         notebook.add(info_tab, text=self.t('settings.tab_info_text'))
@@ -181,36 +181,36 @@ class _Dialog:
         self.motion_scales = {}
         for row, (key, (label, hint, increment)) in enumerate(MOTION_LABELS.items()):
             low, high = MOTION_LIMITS[key]
-            ttk.Label(motion, text=self.t(label)).grid(row=row*3, column=0, sticky="w", pady=(6, 0))
             variable = tk.StringVar(root)
             self.motion_variables[key] = variable
-            entry = ttk.Spinbox(motion, from_=low, to=high, increment=increment, width=10,
+            range_text = self.t("motion.range_hint", hint=self.t(hint), low=low, high=high)
+            ttk.Label(motion, text=range_text).grid(row=row*2, column=0, sticky="w", pady=(2, 0))
+            entry = ttk.Spinbox(motion, from_=low, to=high, increment=increment, width=8,
                                 textvariable=variable, command=self.set_motion)
-            entry.grid(row=row*3, column=1, padx=(12, 0))
+            entry.grid(row=row*2, column=1, sticky="e", padx=(12, 0))
             entry.bind("<Return>", lambda event: self.set_motion())
             entry.bind("<FocusOut>", lambda event: self.set_motion())
             slider = ttk.Scale(motion, from_=low, to=high,
                                command=lambda value, k=key: self.slide_motion(k, value))
-            slider.grid(row=row*3+1, column=0, columnspan=2, sticky="ew", pady=2)
+            slider.grid(row=row*2+1, column=0, columnspan=2, sticky="ew", pady=(0, 2))
             self.motion_scales[key] = slider
-            ttk.Label(motion, text=self.t("motion.range_hint", hint=self.t(hint), low=low, high=high)).grid(row=row*3+2, column=0, columnspan=2, sticky="w")
-        ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=12, column=0, sticky="w", pady=8)
-        ttk.Label(motion, text=self.t('motion.help')).grid(row=13, column=0, columnspan=2, sticky="w")
+        ttk.Button(motion, text=self.t('settings.reset_motion_only'), command=self.reset_motion).grid(row=8, column=0, sticky="w", pady=(4, 2))
+        ttk.Label(motion, text=self.t('motion.help')).grid(row=9, column=0, columnspan=2, sticky="w")
         self.variables = {}
         self.combos = {}
 
         def choice(parent, row, key, label, options, callback):
-            ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=8)
+            ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=2)
             variable = tk.StringVar(root)
             self.variables[key] = variable
             combo = ttk.Combobox(parent, textvariable=variable, values=list(options), state="readonly", width=max(32, max(map(len, options))))
-            combo.grid(row=row, column=1, sticky="ew", padx=(14, 0))
+            combo.grid(row=row, column=1, sticky="ew", padx=(14, 0), pady=2)
             combo.bind("<<ComboboxSelected>>", lambda event: callback(options[variable.get()]))
             self.combos[key] = (combo, options)
 
         # Tab 0: Spectrum
         spectrum.columnconfigure(1, weight=1)
-        ttk.Label(spectrum, text=self.t('settings.spectrum_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+        ttk.Label(spectrum, text=self.t('settings.spectrum_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
         choice(spectrum, 1, "channel_mode", self.t("settings.channel_mode"), {
             self.t("settings.stereo_separate"): "stereo",
             self.t("settings.stereo_mix"): "stereo_mix"},
@@ -226,12 +226,12 @@ class _Dialog:
         ttk.Checkbutton(spectrum, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
-                            row=4, column=0, columnspan=2, sticky="w", pady=8)
-        ttk.Label(spectrum, text=self.t('settings.display_gain_db')).grid(row=5, column=0, sticky="w", pady=8)
+                            row=4, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Label(spectrum, text=self.t('settings.display_gain_db')).grid(row=5, column=0, sticky="w", pady=2)
         self.display_gain = tk.StringVar(root)
         display_gain_spin = ttk.Spinbox(spectrum, from_=-24.0, to=24.0, increment=1.0, textvariable=self.display_gain,
                                         command=self.set_display_gain, width=10)
-        display_gain_spin.grid(row=5, column=1, sticky="w", padx=(14, 0))
+        display_gain_spin.grid(row=5, column=1, sticky="w", padx=(14, 0), pady=2)
         display_gain_spin.bind("<Return>", lambda event: self.set_display_gain())
         display_gain_spin.bind("<FocusOut>", lambda event: self.set_display_gain())
         choice(spectrum, 6, "gauge_style", self.t('settings.led_rendering'), {
@@ -240,57 +240,58 @@ class _Dialog:
         choice(spectrum, 7, "led_shape", self.t('settings.led_shape'), {
             self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
             lambda value: self.style("led_shape", value))
-        ttk.Label(spectrum, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=8, column=0, sticky="w", pady=8)
+        ratio_frame = ttk.Frame(spectrum)
+        ratio_frame.grid(row=8, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Label(ratio_frame, text=self.t('settings.led_aspect_ratio_width_height')).pack(side="left")
         self.ratio = tk.StringVar(root)
-        ratio = ttk.Spinbox(spectrum, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
-                            command=self.set_ratio, width=10)
-        ratio.grid(row=8, column=1, sticky="w", padx=(14, 0))
+        ratio = ttk.Spinbox(ratio_frame, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
+                            command=self.set_ratio, width=8)
+        ratio.pack(side="left", padx=(8, 12))
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
         self.adaptive_fill = tk.BooleanVar(root)
-        ttk.Checkbutton(spectrum, text=self.t('settings.adaptive_fill'),
+        ttk.Checkbutton(ratio_frame, text=self.t('settings.adaptive_fill'),
                         variable=self.adaptive_fill,
-                        command=self.toggle_adaptive_fill).grid(
-                            row=9, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        ttk.Label(spectrum, text=self.t('settings.leds_per_bar')).grid(row=10, column=0, sticky="w", pady=8)
+                        command=self.toggle_adaptive_fill).pack(side="left")
+
         leds_frame = ttk.Frame(spectrum)
-        leds_frame.grid(row=10, column=1, sticky="w", padx=(14, 0))
+        leds_frame.grid(row=9, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Label(leds_frame, text=self.t('settings.leds_per_bar')).pack(side="left")
         self.leds_per_bar = tk.StringVar(root)
         leds_spin = ttk.Spinbox(leds_frame, from_=10, to=100, increment=1, textvariable=self.leds_per_bar,
                                 command=self.set_leds_per_bar, width=8)
-        leds_spin.pack(side="left")
+        leds_spin.pack(side="left", padx=(8, 6))
         leds_spin.bind("<Return>", lambda event: self.set_leds_per_bar())
         leds_spin.bind("<FocusOut>", lambda event: self.set_leds_per_bar())
         self.auto_adjust_button = ttk.Button(leds_frame, text=self.t('settings.auto_adjust_leds'),
                                              command=self.auto_adjust_leds)
-        self.auto_adjust_button.pack(side="left", padx=(8, 0))
+        self.auto_adjust_button.pack(side="left", padx=(0, 10))
         self.auto_adjust_leds_on_resize = tk.BooleanVar(root)
-        ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_leds_on_resize'),
+        ttk.Checkbutton(leds_frame, text=self.t('settings.auto_adjust_leds_on_resize'),
                         variable=self.auto_adjust_leds_on_resize,
-                        command=self.toggle_auto_adjust_leds_on_resize).grid(
-                            row=11, column=0, columnspan=2, sticky="w", pady=(0, 8))
-        ttk.Label(spectrum, text=self.t('settings.bar_gap')).grid(row=12, column=0, sticky="w", pady=8)
+                        command=self.toggle_auto_adjust_leds_on_resize).pack(side="left")
+
         bar_gap_frame = ttk.Frame(spectrum)
-        bar_gap_frame.grid(row=12, column=1, sticky="w", padx=(14, 0))
+        bar_gap_frame.grid(row=10, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Label(bar_gap_frame, text=self.t('settings.bar_gap')).pack(side="left")
         self.bar_gap = tk.StringVar(root)
         bar_gap_spin = ttk.Spinbox(bar_gap_frame, from_=0, to=20, increment=1, textvariable=self.bar_gap,
                                    command=self.set_bar_gap, width=8)
-        bar_gap_spin.pack(side="left")
+        bar_gap_spin.pack(side="left", padx=(8, 6))
         bar_gap_spin.bind("<Return>", lambda event: self.set_bar_gap())
         bar_gap_spin.bind("<FocusOut>", lambda event: self.set_bar_gap())
         self.auto_adjust_bar_gap_button = ttk.Button(bar_gap_frame, text=self.t('settings.auto_adjust_bar_gap'),
                                                      command=self.auto_adjust_bar_gap)
-        self.auto_adjust_bar_gap_button.pack(side="left", padx=(8, 0))
+        self.auto_adjust_bar_gap_button.pack(side="left", padx=(0, 10))
         self.auto_adjust_bar_gap_on_resize = tk.BooleanVar(root)
-        ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_bar_gap_on_resize'),
+        ttk.Checkbutton(bar_gap_frame, text=self.t('settings.auto_adjust_bar_gap_on_resize'),
                         variable=self.auto_adjust_bar_gap_on_resize,
-                        command=self.toggle_auto_adjust_bar_gap_on_resize).grid(
-                            row=13, column=0, columnspan=2, sticky="w", pady=(0, 8))
+                        command=self.toggle_auto_adjust_bar_gap_on_resize).pack(side="left")
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
-        ttk.Label(info_tab, text=self.t('settings.info_text_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
-        ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=4)
+        ttk.Label(info_tab, text=self.t('settings.info_text_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        ttk.Label(info_tab, text=self.t('settings.info_font_family')).grid(row=1, column=0, sticky="w", pady=2)
         self.info_font_family = tk.StringVar(root)
         self.all_font_families = self._get_available_font_families()
         from .font_finder import (
@@ -314,7 +315,7 @@ class _Dialog:
             self.filter_ja_fonts = self.filter_lang_fonts
 
         self.font_combo = ttk.Combobox(info_tab, textvariable=self.info_font_family, width=28)
-        self.font_combo.grid(row=1, column=1, sticky="w", padx=(14, 0))
+        self.font_combo.grid(row=1, column=1, sticky="w", padx=(14, 0), pady=2)
         self.font_combo.bind("<<ComboboxSelected>>", lambda event: self.set_info_font_family())
         self.font_combo.bind("<Return>", lambda event: self.set_info_font_family())
         self.font_combo.bind("<FocusOut>", lambda event: self.set_info_font_family())
@@ -328,64 +329,81 @@ class _Dialog:
                 variable=self.filter_lang_fonts,
                 command=self._update_font_combo_choices,
             )
-            self.filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 4))
+            self.filter_check.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=(0, 2))
         else:
             self.filter_check = None
 
         self._update_font_combo_choices()
 
-        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=3, column=0, sticky="w", pady=4)
+        size_row1 = ttk.Frame(info_tab)
+        size_row1.grid(row=3, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Label(size_row1, text=self.t('settings.label_font_size')).pack(side="left")
         self.label_font_size = tk.StringVar(root)
-        label_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.label_font_size,
-                                      command=self.set_label_font_size, width=10)
-        label_size_spin.grid(row=3, column=1, sticky="w", padx=(14, 0))
+        label_size_spin = ttk.Spinbox(size_row1, from_=10, to=24, increment=1, textvariable=self.label_font_size,
+                                      command=self.set_label_font_size, width=6)
+        label_size_spin.pack(side="left", padx=(8, 16))
         label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
         label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
-        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=4, column=0, sticky="w", pady=4)
+
+        ttk.Label(size_row1, text=self.t('settings.info_font_size')).pack(side="left")
         self.info_font_size = tk.StringVar(root)
-        info_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.info_font_size,
-                                     command=self.set_info_font_size, width=10)
-        info_size_spin.grid(row=4, column=1, sticky="w", padx=(14, 0))
+        info_size_spin = ttk.Spinbox(size_row1, from_=10, to=24, increment=1, textvariable=self.info_font_size,
+                                     command=self.set_info_font_size, width=6)
+        info_size_spin.pack(side="left", padx=(8, 0))
         info_size_spin.bind("<Return>", lambda event: self.set_info_font_size())
         info_size_spin.bind("<FocusOut>", lambda event: self.set_info_font_size())
-        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=5, column=0, sticky="w", pady=4)
+
+        size_row2 = ttk.Frame(info_tab)
+        size_row2.grid(row=4, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Label(size_row2, text=self.t('settings.button_font_size')).pack(side="left")
         self.button_font_size = tk.StringVar(root)
-        self.button_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.button_font_size,
-                                            command=self.set_button_font_size, width=10)
-        self.button_size_spin.grid(row=5, column=1, sticky="w", padx=(14, 0))
+        self.button_size_spin = ttk.Spinbox(size_row2, from_=10, to=24, increment=1, textvariable=self.button_font_size,
+                                            command=self.set_button_font_size, width=6)
+        self.button_size_spin.pack(side="left", padx=(8, 16))
         self.button_size_spin.bind("<Return>", lambda event: self.set_button_font_size())
         self.button_size_spin.bind("<FocusOut>", lambda event: self.set_button_font_size())
-        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=6, column=0, sticky="w", pady=4)
+
+        ttk.Label(size_row2, text=self.t('settings.badge_font_size')).pack(side="left")
         self.badge_font_size = tk.StringVar(root)
-        self.badge_size_spin = ttk.Spinbox(info_tab, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
-                                           command=self.set_badge_font_size, width=10)
-        self.badge_size_spin.grid(row=6, column=1, sticky="w", padx=(14, 0))
+        self.badge_size_spin = ttk.Spinbox(size_row2, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
+                                           command=self.set_badge_font_size, width=6)
+        self.badge_size_spin.pack(side="left", padx=(8, 0))
         self.badge_size_spin.bind("<Return>", lambda event: self.set_badge_font_size())
         self.badge_size_spin.bind("<FocusOut>", lambda event: self.set_badge_font_size())
+
         self.sync_header_font_sizes = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.sync_header_font_sizes'),
                         variable=self.sync_header_font_sizes,
                         command=self.toggle_sync_header_font_sizes).grid(
-                            row=7, column=0, columnspan=2, sticky="w", pady=3)
+                            row=5, column=0, columnspan=2, sticky="w", pady=2)
+
+        font_opts = ttk.Frame(info_tab)
+        font_opts.grid(row=6, column=0, columnspan=2, sticky="w", pady=2)
         self.auto_scale_fonts = tk.BooleanVar(root)
-        ttk.Checkbutton(info_tab, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
-                        command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).grid(
-                            row=8, column=0, columnspan=2, sticky="w", pady=3)
+        ttk.Checkbutton(font_opts, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
+                        command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).pack(side="left", padx=(0, 16))
         self.info_font_bold = tk.BooleanVar(root)
-        ttk.Checkbutton(info_tab, text=self.t('settings.info_font_bold'), variable=self.info_font_bold,
-                        command=lambda: self.layout("info_font_bold", self.info_font_bold.get())).grid(
-                            row=9, column=0, columnspan=2, sticky="w", pady=3)
+        ttk.Checkbutton(font_opts, text=self.t('settings.info_font_bold'), variable=self.info_font_bold,
+                        command=lambda: self.layout("info_font_bold", self.info_font_bold.get())).pack(side="left")
+
         self.show_now_playing = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
                         command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=10, column=0, columnspan=2, sticky="w", pady=3)
+                            row=7, column=0, columnspan=2, sticky="w", pady=2)
+
+        info_opts = ttk.Frame(info_tab)
+        info_opts.grid(row=8, column=0, columnspan=2, sticky="w", pady=2)
         self.info = tk.BooleanVar(root)
-        ttk.Checkbutton(info_tab, text=self.t('settings.show_output_information'), variable=self.info,
-                        command=lambda: self.layout("info_enabled", self.info.get())).grid(
-                            row=11, column=0, sticky="w", pady=3)
-        choice(info_tab, 12, "info_position", self.t('settings.information_position'), {
-            self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
-            lambda value: self.layout("info_position", value))
+        ttk.Checkbutton(info_opts, text=self.t('settings.show_output_information'), variable=self.info,
+                        command=lambda: self.layout("info_enabled", self.info.get())).pack(side="left", padx=(0, 16))
+        ttk.Label(info_opts, text=self.t('settings.information_position')).pack(side="left", padx=(0, 6))
+        pos_var = tk.StringVar(root)
+        self.variables["info_position"] = pos_var
+        pos_options = {self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"}
+        pos_combo = ttk.Combobox(info_opts, textvariable=pos_var, values=list(pos_options), state="readonly", width=8)
+        pos_combo.pack(side="left")
+        pos_combo.bind("<<ComboboxSelected>>", lambda event: self.layout("info_position", pos_options[pos_var.get()]))
+        self.combos["info_position"] = (pos_combo, pos_options)
 
         # Tab 3: Background
         background.columnconfigure(1, weight=1)
@@ -396,16 +414,16 @@ class _Dialog:
                {self.t("background.fit"): "fit", self.t("background.fill"): "fill"},
                lambda value: self.background("background_sizing", value))
         bg_file_frame = ttk.Frame(background)
-        bg_file_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=8)
+        bg_file_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=4)
         self.background_path = tk.StringVar(root)
         ttk.Entry(bg_file_frame, textvariable=self.background_path, state="readonly").pack(side="left", fill="x", expand=True)
         ttk.Button(bg_file_frame, text=self.t("background.choose"), command=self.choose_background).pack(side="left", padx=(8, 0))
         ttk.Label(background, text=self.t("background.help")).grid(
-            row=3, column=0, columnspan=2, sticky="w", pady=12)
+            row=3, column=0, columnspan=2, sticky="w", pady=4)
 
         # Tab 5: General
         general.columnconfigure(1, weight=1)
-        ttk.Label(general, text=self.t('settings.window_size_preset')).grid(row=0, column=0, sticky="w", pady=8)
+        ttk.Label(general, text=self.t('settings.window_size_preset')).grid(row=0, column=0, sticky="w", pady=4)
         preset_frame = ttk.Frame(general)
         preset_frame.grid(row=0, column=1, sticky="w", padx=(14, 0))
         self.window_preset_var = tk.StringVar(root)
@@ -418,12 +436,12 @@ class _Dialog:
         choice(general, 1, "language", self.t("settings.language"), language_options,
                lambda value: self.layout("language", value))
         ttk.Label(general, text=self.t("language.help")).grid(
-            row=2, column=0, columnspan=2, sticky="w", pady=(0, 8))
+            row=2, column=0, columnspan=2, sticky="w", pady=(0, 4))
         self.confirm_keyboard_exit = tk.BooleanVar()
         ttk.Checkbutton(general, text=self.t("exit.confirm_setting"),
                         variable=self.confirm_keyboard_exit,
                         command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
-                            row=3, column=0, columnspan=2, sticky="w", pady=8)
+                            row=3, column=0, columnspan=2, sticky="w", pady=4)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x")
@@ -433,12 +451,12 @@ class _Dialog:
         self.theme_combo.pack(side="left", fill="x", expand=True)
         self.theme_combo.bind("<<ComboboxSelected>>", lambda event: self.select_theme())
         buttons = ttk.Frame(colors)
-        buttons.pack(fill="x", pady=8)
+        buttons.pack(fill="x", pady=2)
         for label, action in ((self.t('settings.new'), "new"), (self.t('settings.duplicate'), "copy"), (self.t('settings.rename'), "rename"), (self.t('settings.delete'), "delete")):
             ttk.Button(buttons, text=label, command=lambda a=action: self.manage_theme(a)).pack(side="left", padx=(0, 5))
         table = ttk.Frame(colors)
         table.pack(fill="both", expand=True)
-        self.colors = ttk.Treeview(table, columns=("color",), show="tree headings", height=9, selectmode="browse")
+        self.colors = ttk.Treeview(table, columns=("color",), show="tree headings", height=7, selectmode="browse")
         self.colors.heading("#0", text=self.t('settings.color_role'))
         self.colors.heading("color", text="RGB")
         self.colors.column("#0", width=220)
@@ -453,7 +471,7 @@ class _Dialog:
         self.colors.bind("<<TreeviewSelect>>", lambda event: self.refresh_color())
         self.colors.bind("<Double-1>", lambda event: self.pick_color())
         edit = ttk.Frame(colors)
-        edit.pack(fill="x", pady=8)
+        edit.pack(fill="x", pady=2)
         self.swatch = tk.Label(edit, width=4, relief="sunken")
         self.swatch.pack(side="left", padx=(0, 8))
         self.hex_color = tk.StringVar(root)
@@ -466,7 +484,7 @@ class _Dialog:
 
         self.status = tk.StringVar(root, self.t('settings.previewing_changes_save_to_keep_them_for_the_next_launch'))
         self.status_label = ttk.Label(frame, textvariable=self.status)
-        self.status_label.pack(anchor="w", pady=(0, 8))
+        self.status_label.pack(anchor="w", pady=(0, 4))
         row = ttk.Frame(frame)
         row.pack(fill="x")
         ttk.Button(row, text=self.t('settings.reset_display'), command=self.reset).pack(side="left")
@@ -476,9 +494,9 @@ class _Dialog:
             button.pack(side="right", padx=(6, 0))
             self.action_buttons.append(button)
         self.actions_help_label = ttk.Label(frame, text=self.t('settings.actions_help'))
-        self.actions_help_label.pack(anchor="w", pady=(8, 0))
+        self.actions_help_label.pack(anchor="w", pady=(4, 0))
         self.path_label = ttk.Label(frame, text=self.t("settings.path", path=path))
-        self.path_label.pack(anchor="w", pady=(6, 0))
+        self.path_label.pack(anchor="w", pady=(2, 0))
 
         def _on_frame_configure(event):
             self.path_label.configure(wraplength=max(300, event.width - 24))
@@ -487,7 +505,7 @@ class _Dialog:
         self.refresh()
         root.update_idletasks()
         min_w = 580 if sys.platform == "win32" else 640
-        min_h = 480 if sys.platform == "win32" else 500
+        min_h = 460 if sys.platform == "win32" else 480
         req_w = max(min_w, root.winfo_reqwidth())
         req_h = max(min_h, root.winfo_reqheight())
         root.minsize(min_w, min_h)
