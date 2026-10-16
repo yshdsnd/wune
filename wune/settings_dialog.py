@@ -336,39 +336,39 @@ class _Dialog:
 
         self._update_font_combo_choices()
 
-        size_row1 = ttk.Frame(info_tab)
-        size_row1.grid(row=3, column=0, columnspan=2, sticky="w", pady=2)
-        ttk.Label(size_row1, text=self.t('settings.label_font_size')).pack(side="left")
+        # row 3: label_font_size
+        ttk.Label(info_tab, text=self.t('settings.label_font_size')).grid(row=3, column=0, sticky="w", pady=2)
         self.label_font_size = tk.StringVar(root)
-        label_size_spin = ttk.Spinbox(size_row1, from_=10, to=24, increment=1, textvariable=self.label_font_size,
-                                      command=self.set_label_font_size, width=6)
-        label_size_spin.pack(side="left", padx=(8, 16))
+        label_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.label_font_size,
+                                      command=self.set_label_font_size, width=8)
+        label_size_spin.grid(row=3, column=1, sticky="w", padx=(14, 0), pady=2)
         label_size_spin.bind("<Return>", lambda event: self.set_label_font_size())
         label_size_spin.bind("<FocusOut>", lambda event: self.set_label_font_size())
 
-        ttk.Label(size_row1, text=self.t('settings.info_font_size')).pack(side="left")
+        # row 4: info_font_size
+        ttk.Label(info_tab, text=self.t('settings.info_font_size')).grid(row=4, column=0, sticky="w", pady=2)
         self.info_font_size = tk.StringVar(root)
-        info_size_spin = ttk.Spinbox(size_row1, from_=10, to=24, increment=1, textvariable=self.info_font_size,
-                                     command=self.set_info_font_size, width=6)
-        info_size_spin.pack(side="left", padx=(8, 0))
+        info_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.info_font_size,
+                                     command=self.set_info_font_size, width=8)
+        info_size_spin.grid(row=4, column=1, sticky="w", padx=(14, 0), pady=2)
         info_size_spin.bind("<Return>", lambda event: self.set_info_font_size())
         info_size_spin.bind("<FocusOut>", lambda event: self.set_info_font_size())
 
-        size_row2 = ttk.Frame(info_tab)
-        size_row2.grid(row=4, column=0, columnspan=2, sticky="w", pady=2)
-        ttk.Label(size_row2, text=self.t('settings.button_font_size')).pack(side="left")
+        # row 5: button_font_size
+        ttk.Label(info_tab, text=self.t('settings.button_font_size')).grid(row=5, column=0, sticky="w", pady=2)
         self.button_font_size = tk.StringVar(root)
-        self.button_size_spin = ttk.Spinbox(size_row2, from_=10, to=24, increment=1, textvariable=self.button_font_size,
-                                            command=self.set_button_font_size, width=6)
-        self.button_size_spin.pack(side="left", padx=(8, 16))
+        self.button_size_spin = ttk.Spinbox(info_tab, from_=10, to=24, increment=1, textvariable=self.button_font_size,
+                                            command=self.set_button_font_size, width=8)
+        self.button_size_spin.grid(row=5, column=1, sticky="w", padx=(14, 0), pady=2)
         self.button_size_spin.bind("<Return>", lambda event: self.set_button_font_size())
         self.button_size_spin.bind("<FocusOut>", lambda event: self.set_button_font_size())
 
-        ttk.Label(size_row2, text=self.t('settings.badge_font_size')).pack(side="left")
+        # row 6: badge_font_size
+        ttk.Label(info_tab, text=self.t('settings.badge_font_size')).grid(row=6, column=0, sticky="w", pady=2)
         self.badge_font_size = tk.StringVar(root)
-        self.badge_size_spin = ttk.Spinbox(size_row2, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
-                                           command=self.set_badge_font_size, width=6)
-        self.badge_size_spin.pack(side="left", padx=(8, 0))
+        self.badge_size_spin = ttk.Spinbox(info_tab, from_=10, to=28, increment=1, textvariable=self.badge_font_size,
+                                           command=self.set_badge_font_size, width=8)
+        self.badge_size_spin.grid(row=6, column=1, sticky="w", padx=(14, 0), pady=2)
         self.badge_size_spin.bind("<Return>", lambda event: self.set_badge_font_size())
         self.badge_size_spin.bind("<FocusOut>", lambda event: self.set_badge_font_size())
 
@@ -376,10 +376,10 @@ class _Dialog:
         ttk.Checkbutton(info_tab, text=self.t('settings.sync_header_font_sizes'),
                         variable=self.sync_header_font_sizes,
                         command=self.toggle_sync_header_font_sizes).grid(
-                            row=5, column=0, columnspan=2, sticky="w", pady=2)
+                            row=7, column=0, columnspan=2, sticky="w", pady=2)
 
         font_opts = ttk.Frame(info_tab)
-        font_opts.grid(row=6, column=0, columnspan=2, sticky="w", pady=2)
+        font_opts.grid(row=8, column=0, columnspan=2, sticky="w", pady=2)
         self.auto_scale_fonts = tk.BooleanVar(root)
         ttk.Checkbutton(font_opts, text=self.t('settings.auto_scale_fonts'), variable=self.auto_scale_fonts,
                         command=lambda: self.layout("auto_scale_fonts", self.auto_scale_fonts.get())).pack(side="left", padx=(0, 16))
@@ -390,10 +390,10 @@ class _Dialog:
         self.show_now_playing = tk.BooleanVar(root)
         ttk.Checkbutton(info_tab, text=self.t('settings.show_now_playing'), variable=self.show_now_playing,
                         command=lambda: self.layout("show_now_playing", self.show_now_playing.get())).grid(
-                            row=7, column=0, columnspan=2, sticky="w", pady=2)
+                            row=9, column=0, columnspan=2, sticky="w", pady=2)
 
         info_opts = ttk.Frame(info_tab)
-        info_opts.grid(row=8, column=0, columnspan=2, sticky="w", pady=2)
+        info_opts.grid(row=10, column=0, columnspan=2, sticky="w", pady=2)
         self.info = tk.BooleanVar(root)
         ttk.Checkbutton(info_opts, text=self.t('settings.show_output_information'), variable=self.info,
                         command=lambda: self.layout("info_enabled", self.info.get())).pack(side="left", padx=(0, 16))
