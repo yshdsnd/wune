@@ -199,94 +199,95 @@ class _Dialog:
         self.variables = {}
         self.combos = {}
 
-        def choice(parent, row, key, label, options, callback):
+        def choice(parent, row, key, label, options, callback, columnspan=1):
             ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=2)
             variable = tk.StringVar(root)
             self.variables[key] = variable
             combo = ttk.Combobox(parent, textvariable=variable, values=list(options), state="readonly", width=max(32, max(map(len, options))))
-            combo.grid(row=row, column=1, sticky="ew", padx=(14, 0), pady=2)
+            combo.grid(row=row, column=1, columnspan=columnspan, sticky="w" if columnspan > 1 else "ew", padx=(14, 0), pady=2)
             combo.bind("<<ComboboxSelected>>", lambda event: callback(options[variable.get()]))
             self.combos[key] = (combo, options)
 
         # Tab 0: Spectrum
-        spectrum.columnconfigure(1, weight=1)
-        ttk.Label(spectrum, text=self.t('settings.spectrum_help')).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        spectrum.columnconfigure(3, weight=1)
+        ttk.Label(spectrum, text=self.t('settings.spectrum_help')).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 4))
         choice(spectrum, 1, "channel_mode", self.t("settings.channel_mode"), {
             self.t("settings.stereo_separate"): "stereo",
             self.t("settings.stereo_mix"): "stereo_mix"},
-            lambda value: self.layout("channel_mode", value))
+            lambda value: self.layout("channel_mode", value), columnspan=3)
         choice(spectrum, 2, "channel_layout", self.t('settings.l_r_arrangement'), {
             self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
-            lambda value: self.layout("channel_layout", value))
+            lambda value: self.layout("channel_layout", value), columnspan=3)
         choice(spectrum, 3, "spectrum_orientation", self.t('settings.spectrum_direction'), {
             self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal",
             self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
-            lambda value: self.layout("spectrum_orientation", value))
+            lambda value: self.layout("spectrum_orientation", value), columnspan=3)
         self.limit_to_20khz = tk.BooleanVar(root)
         ttk.Checkbutton(spectrum, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
                         variable=self.limit_to_20khz,
                         command=lambda: self.layout("limit_to_20khz", self.limit_to_20khz.get())).grid(
-                            row=4, column=0, columnspan=2, sticky="w", pady=2)
+                            row=4, column=0, columnspan=4, sticky="w", pady=2)
         ttk.Label(spectrum, text=self.t('settings.display_gain_db')).grid(row=5, column=0, sticky="w", pady=2)
         self.display_gain = tk.StringVar(root)
         display_gain_spin = ttk.Spinbox(spectrum, from_=-24.0, to=24.0, increment=1.0, textvariable=self.display_gain,
-                                        command=self.set_display_gain, width=10)
+                                        command=self.set_display_gain, width=8)
         display_gain_spin.grid(row=5, column=1, sticky="w", padx=(14, 0), pady=2)
         display_gain_spin.bind("<Return>", lambda event: self.set_display_gain())
         display_gain_spin.bind("<FocusOut>", lambda event: self.set_display_gain())
         choice(spectrum, 6, "gauge_style", self.t('settings.led_rendering'), {
             self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
-            lambda value: self.style("gauge_style", value))
+            lambda value: self.style("gauge_style", value), columnspan=3)
         choice(spectrum, 7, "led_shape", self.t('settings.led_shape'), {
             self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
-            lambda value: self.style("led_shape", value))
-        ratio_frame = ttk.Frame(spectrum)
-        ratio_frame.grid(row=8, column=0, columnspan=2, sticky="w", pady=2)
-        ttk.Label(ratio_frame, text=self.t('settings.led_aspect_ratio_width_height')).pack(side="left")
+            lambda value: self.style("led_shape", value), columnspan=3)
+
+        # row 8: ratio
+        ttk.Label(spectrum, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=8, column=0, sticky="w", pady=2)
         self.ratio = tk.StringVar(root)
-        ratio = ttk.Spinbox(ratio_frame, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
+        ratio = ttk.Spinbox(spectrum, from_=0.25, to=8, increment=0.25, textvariable=self.ratio,
                             command=self.set_ratio, width=8)
-        ratio.pack(side="left", padx=(8, 12))
+        ratio.grid(row=8, column=1, sticky="w", padx=(14, 0), pady=2)
         ratio.bind("<Return>", lambda event: self.set_ratio())
         ratio.bind("<FocusOut>", lambda event: self.set_ratio())
         self.adaptive_fill = tk.BooleanVar(root)
-        ttk.Checkbutton(ratio_frame, text=self.t('settings.adaptive_fill'),
-                        variable=self.adaptive_fill,
-                        command=self.toggle_adaptive_fill).pack(side="left")
+        self.adaptive_fill_check = ttk.Checkbutton(spectrum, text=self.t('settings.adaptive_fill'),
+                                                   variable=self.adaptive_fill,
+                                                   command=self.toggle_adaptive_fill)
+        self.adaptive_fill_check.grid(row=8, column=3, sticky="w", padx=(10, 0), pady=2)
 
-        leds_frame = ttk.Frame(spectrum)
-        leds_frame.grid(row=9, column=0, columnspan=2, sticky="w", pady=2)
-        ttk.Label(leds_frame, text=self.t('settings.leds_per_bar')).pack(side="left")
+        # row 9: leds_per_bar
+        ttk.Label(spectrum, text=self.t('settings.leds_per_bar')).grid(row=9, column=0, sticky="w", pady=2)
         self.leds_per_bar = tk.StringVar(root)
-        leds_spin = ttk.Spinbox(leds_frame, from_=10, to=100, increment=1, textvariable=self.leds_per_bar,
+        leds_spin = ttk.Spinbox(spectrum, from_=10, to=100, increment=1, textvariable=self.leds_per_bar,
                                 command=self.set_leds_per_bar, width=8)
-        leds_spin.pack(side="left", padx=(8, 6))
+        leds_spin.grid(row=9, column=1, sticky="w", padx=(14, 0), pady=2)
         leds_spin.bind("<Return>", lambda event: self.set_leds_per_bar())
         leds_spin.bind("<FocusOut>", lambda event: self.set_leds_per_bar())
-        self.auto_adjust_button = ttk.Button(leds_frame, text=self.t('settings.auto_adjust_leds'),
+        self.auto_adjust_button = ttk.Button(spectrum, text=self.t('settings.auto_adjust_leds'),
                                              command=self.auto_adjust_leds)
-        self.auto_adjust_button.pack(side="left", padx=(0, 10))
+        self.auto_adjust_button.grid(row=9, column=2, sticky="w", padx=(8, 0), pady=2)
         self.auto_adjust_leds_on_resize = tk.BooleanVar(root)
-        ttk.Checkbutton(leds_frame, text=self.t('settings.auto_adjust_leds_on_resize'),
-                        variable=self.auto_adjust_leds_on_resize,
-                        command=self.toggle_auto_adjust_leds_on_resize).pack(side="left")
+        self.auto_adjust_leds_on_resize_check = ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_leds_on_resize'),
+                                                               variable=self.auto_adjust_leds_on_resize,
+                                                               command=self.toggle_auto_adjust_leds_on_resize)
+        self.auto_adjust_leds_on_resize_check.grid(row=9, column=3, sticky="w", padx=(10, 0), pady=2)
 
-        bar_gap_frame = ttk.Frame(spectrum)
-        bar_gap_frame.grid(row=10, column=0, columnspan=2, sticky="w", pady=2)
-        ttk.Label(bar_gap_frame, text=self.t('settings.bar_gap')).pack(side="left")
+        # row 10: bar_gap
+        ttk.Label(spectrum, text=self.t('settings.bar_gap')).grid(row=10, column=0, sticky="w", pady=2)
         self.bar_gap = tk.StringVar(root)
-        bar_gap_spin = ttk.Spinbox(bar_gap_frame, from_=0, to=20, increment=1, textvariable=self.bar_gap,
+        bar_gap_spin = ttk.Spinbox(spectrum, from_=0, to=20, increment=1, textvariable=self.bar_gap,
                                    command=self.set_bar_gap, width=8)
-        bar_gap_spin.pack(side="left", padx=(8, 6))
+        bar_gap_spin.grid(row=10, column=1, sticky="w", padx=(14, 0), pady=2)
         bar_gap_spin.bind("<Return>", lambda event: self.set_bar_gap())
         bar_gap_spin.bind("<FocusOut>", lambda event: self.set_bar_gap())
-        self.auto_adjust_bar_gap_button = ttk.Button(bar_gap_frame, text=self.t('settings.auto_adjust_bar_gap'),
+        self.auto_adjust_bar_gap_button = ttk.Button(spectrum, text=self.t('settings.auto_adjust_bar_gap'),
                                                      command=self.auto_adjust_bar_gap)
-        self.auto_adjust_bar_gap_button.pack(side="left", padx=(0, 10))
+        self.auto_adjust_bar_gap_button.grid(row=10, column=2, sticky="w", padx=(8, 0), pady=2)
         self.auto_adjust_bar_gap_on_resize = tk.BooleanVar(root)
-        ttk.Checkbutton(bar_gap_frame, text=self.t('settings.auto_adjust_bar_gap_on_resize'),
-                        variable=self.auto_adjust_bar_gap_on_resize,
-                        command=self.toggle_auto_adjust_bar_gap_on_resize).pack(side="left")
+        self.auto_adjust_bar_gap_on_resize_check = ttk.Checkbutton(spectrum, text=self.t('settings.auto_adjust_bar_gap_on_resize'),
+                                                                  variable=self.auto_adjust_bar_gap_on_resize,
+                                                                  command=self.toggle_auto_adjust_bar_gap_on_resize)
+        self.auto_adjust_bar_gap_on_resize_check.grid(row=10, column=3, sticky="w", padx=(10, 0), pady=2)
 
         # Tab 1: Info & Text
         info_tab.columnconfigure(1, weight=1)
