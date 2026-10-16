@@ -387,33 +387,6 @@ class _Dialog:
             self.t('settings.bottom'): "bottom", self.t('settings.top'): "top"},
             lambda value: self.layout("info_position", value))
 
-        color_group = ttk.LabelFrame(info_tab, text=self.t('settings.info_bar_colors'), padding=(8, 4))
-        color_group.grid(row=13, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        colors_row = ttk.Frame(color_group)
-        colors_row.pack(fill="x", pady=2)
-        self.info_color_widgets = {}
-
-        for key, label_key in (
-            ("info_text", "settings.info_text_color"),
-            ("info_background", "settings.info_background_color"),
-            ("info_border", "settings.info_border_color"),
-        ):
-            item = ttk.Frame(colors_row)
-            item.pack(side="left", expand=True)
-
-            ttk.Label(item, text=self.t(label_key)).pack(side="left", padx=(0, 4))
-            swatch = tk.Label(item, width=2, height=1, relief="sunken", cursor="hand2")
-            swatch.pack(side="left", padx=(0, 4))
-            swatch.bind("<Button-1>", lambda event, k=key: self.pick_info_color(k))
-            btn = ttk.Button(item, text=self.t("settings.change_color"), width=6,
-                             command=lambda k=key: self.pick_info_color(k))
-            btn.pack(side="left")
-            self.info_color_widgets[key] = swatch
-
-        action_btn = ttk.Button(color_group, text=self.t("settings.edit_in_themes_tab"),
-                                command=self.jump_to_theme_colors)
-        action_btn.pack(anchor="e", pady=(2, 0))
-
         # Tab 3: Background
         background.columnconfigure(1, weight=1)
         choice(background, 0, "background_mode", self.t("background.mode"),
@@ -558,9 +531,6 @@ class _Dialog:
         self.auto_scale_fonts.set(state.layout.get("auto_scale_fonts", True))
         if hasattr(self, "info_font_bold"):
             self.info_font_bold.set(state.layout.get("info_font_bold", False))
-        if hasattr(self, "info_color_widgets"):
-            for key, swatch in self.info_color_widgets.items():
-                swatch.configure(background=self.color_hex(key))
         self.update_window_preset_choices()
         for key, value in state.motion.items():
             self.motion_variables[key].set(f"{value:g}")
@@ -893,24 +863,6 @@ class _Dialog:
         if color:
             self.hex_color.set(color)
             self.set_hex()
-
-    def pick_info_color(self, key):
-        from tkinter import colorchooser
-        current = self.color_hex(key)
-        _, color = colorchooser.askcolor(current, parent=self.root, title=self.t(COLOR_LABELS[key]))
-        if color:
-            text = color.strip().lstrip("#")
-            if len(text) == 6:
-                rgb = tuple(int(text[i:i+2], 16) for i in (0, 2, 4))
-                theme = replace(self.draft.state.preset.theme, **{key: rgb})
-                self.draft.edit(theme=theme)
-                self.preview()
-
-    def jump_to_theme_colors(self):
-        self.notebook.select(2)
-        self.colors.selection_set("info_text")
-        self.colors.see("info_text")
-        self.refresh_color()
 
     def reset(self):
         self.draft.reset()
