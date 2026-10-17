@@ -13,7 +13,7 @@ Windows x64とPython 3.13.14 x64を使い、専用の仮想環境で実行しま
 ```powershell
 python -m venv .venv-package
 .venv-package\Scripts\python -m pip install -r requirements-build.txt
-.venv-package\Scripts\python tools/build_windows.py --version 1.2.0-rc.1
+.venv-package\Scripts\python tools/build_windows.py --version 1.2.1
 ```
 
 ### Linux (x86_64)
@@ -23,7 +23,7 @@ Fedora / RHEL または Ubuntu / Debian 上で実行します（`.rpm` 生成に
 python3 -m venv .venv-package
 source .venv-package/bin/activate
 pip install -r requirements-build.txt
-python3 tools/build_linux.py --version 1.2.0-rc.1
+python3 tools/build_linux.py --version 1.2.1
 ```
 
 テスト、PyInstaller、別フォルダーへコピーしたバイナリの依存物チェック、アーカイブ・パッケージとSHA-256作成を順に行います。
@@ -76,9 +76,9 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 ## 最終候補と公開
 
 1. リリース準備の変更をmainへ取り込む。
-2. ActionsのWindows package、macOS package、Linux packageを同じmainコミットで手動実行し、versionを1.2.0、release_identityをオンにする。
+2. ActionsのWindows package、macOS package、Linux packageを同じmainコミットで手動実行し、versionを1.2.1、release_identityをオンにする。
 3. 候補ZIP・アーカイブ・パッケージ、SHA-256と同梱ファイルを確認し、下記の実機確認を完了する。
-4. 確認したコミットにv1.2.0タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
+4. 確認したコミットにv1.2.1タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
 5. タグ版のSHA-256・識別情報・ライセンスを再確認し、リリース本文を記入して公開する。
 
 実機確認が未完了の候補を、確認済みとしてタグ付け・公開しないこと。
@@ -98,7 +98,7 @@ Python 3.13.14（Tk対応）、Xcode Command Line Toolsを用意します。
 ```sh
 python3 -m venv .venv-package
 .venv-package/bin/python -m pip install -r requirements-build.txt
-.venv-package/bin/python tools/build_macos.py --version 1.2.0-rc.1
+.venv-package/bin/python tools/build_macos.py --version 1.2.1
 ```
 
 arm64専用です。Core Audioライブラリをソースから再生成し、全テスト、PyInstaller、アドホック署名・検証、移動後のアプリ起動チェックを実行します。チェックは音声権限を要求せず、ライブラリ読み込み、背景・メニュー・確認画面、日本語／英語、設定保存、実際の設定用子プロセスを検証します。
@@ -109,4 +109,4 @@ Macの `licenses/inventory.json` は署名後アプリのファイルハッシ�
 
 MacはDeveloper ID署名・公証済みではありません。初回起動は[導入ガイド](../INSTALL_MACOS.md)の手順で許可します。
 
-Actionsの **macOS package** は `macos-15` のApple Siliconで実行し、artifact `Wune-macos` に保存します。Windowsと同様、PR・手動実行は公開せず、タグ時のみReleaseに添付します。同名assetは上書きしません。v1.2.0公開前には各OSのワークフローを同じコミットから実行し、実機確認を終えてからタグ・公開へ進みます。
+Actionsの **macOS package** は `macos-15` のApple Siliconで実行し、artifact `Wune-macos` に保存します。Windowsと同様、PR・手動実行は公開せず、タグ時のみReleaseに添付します。同名assetは上書きしません。v1.2.1公開前には各OSのワークフローを同じコミットから実行し、実機確認を終えてからタグ・公開へ進みます。

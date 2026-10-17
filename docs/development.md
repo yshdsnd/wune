@@ -225,4 +225,4 @@ python3 main.py
 PulseAudio / PipeWire環境でシステムのモニター音声を自動取得します。楽曲メタデータはMPRIS2（`playerctl`）から取得します。
 Linuxの設定は `~/.config/Wune/settings.json`、ログは `~/.config/Wune/Wune.log` に保存されます。
 
-次期リリースはv1.2.0、開発本線はmainです。[統合記録](integration-v1.2.0.md)を参照してください。
+次期リリースはv1.2.1、開発本線はmainです。[統合記録](integration-v1.2.1.md)を参照してください。
