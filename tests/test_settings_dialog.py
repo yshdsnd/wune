@@ -516,7 +516,7 @@ class DialogTests(unittest.TestCase):
         values = self.dialog.window_preset_combo["values"]
         self.assertGreater(len(values), 0)
         # Select compact preset
-        compact_entry = [v for v in values if "960x540" in v][0]
+        compact_entry = [v for v in values if "960" in v][0]
         self.dialog.window_preset_var.set(compact_entry)
         self.dialog.apply_selected_window_preset()
         action, preset_id = self.events.get_nowait()
@@ -548,6 +548,19 @@ class DialogTests(unittest.TestCase):
         action, state = self.events.get_nowait()
         self.assertEqual(action, "apply")
         self.assertTrue(state.style["auto_adjust_bar_gap_on_resize"])
+
+    def test_info_font_bold_toggle_and_submit(self):
+        self.assertFalse(self.dialog.info_font_bold.get())
+        self.dialog.info_font_bold.set(True)
+        self.dialog.layout("info_font_bold", True)
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertTrue(state.layout["info_font_bold"])
+
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertTrue(state.layout["info_font_bold"])
 
 
 

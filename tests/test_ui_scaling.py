@@ -693,6 +693,25 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         gap_4k = calculate_optimal_bar_gap((3840, 2160), cfg)
         self.assertGreater(gap_4k, gap_compact)
 
+    def test_info_font_bold_applied_to_fonts(self):
+        surf = pg.Surface((1280, 800))
+        cfg_normal = Config(info_font_bold=False)
+        renderer = LedBarRenderer(surf, cfg_normal)
+        self.assertFalse(renderer.font_small.get_bold())
+        self.assertFalse(renderer.font_menu.get_bold())
+
+        cfg_bold = Config(info_font_bold=True)
+        renderer.cfg = cfg_bold
+        renderer.resize(surf)
+        self.assertTrue(renderer.font_small.get_bold())
+        self.assertTrue(renderer.font_menu.get_bold())
+
+        # Toggle back to normal
+        renderer.cfg = cfg_normal
+        renderer.resize(surf)
+        self.assertFalse(renderer.font_small.get_bold())
+        self.assertFalse(renderer.font_menu.get_bold())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -47,14 +47,15 @@ class SettingsTests(unittest.TestCase):
             self.assertEqual(loaded.show_now_playing, enabled)
 
     def test_font_preferences_survive_restart(self):
-        for font_size, auto_scale, info_size, btn_size, badge_size, sync, font_family in (
-            (10, False, 10, 10, 14, True, ""),
-            (14, True, 14, 14, 18, True, "Meiryo"),
-            (20, False, 18, 16, 22, False, "Noto Sans CJK JP"),
-            (24, True, 24, 24, 28, False, "Yu Gothic UI"),
+        for font_size, auto_scale, info_size, btn_size, badge_size, sync, font_family, font_bold in (
+            (10, False, 10, 10, 14, True, "", False),
+            (14, True, 14, 14, 18, True, "Meiryo", True),
+            (20, False, 18, 16, 22, False, "Noto Sans CJK JP", True),
+            (24, True, 24, 24, 28, False, "Yu Gothic UI", False),
         ):
             with self.subTest(font_size=font_size, auto_scale=auto_scale, info_size=info_size,
-                              btn_size=btn_size, badge_size=badge_size, sync=sync, font_family=font_family):
+                              btn_size=btn_size, badge_size=badge_size, sync=sync,
+                              font_family=font_family, font_bold=font_bold):
                 cfg = Config(
                     label_font_size=font_size,
                     auto_scale_fonts=auto_scale,
@@ -63,6 +64,7 @@ class SettingsTests(unittest.TestCase):
                     badge_font_size=badge_size,
                     sync_header_font_sizes=sync,
                     info_font_family=font_family,
+                    info_font_bold=font_bold,
                 )
                 self.assertTrue(self.store.save(cfg, (1280, 800), (0, 0), "CLASSIC"))
                 loaded, _ = SettingsStore(self.path).load(Config())
@@ -73,6 +75,7 @@ class SettingsTests(unittest.TestCase):
                 self.assertEqual(loaded.badge_font_size, badge_size)
                 self.assertEqual(loaded.sync_header_font_sizes, sync)
                 self.assertEqual(loaded.info_font_family, font_family)
+                self.assertEqual(loaded.info_font_bold, font_bold)
 
 
     def test_saved_peak_hold_values_survive_restart(self):

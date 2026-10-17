@@ -69,6 +69,7 @@ class Config:
     badge_font_size: int = 18     # テーマバッジのベースフォントサイズ(pt)
     sync_header_font_sizes: bool = True  # ボタンとバッジのサイズを連動させるか
     info_font_family: str = ""    # 情報バー・UIフォント名（空文字でシステム既定）
+    info_font_bold: bool = False  # 情報バー・UIフォントを太字にするか
     auto_scale_fonts: bool = True # ウィンドウ拡大時にフォントを自動拡大するか
 
     # ---- ステレオ分割 ----
