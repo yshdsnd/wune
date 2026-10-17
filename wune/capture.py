@@ -95,7 +95,11 @@ class WasapiLoopbackBackend:
         return self._device_name
 
     def close(self) -> None:
-        self._stack.close()
+        try:
+            self._stack.close()
+        except Exception as error:
+            import warnings
+            warnings.warn(f"Ignored non-fatal error during WASAPI capture shutdown: {error}", RuntimeWarning)
 
 
 class PulseAudioLoopbackBackend:
@@ -220,7 +224,11 @@ class PulseAudioLoopbackBackend:
         return self._device_name
 
     def close(self) -> None:
-        self._stack.close()
+        try:
+            self._stack.close()
+        except Exception as error:
+            import warnings
+            warnings.warn(f"Ignored non-fatal error during PulseAudio capture shutdown: {error}", RuntimeWarning)
 
 
 class MacOsCaptureBackend:
@@ -247,7 +255,11 @@ class MacOsCaptureBackend:
         return self._backend.device_name
 
     def close(self) -> None:
-        self._backend.close()
+        try:
+            self._backend.close()
+        except Exception as error:
+            import warnings
+            warnings.warn(f"Ignored non-fatal error during macOS capture shutdown: {error}", RuntimeWarning)
 
 
 def create_capture_backend(cfg: Config, blocksize: int | None = None) -> CaptureBackend:

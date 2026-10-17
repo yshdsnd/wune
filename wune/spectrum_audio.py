@@ -101,7 +101,13 @@ class AudioSpectrum:
         1フレームぶん処理して (channels,bars) の 0..1 を返す。
         固定の正弦波フルスケール基準で表示レベルに変換する。
         """
-        data = self.capture.record(self.nfft)     # shape: (nfft, C)
+        try:
+            data = self.capture.record(self.nfft)     # shape: (nfft, C)
+        except Exception as error:
+            import warnings
+            warnings.warn(f"Audio capture error or stream disconnected: {error}", RuntimeWarning)
+            count = 2 if self._channel_mode == "stereo_mix" else self.channels_req
+            data = np.zeros((self.nfft, count), dtype=np.float32)
         if data.ndim == 1:
             data = data[:, None]
 
@@ -172,7 +178,11 @@ class AudioSpectrum:
     def close(self) -> None:
         if not self._closed:
             self._closed = True
-            self.capture.close()
+            try:
+                self.capture.close()
+            except Exception as error:
+                import warnings
+                warnings.warn(f"Ignored non-fatal error during spectrum capture close: {error}", RuntimeWarning)
 
     def _rebuild_bins(self) -> None:
         """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。

@@ -92,3 +92,35 @@ class CaptureBackendTests(unittest.TestCase):
         # Close releases backend
         spectrum.close()
         self.assertTrue(dummy.closed)
+
+    def test_audio_spectrum_step_handles_record_exception_with_zero_levels(self):
+        dummy = DummyCaptureBackend(sample_rate=44100, channels=2)
+        dummy.record = MagicMock(side_effect=RuntimeError("Device disconnected"))
+        cfg = Config(sample_rate=44100)
+        spectrum = AudioSpectrum(cfg, bars=32, channels=2, capture_backend=dummy)
+
+        # Step should not raise; instead it should return zero levels
+        levels = spectrum.step(1 / 60)
+        self.assertEqual(levels.shape, (2, 32))
+        self.assertTrue(np.all(levels == 0.0))
+
+    def test_audio_spectrum_close_handles_backend_exception_gracefully(self):
+        dummy = DummyCaptureBackend(sample_rate=44100, channels=2)
+        dummy.close = MagicMock(side_effect=RuntimeError("Shutdown failed"))
+        cfg = Config(sample_rate=44100)
+        spectrum = AudioSpectrum(cfg, bars=32, channels=2, capture_backend=dummy)
+
+        # Close should catch exception and not raise
+        spectrum.close()
+        self.assertTrue(spectrum._closed)
+
+    def test_wasapi_backend_close_safely_handles_stack_exception(self):
+        backend = object.__new__(WasapiLoopbackBackend)
+        mock_stack = MagicMock()
+        mock_stack.close.side_effect = RuntimeError("WASAPI COM Error 0x100000001")
+        backend._stack = mock_stack
+
+        # close() should safely catch and warn without raising
+        backend.close()
+        mock_stack.close.assert_called_once()
+

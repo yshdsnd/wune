@@ -540,13 +540,26 @@ class App:
             self.save_settings()
         finally:
             if hasattr(self, "now_playing") and self.now_playing is not None:
-                self.now_playing.stop()
+                try:
+                    self.now_playing.stop()
+                except Exception as error:
+                    import warnings
+                    warnings.warn(f"Ignored error stopping Now Playing provider: {error}", RuntimeWarning)
             if self._settings_window is not None:
-                self._settings_window.detach()
+                try:
+                    self._settings_window.detach()
+                except Exception:
+                    pass
 
             if self.settings_dialog is not None:
-                self.settings_dialog.close()
+                try:
+                    self.settings_dialog.close()
+                except Exception:
+                    pass
             try:
                 self.spectrum.close()
+            except Exception as error:
+                import warnings
+                warnings.warn(f"Ignored error closing spectrum capture: {error}", RuntimeWarning)
             finally:
                 pg.quit()
