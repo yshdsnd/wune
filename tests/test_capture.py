@@ -124,3 +124,41 @@ class CaptureBackendTests(unittest.TestCase):
         backend.close()
         mock_stack.close.assert_called_once()
 
+    def test_audio_spectrum_restart_capture_skips_when_custom_backend(self):
+        dummy = DummyCaptureBackend(sample_rate=44100, channels=2)
+        cfg = Config(sample_rate=44100)
+        spectrum = AudioSpectrum(cfg, bars=32, channels=2, capture_backend=dummy)
+
+        with patch("wune.spectrum_audio.create_capture_backend") as mock_create:
+            spectrum.restart_capture()
+            mock_create.assert_not_called()
+            self.assertFalse(dummy.closed)
+
+    def test_audio_spectrum_restart_capture_recreates_backend(self):
+        dummy_first = DummyCaptureBackend(sample_rate=44100, channels=2, device_name="Device 1")
+        dummy_second = DummyCaptureBackend(sample_rate=48000, channels=2, device_name="Device 2")
+        cfg = Config(sample_rate=44100)
+
+        with patch("wune.spectrum_audio.create_capture_backend", side_effect=[dummy_first, dummy_second]):
+            spectrum = AudioSpectrum(cfg, bars=32, channels=2)
+            self.assertEqual(spectrum.sr, 44100)
+            self.assertEqual(spectrum.device, "Device 1")
+            self.assertEqual(spectrum.capture, dummy_first)
+
+            spectrum.restart_capture()
+            self.assertTrue(dummy_first.closed)
+            self.assertEqual(spectrum.sr, 48000)
+            self.assertEqual(spectrum.device, "Device 2")
+            self.assertEqual(spectrum.capture, dummy_second)
+            self.assertEqual(len(spectrum.freqs), spectrum.nfft // 2 + 1)
+
+    def test_audio_spectrum_restart_capture_handles_exception_gracefully(self):
+        dummy_first = DummyCaptureBackend(sample_rate=44100, channels=2, device_name="Device 1")
+        cfg = Config(sample_rate=44100)
+
+        with patch("wune.spectrum_audio.create_capture_backend", side_effect=[dummy_first, RuntimeError("WASAPI initialization failed")]):
+            spectrum = AudioSpectrum(cfg, bars=32, channels=2)
+            # Should not raise exception
+            spectrum.restart_capture()
+            self.assertTrue(dummy_first.closed)
+

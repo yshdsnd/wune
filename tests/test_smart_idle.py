@@ -111,6 +111,33 @@ class SmartIdleTests(unittest.TestCase):
         self.assertEqual(self.app.spectrum.step.call_count, 46)
         self.assertFalse(self.app.paused)
 
+    def test_on_system_resume_restarts_capture_and_resets_idle_state(self):
+        self.prepare()
+        self.app._idle_frames = 50
+        self.app._redraw_requested = False
+        self.app.spectrum.restart_capture = MagicMock()
+        self.app.clock.tick = MagicMock()
+        self.app.update_info_text = MagicMock()
+
+        self.app.on_system_resume()
+
+        self.app.spectrum.restart_capture.assert_called_once()
+        self.assertEqual(self.app._idle_frames, 0)
+        self.assertTrue(self.app._redraw_requested)
+        self.app.clock.tick.assert_called_once()
+        self.app.update_info_text.assert_called_once()
+
+    def test_system_resume_detected_on_wall_clock_jump(self):
+        self.prepare()
+        self.app.on_system_resume = MagicMock()
+
+        # Simulate normal tick then a 10-second jump (sleep)
+        time_values = [100.0, 100.016, 110.0, 110.016]
+        with unittest.mock.patch("wune.app.time.time", side_effect=time_values):
+            self.run_frames(2)
+
+        self.app.on_system_resume.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

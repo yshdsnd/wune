@@ -6,6 +6,7 @@ from copy import deepcopy
 import warnings
 import os
 import sys
+import time
 
 from .config import Config
 from .application_menu import ApplicationMenu
@@ -496,9 +497,26 @@ class App:
             self.renderer.now_playing_text = t("app.now_playing_empty")
 
 
+    def on_system_resume(self):
+        """Handle system resume from sleep or suspend by refreshing capture."""
+        import warnings
+        warnings.warn("System resume detected; refreshing audio capture stream.", RuntimeWarning)
+        self.spectrum.restart_capture()
+        self._idle_frames = 0
+        self._redraw_requested = True
+        self.clock.tick()  # Reset clock interval to prevent huge dt spike
+        self.update_info_text()
+
     def run(self):
         try:
+            last_wall_time = time.time()
             while self.running:
+                now_wall = time.time()
+                wall_dt = now_wall - last_wall_time
+                last_wall_time = now_wall
+                if wall_dt > 2.0 or wall_dt < -2.0:
+                    self.on_system_resume()
+
                 dt = self.clock.tick(self.cfg.fps) / 1000.0
                 had_events = False
                 for event in pg.event.get():

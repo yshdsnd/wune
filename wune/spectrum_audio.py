@@ -28,6 +28,8 @@ class AudioSpectrum:
         if cfg.db_max <= cfg.db_min:
             raise ValueError("db_max must be greater than db_min")
         capture_cfg = cfg if samplerate is None else replace(cfg, sample_rate=samplerate)
+        self._capture_cfg = capture_cfg
+        self._custom_backend = capture_backend is not None
         self.capture = (capture_backend if capture_backend is not None
                         else create_capture_backend(capture_cfg, blocksize=self.nfft))
         self._closed = False
@@ -183,6 +185,28 @@ class AudioSpectrum:
             except Exception as error:
                 import warnings
                 warnings.warn(f"Ignored non-fatal error during spectrum capture close: {error}", RuntimeWarning)
+
+    def restart_capture(self) -> None:
+        """Safely close and reopen the capture backend (e.g. after system resume)."""
+        if self._custom_backend:
+            return  # Injected custom backend (e.g. in tests); skip recreation
+        try:
+            self.capture.close()
+        except Exception as error:
+            import warnings
+            warnings.warn(f"Ignored non-fatal error closing capture during restart: {error}", RuntimeWarning)
+
+        try:
+            self.capture = create_capture_backend(self._capture_cfg, blocksize=self.nfft)
+            self._closed = False
+            self.sr = int(self.capture.sample_rate)
+            self.channels_eff = int(self.capture.channels)
+            self.device = self.capture.device_name
+            self.freqs = np.fft.rfftfreq(self.nfft, d=1 / self.sr)
+            self._rebuild_bins()
+        except Exception as error:
+            import warnings
+            warnings.warn(f"Failed to restart capture backend: {error}", RuntimeWarning)
 
     def _rebuild_bins(self) -> None:
         """ログ等間隔のバー境界を作り、rFFT周波数→バー対応を前計算。
