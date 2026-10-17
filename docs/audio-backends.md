@@ -10,7 +10,10 @@ initialization failure and normal shutdown both close it.
 - **Windows**: WASAPI shared stereo loopback, using the selected render endpoint
   and its mix rate unless an explicit rate is configured. The SoundCard
   compatibility workaround (`wune/soundcard_compat.py`) resolves PROPVARIANT
-  allocation and memory leaks.
+  allocation and memory leaks, permits non-negative COM codes such as `S_FALSE`
+  (0x00000001) on `IAudioClient::Stop` to prevent crashes when sleeping/suspending,
+  and safely reinitializes the capture stream upon system resume so new playback
+  attaches immediately.
 - **macOS 14.2+**: Core Audio Process Tap captures system playback by default.
   If unavailable, an installed virtual loopback input may be used. Failure
   never silently selects a physical microphone. An input can be selected
