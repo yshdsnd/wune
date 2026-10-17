@@ -62,7 +62,7 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 - **Limit display to 20 kHz**: Focus visualization on the audible range (20 Hz–20 kHz) even on high-sample-rate outputs.
 - **Display gain (dB)**: Adjust visual gain from -24.0 dB to +24.0 dB (in 1.0 dB increments). Useful for boosting lower-level sources (e.g., Apple Music) so that the upper and red LEDs light dynamically. Does not affect audio output or RMS calculation; only adjusts visual LED mapping with safe [0.0, 1.0] clamping.
 - **LED rendering, shape, and aspect ratio**: Choose flat or beveled box styles, rectangle/rounded/ellipse shapes, and adjust the width-to-height ratio (0.25–8.0).
-- **Adaptive Fill and auto-adjust**: Enabling "Adaptive Fill" dynamically eliminates empty margins as the window resizes. Use the "Auto-adjust" buttons next to "LEDs per bar" and "Bar gap" to calculate and apply optimal values for the current window size in a single click (functional even if automatic resizing checkboxes are disabled).
+- **Adaptive Fill and auto-adjust**: Enabling "Adaptive Fill" dynamically eliminates empty margins as the window resizes. Use the "Auto-adjust" buttons next to "LEDs per bar" and "Bar gap" to calculate and apply optimal values for the current window size in a single click (functional even if the "on resize" checkboxes are disabled).
 
 ### Info & Text settings
 - **Font sizes and dynamic scaling**: Adjust font sizes independently for scale labels, the info bar, menu buttons, and preset badges. Enable "Sync with info font size" to keep button and badge sizes matched with the info bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.

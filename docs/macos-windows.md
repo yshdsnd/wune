@@ -14,7 +14,7 @@ does not exit within the shutdown timeout is terminated.
 ### Windows
 - Window ownership: Passes the Win32 window handle (`winfo_id()`) to maintain proper
   z-order above fullscreen pygame surfaces and safe ownership rebinding during display changes.
-- Dialog sizing: Default minimum window size is 580x480 px, tailored to Segoe UI font metrics.
+- Dialog sizing: Default minimum window size is 580x460 px, tailored to Segoe UI font metrics and compact tab layouts.
 - Keyboard shortcuts: F2 (settings), Alt+Enter / F11 (fullscreen), Space (pause), Esc / Q (quit).
 
 ### macOS
@@ -26,8 +26,8 @@ does not exit within the shutdown timeout is terminated.
 - Fullscreen restoration: macOS currently launches windowed on startup.
 
 ### Linux / Unix
-- Dialog sizing: Minimum window size is 640x500 px to accommodate Linux desktop font metrics
-  (Noto Sans / DejaVu Sans) and prevent premature line wraps on localized text.
+- Dialog sizing: Minimum window size is 640x540 px to accommodate Linux desktop font metrics
+  (Noto Sans / DejaVu Sans), dynamic Treeview row heights for CJK text, and comfortable widget padding.
 - Window management: Respects X11 and Wayland window manager placement.
 - Shortcuts: Standard F2, Alt+Enter / F11, Space, Esc / Q.
 
