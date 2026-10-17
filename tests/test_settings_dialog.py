@@ -516,7 +516,7 @@ class DialogTests(unittest.TestCase):
         values = self.dialog.window_preset_combo["values"]
         self.assertGreater(len(values), 0)
         # Select compact preset
-        compact_entry = [v for v in values if "960x540" in v][0]
+        compact_entry = [v for v in values if "960" in v][0]
         self.dialog.window_preset_var.set(compact_entry)
         self.dialog.apply_selected_window_preset()
         action, preset_id = self.events.get_nowait()

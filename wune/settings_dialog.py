@@ -199,12 +199,14 @@ class _Dialog:
         self.variables = {}
         self.combos = {}
 
-        def choice(parent, row, key, label, options, callback, columnspan=1):
+        def choice(parent, row, key, label, options, callback, columnspan=1, width=None):
             ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=2)
             variable = tk.StringVar(root)
             self.variables[key] = variable
-            combo = ttk.Combobox(parent, textvariable=variable, values=list(options), state="readonly", width=max(32, max(map(len, options))))
-            combo.grid(row=row, column=1, columnspan=columnspan, sticky="w" if columnspan > 1 else "ew", padx=(14, 0), pady=2)
+            opt_len = max(map(len, options)) if options else 10
+            combo_width = width if width is not None else max(16, opt_len + 2)
+            combo = ttk.Combobox(parent, textvariable=variable, values=list(options), state="readonly", width=combo_width)
+            combo.grid(row=row, column=1, columnspan=columnspan, sticky="w", padx=(14, 0), pady=2)
             combo.bind("<<ComboboxSelected>>", lambda event: callback(options[variable.get()]))
             self.combos[key] = (combo, options)
 
@@ -214,14 +216,14 @@ class _Dialog:
         choice(spectrum, 1, "channel_mode", self.t("settings.channel_mode"), {
             self.t("settings.stereo_separate"): "stereo",
             self.t("settings.stereo_mix"): "stereo_mix"},
-            lambda value: self.layout("channel_mode", value), columnspan=3)
+            lambda value: self.layout("channel_mode", value), columnspan=3, width=28)
         choice(spectrum, 2, "channel_layout", self.t('settings.l_r_arrangement'), {
             self.t('settings.stacked'): "vertical", self.t('settings.side_by_side'): "horizontal"},
-            lambda value: self.layout("channel_layout", value), columnspan=3)
+            lambda value: self.layout("channel_layout", value), columnspan=3, width=28)
         choice(spectrum, 3, "spectrum_orientation", self.t('settings.spectrum_direction'), {
             self.t('settings.frequency_horizontal_level_vertical'): "frequency_horizontal",
             self.t('settings.frequency_vertical_level_horizontal'): "frequency_vertical"},
-            lambda value: self.layout("spectrum_orientation", value), columnspan=3)
+            lambda value: self.layout("spectrum_orientation", value), columnspan=3, width=28)
         self.limit_to_20khz = tk.BooleanVar(root)
         ttk.Checkbutton(spectrum, text=self.t('settings.limit_display_to_20_khz_keep_capture_rate'),
                         variable=self.limit_to_20khz,
@@ -236,10 +238,10 @@ class _Dialog:
         display_gain_spin.bind("<FocusOut>", lambda event: self.set_display_gain())
         choice(spectrum, 6, "gauge_style", self.t('settings.led_rendering'), {
             self.t('settings.flat'): "flat", self.t('settings.beveled_rectangle'): "box"},
-            lambda value: self.style("gauge_style", value), columnspan=3)
+            lambda value: self.style("gauge_style", value), columnspan=3, width=28)
         choice(spectrum, 7, "led_shape", self.t('settings.led_shape'), {
             self.t('settings.rectangle'): "rectangle", self.t('settings.rounded'): "rounded", self.t('settings.ellipse'): "ellipse"},
-            lambda value: self.style("led_shape", value), columnspan=3)
+            lambda value: self.style("led_shape", value), columnspan=3, width=28)
 
         # row 8: ratio
         ttk.Label(spectrum, text=self.t('settings.led_aspect_ratio_width_height')).grid(row=8, column=0, sticky="w", pady=2)
@@ -428,7 +430,7 @@ class _Dialog:
         preset_frame = ttk.Frame(general)
         preset_frame.grid(row=0, column=1, sticky="w", padx=(14, 0))
         self.window_preset_var = tk.StringVar(root)
-        self.window_preset_combo = ttk.Combobox(preset_frame, textvariable=self.window_preset_var, state="readonly", width=24)
+        self.window_preset_combo = ttk.Combobox(preset_frame, textvariable=self.window_preset_var, state="readonly", width=22)
         self.window_preset_combo.pack(side="left")
         ttk.Button(preset_frame, text=self.t('settings.apply_window_preset'),
                    command=self.apply_selected_window_preset).pack(side="left", padx=(8, 0))
@@ -448,8 +450,8 @@ class _Dialog:
         theme_row.pack(fill="x")
         ttk.Label(theme_row, text=self.t('settings.theme')).pack(side="left", padx=(0, 12))
         self.theme_name = tk.StringVar(root)
-        self.theme_combo = ttk.Combobox(theme_row, textvariable=self.theme_name, state="readonly")
-        self.theme_combo.pack(side="left", fill="x", expand=True)
+        self.theme_combo = ttk.Combobox(theme_row, textvariable=self.theme_name, state="readonly", width=20)
+        self.theme_combo.pack(side="left")
         self.theme_combo.bind("<<ComboboxSelected>>", lambda event: self.select_theme())
         buttons = ttk.Frame(colors)
         buttons.pack(fill="x", pady=2)
@@ -691,8 +693,11 @@ class _Dialog:
         current_w, current_h = getattr(self, "window_size", (1280, 800))
         selected_label = None
         for p in presets:
-            label_name = self.t(p.name_key) if getattr(p, "name_key", None) else p.name
-            label = f"{label_name} ({p.width}x{p.height})"
+            label_name = self.t(p.name_key) if getattr(p, "name_key", None) else getattr(p, "name", p.id)
+            if str(p.width) in label_name:
+                label = label_name
+            else:
+                label = f"{label_name} ({p.width} × {p.height})"
             self.preset_map[label] = p.id
             labels.append(label)
             if p.width == current_w and p.height == current_h and selected_label is None:
