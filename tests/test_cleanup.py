@@ -1077,6 +1077,49 @@ class AppCleanupTests(unittest.TestCase):
             self.assertFalse(self.app.running)
         self.pg.event.clear.assert_not_called()
 
+    def test_startup_window_hidden_until_first_draw(self):
+        self.app.clock.tick = MagicMock(return_value=16)
+        self.app.spectrum.step.return_value = np.zeros((2, 64))
+        self.app.exit_confirmation.draw = MagicMock()
+        self.app.renderer.draw = MagicMock()
+        self.app.menu.draw = MagicMock()
+        self.app._show_window = MagicMock()
+
+        self.assertFalse(self.app._shown)
+        self.pg.event.get.side_effect = [
+            [],
+            [types.SimpleNamespace(type=self.pg.QUIT)],
+        ]
+        self.app.run()
+        self.app._show_window.assert_called_once()
+
+    def test_show_window_calls_geometry_window_show_and_sets_shown(self):
+        app = self.app
+        app._shown = False
+        app._display_window = MagicMock()
+        app._show_window()
+        self.assertTrue(app._shown)
+        app._display_window.show.assert_called_once()
+
+    def test_show_window_handles_exception_gracefully(self):
+        app = self.app
+        app._shown = False
+        app._display_window = MagicMock()
+        app._display_window.show.side_effect = RuntimeError("SDL show error")
+        app._show_window()
+        self.assertTrue(app._shown)
+
+    def test_set_mode_with_hidden_adds_pg_hidden_flag(self):
+        app = self.app
+        mock_pg = types.SimpleNamespace(
+            HIDDEN=128,
+            RESIZABLE=16,
+            display=MagicMock(),
+        )
+        with patch.object(self.app_module, "pg", mock_pg):
+            app._set_mode((800, 600), mock_pg.RESIZABLE, hidden=True)
+            mock_pg.display.set_mode.assert_called_once_with((800, 600), 16 | 128)
+
 
 if __name__ == "__main__":
     unittest.main()

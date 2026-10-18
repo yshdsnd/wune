@@ -50,11 +50,12 @@ class App:
         self._display_window = None
         self._windowed_position = None
         self._fullscreen = False
+        self._shown = False
         self._windowed_size = clamp_window_size((cfg.width, cfg.height), cfg)
         if settings_store is not None:
             from .window_geometry import restore_geometry, work_areas
             self._windowed_size, self._windowed_position = restore_geometry(cfg, saved_geometry or {}, work_areas())
-        self._set_mode(self._windowed_size, pg.RESIZABLE)
+        self._set_mode(self._windowed_size, pg.RESIZABLE, hidden=True)
         self._restore_position()
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
@@ -85,7 +86,10 @@ class App:
         self.update_info_text()
         self.update_now_playing_text()
 
-    def _set_mode(self, size, flags, *, display=None):
+    def _set_mode(self, size, flags, *, display=None, hidden=False):
+        hidden_flag = getattr(pg, "HIDDEN", 0)
+        if hidden and isinstance(hidden_flag, int):
+            flags |= hidden_flag
         pg.display.set_icon(self._icon)
         # Detach before SDL can replace/destroy its HWND (which destroys owned windows).
         if self._settings_window is not None:
@@ -108,6 +112,13 @@ class App:
             # A temporary wrapper leaves event.get() dereferencing freed memory.
             self._display_window = Window.from_display_module()
         return self._display_window
+
+    def _show_window(self):
+        self._shown = True
+        try:
+            self._geometry_window().show()
+        except Exception:
+            pass
 
     def _enter_fullscreen(self, *, display=None):
         # Prefer desktop fullscreen (SDL_WINDOW_FULLSCREEN_DESKTOP) to preserve
@@ -550,6 +561,8 @@ class App:
                 self.exit_confirmation.draw(self.screen, self.renderer.font_small,
                                             self.cfg.language, self.cfg.theme)
                 pg.display.flip()
+                if not self._shown:
+                    self._show_window()
                 self._redraw_requested = False
             self.cancel_settings()
             # Apply the explicit exit choice after reverting any uncommitted settings preview.
