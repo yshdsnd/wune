@@ -17,6 +17,7 @@
 - Windows: `Wune-vX.Y.Z-win64.zip` — [Windows導入ガイド](INSTALL_WINDOWS.md)
 - Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS導入ガイド](INSTALL_MACOS.md)
 - Linux: `Wune-vX.Y.Z-1.x86_64.rpm` / `wune_X.Y.Z_amd64.deb` / `Wune-vX.Y.Z-linux-x64.tar.gz` — [Linux導入ガイド](INSTALL_LINUX.md)
+- FreeBSD: ソースコードから実行 — [FreeBSD導入ガイド](INSTALL_FREEBSD.md)
 
 Pythonのインストールは不要です。更新・アンインストール・初回の音声許可も各ガイドに記載しています。
 

@@ -17,6 +17,7 @@ Choose an OS-specific package from [GitHub Releases](https://github.com/yshdsnd/
 - Windows: `Wune-vX.Y.Z-win64.zip` — [Windows installation guide](INSTALL_WINDOWS.en.md)
 - Mac: `Wune-vX.Y.Z-macos-arm64.zip` — [macOS installation guide](INSTALL_MACOS.en.md)
 - Linux: `Wune-vX.Y.Z-1.x86_64.rpm` / `wune_X.Y.Z_amd64.deb` / `Wune-vX.Y.Z-linux-x64.tar.gz` — [Linux installation guide](INSTALL_LINUX.en.md)
+- FreeBSD: Run from source — [FreeBSD installation guide](INSTALL_FREEBSD.en.md)
 
 No Python installation is needed. The guides also cover updates, removal, and initial audio permissions.
 

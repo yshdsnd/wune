@@ -73,6 +73,15 @@ class PropVariantTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "requires SoundCard"):
                 prepare_soundcard()
 
+    def test_freebsd_prepare_soundcard_idempotent(self):
+        with patch("wune.soundcard_compat.sys.platform", "freebsd15"):
+            # When soundcard is already in sys.modules, prepare_soundcard does nothing
+            with patch.dict("sys.modules", {"soundcard": types.ModuleType("soundcard")}):
+                prepare_soundcard()
+                import sys
+                self.assertEqual(sys.platform, "freebsd15")
+
+
 
 class ComErrorFilterTests(unittest.TestCase):
     def setUp(self):

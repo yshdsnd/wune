@@ -10,6 +10,18 @@ from importlib.metadata import version
 
 
 def prepare_soundcard():
+    if sys.platform.startswith("freebsd") and "soundcard" not in sys.modules:
+        orig_platform = sys.platform
+        orig_argv = list(sys.argv)
+        try:
+            sys.platform = "linux"
+            if sys.argv and sys.argv[0] == "-c" and len(sys.argv) == 1:
+                sys.argv.append("python")
+            import soundcard  # noqa: F401
+        finally:
+            sys.platform = orig_platform
+            sys.argv[:] = orig_argv
+
     if sys.platform != "win32":
         return
     if version("SoundCard") != "0.4.6":
@@ -23,15 +35,20 @@ def prepare_soundcard():
 def get_soundcard():
     """Import and return the soundcard module with platform compatibility applied."""
     if sys.platform.startswith("freebsd") and "soundcard" not in sys.modules:
-        orig = sys.platform
+        orig_platform = sys.platform
+        orig_argv = list(sys.argv)
         try:
             sys.platform = "linux"
+            if sys.argv and sys.argv[0] == "-c" and len(sys.argv) == 1:
+                sys.argv.append("python")
             import soundcard as sc
         finally:
-            sys.platform = orig
+            sys.platform = orig_platform
+            sys.argv[:] = orig_argv
         return sc
     import soundcard as sc
     return sc
+
 
 
 def _install_propvariant(backend):
