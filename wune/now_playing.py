@@ -241,6 +241,7 @@ class NowPlayingCoordinator:
             ]
 
         resolved: NowPlaying | None = None
+        fallback_paused: NowPlaying | None = None
         for provider in active_providers:
             with self._lock:
                 if (
@@ -253,15 +254,18 @@ class NowPlayingCoordinator:
                 if not provider.is_available():
                     continue
                 candidate = provider.get_now_playing()
-                if candidate is None:
+                if candidate is None or not candidate.has_metadata:
                     continue
-                if self.only_playing and not candidate.is_playing:
-                    continue
-                if candidate.has_metadata:
+                if candidate.is_playing:
                     resolved = candidate
                     break
+                elif fallback_paused is None and not self.only_playing:
+                    fallback_paused = candidate
             except Exception:
                 continue
+
+        if resolved is None and not self.only_playing:
+            resolved = fallback_paused
 
         listeners_to_notify: list[Callable[[NowPlaying | None], None]] = []
         with self._lock:
