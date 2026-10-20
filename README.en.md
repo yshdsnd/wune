@@ -151,7 +151,7 @@ This deletes the existing settings file; back it up first if needed.
 - The Settings window does not include audio-device selection or band-count controls.
 - At higher sample rates, the display range extends up to 40 kHz. Use “Limit display to 20 kHz (keep capture rate)” to focus on the audible range.
 - Some scale labels are omitted in narrow layouts. Levels are per-band indications, not sound-pressure or true-peak measurements.
-- Now-playing track display in the information bar supports Windows Global System Media Transport Controls (GSMTC) and Sony Music Center for PC (verified with v2.7.3) on Windows, Apple Music on macOS, and MPRIS2 (playerctl/DBus) on Linux. Because Music Center for PC metadata is retrieved by parsing its window title, future updates to the player that alter the title format may prevent track information from being displayed.
+- Now-playing track display in the information bar supports Windows Global System Media Transport Controls (GSMTC) and Sony Music Center for PC (verified with v2.7.3) on Windows, Apple Music on macOS, and MPRIS2 (playerctl/DBus) on Linux. Because Music Center for PC metadata is retrieved by parsing its window title, future updates to the player that alter the title format may prevent track information from being displayed. In addition, while its playback state is determined by monitoring Windows audio sessions, there may be a delay of several seconds after playback is paused or stopped before the session becomes inactive. If you want to immediately switch the display to another player (such as Apple Music), close Music Center for PC.
 - Changes to DPI or display configuration while running have not been tested.
 
 ## Troubleshooting
@@ -165,6 +165,7 @@ This deletes the existing settings file; back it up first if needed.
 | F2 or other shortcuts do not work | Click the main window first. Check whether Settings is open behind another window |
 | Settings revert or are not saved | Use Save, or Apply followed by a normal exit. Check the save path and log; back up and reset settings if necessary |
 | Only the Settings window stays in the previous language | Save or apply the language, then close and reopen Settings |
+| Delay switching to another player after pausing Music Center | Windows audio sessions can take several seconds to transition to inactive after stopping playback. To switch immediately, close Music Center for PC |
 
 For unresolved problems or feature suggestions, please use **[GitHub Issues](https://github.com/yshdsnd/wune/issues)**.
 For bug reports, include:
