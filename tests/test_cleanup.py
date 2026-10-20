@@ -441,6 +441,9 @@ class AppCleanupTests(unittest.TestCase):
         self.addCleanup(menu_patch.stop)
         self.renderer_patch = patch.object(self.app_module, "LedBarRenderer")
         self.renderer_patch.start()
+        self.coord_patch = patch("wune.now_playing.create_default_coordinator")
+        self.mock_coord = self.coord_patch.start()
+        self.mock_coord.return_value = MagicMock(current=None)
         self.backend.AudioSpectrum.return_value.device = "HDMI Speakers"
         self.backend.AudioSpectrum.return_value.channels_eff = 2
         self.backend.AudioSpectrum.return_value.sr = 48000
@@ -451,6 +454,7 @@ class AppCleanupTests(unittest.TestCase):
 
     def tearDown(self):
         self.renderer_patch.stop()
+        self.coord_patch.stop()
         for name in ("wune.app", "wune.renderer", "wune.application_menu", "wune.exit_confirmation"):
             sys.modules.pop(name, None)
         self.modules.stop()
