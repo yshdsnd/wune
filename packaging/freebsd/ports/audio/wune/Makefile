@@ -1,8 +1,6 @@
 PORTNAME=	wune
-DISTVERSION=	1.2.1
+DISTVERSION=	1.2.1.s20261024
 CATEGORIES=	audio
-MASTER_SITES=	https://github.com/yshdsnd/wune/archive/refs/tags/v${DISTVERSION}.tar.gz?dummy=/
-DISTNAME=	wune-${DISTVERSION}
 
 MAINTAINER=	yshd.snd@gmail.com
 COMMENT=	80s-90s mini-hifi-inspired LED audio spectrum visualizer
@@ -10,6 +8,12 @@ WWW=		https://github.com/yshdsnd/wune
 
 LICENSE=	BSD2CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
+
+# Upstream snapshot settings (used when building outside of git checkout, e.g. in /usr/ports)
+USE_GITHUB=	yes
+GH_ACCOUNT=	yshdsnd
+GH_PROJECT=	wune
+GH_TAGNAME=	9e49cd3
 
 RUN_DEPENDS=	${PYTHON_PKGNAMEPREFIX}cffi>0:devel/py-cffi@${PY_FLAVOR} \
 		${PYTHON_PKGNAMEPREFIX}numpy>0:math/py-numpy@${PY_FLAVOR} \
@@ -34,6 +38,15 @@ NO_ARCH=	yes
 
 PLIST_FILES=	share/applications/wune.desktop \
 		share/pixmaps/wune.png
+
+# Hybrid Mode: If building inside the repository checkout, use local sources directly
+# without fetching upstream distfiles or checking checksums.
+.if exists(${.CURDIR}/../../../../wune/__init__.py) && !defined(USE_UPSTREAM_DIST)
+NO_CHECKSUM=	yes
+WRKSRC=		${.CURDIR}/../../../../
+do-extract:
+	@${DO_NADA}
+.endif
 
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/share/applications

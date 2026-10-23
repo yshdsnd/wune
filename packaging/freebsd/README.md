@@ -9,8 +9,17 @@
 
 このディレクトリには、FreeBSD の Ports ツリーおよび `pkg` パッケージを作成するための Ports スケルトン一式が含まれています。
 
+### ハイブリッド動作（ローカル直接ビルド & スナップショット取得）
+本 Ports 定義は、**鶏卵問題を回避するハイブリッド方式** で動作します：
+1. **リポジトリクローン内でビルドする場合（推奨・即テスト可能）**:
+   - `packaging/freebsd/` 配下で `make package` を実行すると、親ディレクトリ（手元の作業ツリー）のソースを直接使用して `.pkg` を生成します。
+   - 外部からのダウンロードを行わないため、最新の修正や手元の変更を即座にバイナリパッケージ化してテストできます。
+2. **`/usr/ports/` など外部ツリーに配置してビルドする場合**:
+   - GitHub から FreeBSD 対応済みの最新スナップショット（コミット `9e49cd3`）のアーカイブを自動フェッチし、チェックサム検証の上でビルドします。
+   - 正式リリース（例: v1.3.0）後は、`DISTVERSION= 1.3.0` と `DISTVERSIONPREFIX= v` を指定して公式タグリファレンスに切り替えることができます。
+
 ### 構成内容
-- **`ports/audio/wune/`**: Wune 本体の Ports 定義（`Makefile`, `pkg-descr`, `files/wune.desktop`）。
+- **`ports/audio/wune/`**: Wune 本体の Ports 定義（`Makefile`, `distinfo`, `pkg-descr`, `files/wune.desktop`）。
 - **`ports/audio/py-soundcard/`**: 未登録の依存ライブラリ `SoundCard`（PyPI 配布版）用の Ports 定義（`Makefile`, `distinfo`, `pkg-descr`）。
 - **`Makefile`**: 一括ビルド用ヘルパー Makefile。
 
@@ -18,10 +27,22 @@
 
 ### パッケージのビルドとインストール手順
 
-#### 前提条件
-FreeBSD の Ports ツリー（`/usr/ports`）が存在することを確認します。ない場合は `git clone https://git.freebsd.org/ports.git /usr/ports` 等で取得してください。
+#### 方法 1: リポジトリ内から直接 `.pkg` バイナリパッケージをビルド（最も手軽）
+```bash
+# 本リポジトリの packaging/freebsd/ ディレクトリへ移動
+cd packaging/freebsd
 
-#### 方法 1: ローカル Ports ツリーに配置してインストール
+# py-soundcard と wune の .pkg パッケージを一括生成
+make package
+
+# 生成されたパッケージを pkg add でシステムに導入
+sudo pkg add ./ports/audio/py-soundcard/work/pkg/py*-soundcard-*.pkg
+sudo pkg add ./ports/audio/wune/work/pkg/wune-*.pkg
+```
+
+インストール後、`/usr/local/bin/wune` またはデスクトップ環境のアプリケーションメニューから直接起動できます。
+
+#### 方法 2: システムの Ports ツリー（`/usr/ports/`）に配置してビルド
 ```bash
 # 1. Ports ツリーへコピー
 sudo cp -R packaging/freebsd/ports/audio/py-soundcard /usr/ports/audio/
@@ -36,29 +57,6 @@ cd /usr/ports/audio/wune
 sudo make install clean
 ```
 
-インストール後、`/usr/local/bin/wune` またはデスクトップ環境のアプリケーションメニューから直接起動できます。
-
-#### 方法 2: バイナリパッケージ（`.pkg`）を作成して `pkg add` で導入
-```bash
-# 本リポジトリの packaging/freebsd/ から直接ビルド
-cd packaging/freebsd
-
-# py-soundcard と wune の .pkg をビルド
-make package
-
-# 生成されたパッケージを pkg add でインストール
-sudo pkg add ./ports/audio/py-soundcard/work/pkg/py*-soundcard-*.pkg
-sudo pkg add ./ports/audio/wune/work/pkg/wune-*.pkg
-```
-
-#### ローカルソースツリーから直接テストする場合
-GitHub からのアーカイブダウンロードを行わず、手元の作業ツリーで直接 Ports ビルドをテストするには `WRKSRC` を指定します：
-
-```bash
-cd packaging/freebsd/ports/audio/wune
-make WRKSRC=/path/to/your/wune/checkout stage
-```
-
 ---
 
 <a id="english"></a>
@@ -66,36 +64,24 @@ make WRKSRC=/path/to/your/wune/checkout stage
 
 This directory contains the FreeBSD Ports skeleton to build and package Wune natively using FreeBSD's Ports framework and `pkg`.
 
+### Hybrid Build Mechanism
+This port is designed with a **hybrid build mode** to solve the chicken-and-egg problem during active development:
+1. **Building within the repository clone (Recommended)**:
+   - When running `make package` from `packaging/freebsd/`, the port automatically detects the local source tree and packages directly from it without downloading.
+   - Any local edits are immediately reflected in the resulting `.pkg`.
+2. **Building from an external Ports tree (e.g., `/usr/ports/`)**:
+   - Automatically downloads the snapshot tarball from GitHub (`9e49cd3`) and verifies it using `distinfo`.
+   - After a formal release (e.g., v1.3.0), update `DISTVERSION` to point to the release tag.
+
 ### Structure
-- **`ports/audio/wune/`**: Port definition for Wune application (`Makefile`, `pkg-descr`, `files/wune.desktop`).
+- **`ports/audio/wune/`**: Port definition for Wune application (`Makefile`, `distinfo`, `pkg-descr`, `files/wune.desktop`).
 - **`ports/audio/py-soundcard/`**: Port definition for the pure-Python `SoundCard` audio library from PyPI (`Makefile`, `distinfo`, `pkg-descr`).
-- **`Makefile`**: Helper Makefile for building packages in one step.
+- **`Makefile`**: Helper Makefile for building both packages in one step.
 
 ---
 
-### Building and Installing
+### Quick Packaging and Installation
 
-#### Prerequisites
-Ensure the FreeBSD ports tree is present at `/usr/ports`.
-
-#### Option 1: Install via Ports Tree
-```bash
-# 1. Copy port skeletons to /usr/ports/audio
-sudo cp -R packaging/freebsd/ports/audio/py-soundcard /usr/ports/audio/
-sudo cp -R packaging/freebsd/ports/audio/wune /usr/ports/audio/
-
-# 2. Build and install py-soundcard
-cd /usr/ports/audio/py-soundcard
-sudo make install clean
-
-# 3. Build and install wune
-cd /usr/ports/audio/wune
-sudo make install clean
-```
-
-After installation, launch with `/usr/local/bin/wune` or select Wune from your desktop application launcher.
-
-#### Option 2: Build Binary `.pkg` Packages
 ```bash
 cd packaging/freebsd
 make package
