@@ -91,7 +91,7 @@ class PackagingTests(unittest.TestCase):
     def test_platform_installation_documents_are_linked(self):
         root = Path(__file__).resolve().parents[1]
         for suffix, readme in ((".md", "README.md"), (".en.md", "README.en.md")):
-            for platform in ("WINDOWS", "MACOS", "LINUX"):
+            for platform in ("WINDOWS", "MACOS", "LINUX", "FREEBSD"):
                 name = "INSTALL_" + platform + suffix
                 self.assertGreater(len((root / name).read_text(encoding="utf-8")), 100)
                 self.assertIn(name, (root / readme).read_text(encoding="utf-8"))
@@ -107,6 +107,8 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn("INSTALL_MACOS.en.md", win_script)
         self.assertNotIn("INSTALL_LINUX.md", win_script)
         self.assertNotIn("INSTALL_LINUX.en.md", win_script)
+        self.assertNotIn("INSTALL_FREEBSD.md", win_script)
+        self.assertNotIn("INSTALL_FREEBSD.en.md", win_script)
 
         self.assertIn("INSTALL_MACOS.md", mac_script)
         self.assertIn("INSTALL.md", mac_script)
@@ -114,6 +116,8 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn("INSTALL_WINDOWS.en.md", mac_script)
         self.assertNotIn("INSTALL_LINUX.md", mac_script)
         self.assertNotIn("INSTALL_LINUX.en.md", mac_script)
+        self.assertNotIn("INSTALL_FREEBSD.md", mac_script)
+        self.assertNotIn("INSTALL_FREEBSD.en.md", mac_script)
 
         linux_script = (root / "tools" / "build_linux.py").read_text(encoding="utf-8")
         self.assertIn("INSTALL_LINUX.md", linux_script)
@@ -122,6 +126,8 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn("INSTALL_WINDOWS.en.md", linux_script)
         self.assertNotIn("INSTALL_MACOS.md", linux_script)
         self.assertNotIn("INSTALL_MACOS.en.md", linux_script)
+        self.assertNotIn("INSTALL_FREEBSD.md", linux_script)
+        self.assertNotIn("INSTALL_FREEBSD.en.md", linux_script)
 
         # Bundles must replace INSTALL_<OS>.md with INSTALL.md, not keep duplicate original filenames
         self.assertNotIn('bundle / "INSTALL_WINDOWS.md"', win_script)

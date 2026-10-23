@@ -173,6 +173,7 @@ def collect_sources(bundle, cache):
         for name in ("LICENSE", "README.md", "README.en.md", "Wune.spec", "Wune-macos.spec", "Wune-linux.spec",
                      "INSTALL_WINDOWS.md", "INSTALL_WINDOWS.en.md", "INSTALL_MACOS.md", "INSTALL_MACOS.en.md",
                      "INSTALL_LINUX.md", "INSTALL_LINUX.en.md",
+                     "INSTALL_FREEBSD.md", "INSTALL_FREEBSD.en.md",
                      "main.py", "requirements.txt", "requirements-build.txt",
                      ".gitattributes", ".gitignore"):
             if (ROOT / name).is_file():

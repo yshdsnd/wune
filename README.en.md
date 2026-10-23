@@ -2,7 +2,7 @@
 
 [日本語](README.md) / **English**
 
-Wune is an LED audio spectrum analyzer for Windows, macOS, and Linux, inspired by compact stereo systems from the 1980s and 1990s.
+Wune is an LED audio spectrum analyzer for Windows, macOS, Linux, and FreeBSD, inspired by compact stereo systems from the 1980s and 1990s.
 Watch the left and right channels respond while listening to music through your usual speakers or headphones.
 Customize the colors, LED shapes, layout, and response to the beat in Settings.
 
@@ -19,7 +19,7 @@ Choose an OS-specific package from [GitHub Releases](https://github.com/yshdsnd/
 - Linux: `Wune-vX.Y.Z-1.x86_64.rpm` / `wune_X.Y.Z_amd64.deb` / `Wune-vX.Y.Z-linux-x64.tar.gz` — [Linux installation guide](INSTALL_LINUX.en.md)
 - FreeBSD: Run from source — [FreeBSD installation guide](INSTALL_FREEBSD.en.md)
 
-No Python installation is needed. The guides also cover updates, removal, and initial audio permissions.
+No Python installation is needed for pre-built packages (FreeBSD runs from source). The guides also cover updates, removal, and initial audio permissions.
 
 ## Controls
 

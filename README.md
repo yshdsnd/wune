@@ -2,7 +2,7 @@
 
 **日本語** / [English](README.en.md)
 
-80～90年代のミニコンポをイメージした、Windows・macOS・Linux用のLEDスペクトラムアナライザーです。
+80～90年代のミニコンポをイメージした、Windows・macOS・Linux・FreeBSD用のLEDスペクトラムアナライザーです。
 いつものスピーカーやヘッドホンで音楽を聴きながら、左右の音の動きを楽しめます。
 配色、LEDの形、配置、ビートへの反応を設定画面から調整できます。
 
@@ -19,7 +19,7 @@
 - Linux: `Wune-vX.Y.Z-1.x86_64.rpm` / `wune_X.Y.Z_amd64.deb` / `Wune-vX.Y.Z-linux-x64.tar.gz` — [Linux導入ガイド](INSTALL_LINUX.md)
 - FreeBSD: ソースコードから実行 — [FreeBSD導入ガイド](INSTALL_FREEBSD.md)
 
-Pythonのインストールは不要です。更新・アンインストール・初回の音声許可も各ガイドに記載しています。
+配布パッケージ（Windows / Mac / Linux）はPythonのインストールは不要です（FreeBSDはソースから実行）。更新・アンインストール・初回の音声許可も各ガイドに記載しています。
 
 ## 基本操作
 
