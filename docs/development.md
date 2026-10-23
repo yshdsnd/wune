@@ -4,7 +4,7 @@
 
 ## 環境と起動
 
-Windows x64、macOS Apple Silicon（arm64）、Linux x64（Fedora、Ubuntu等）のPython 3.10+環境に対応しています。Tkinterを含むPython環境が必要です。
+Windows x64、macOS Apple Silicon（arm64）、Linux x64（Fedora、Ubuntu等）、FreeBSD（amd64）のPython 3.10+環境に対応しています。Tkinterを含むPython環境が必要です。
 配布パッケージの利用には、このセットアップは不要です。
 ソースは[GitHubリポジトリ](https://github.com/yshdsnd/wune)から取得してください。
 
@@ -40,6 +40,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python3 main.py
 ~~~
+
+### FreeBSD での起動
+FreeBSD での導入・依存パッケージ・仮想環境作成および起動手順は [FreeBSD導入ガイド](../INSTALL_FREEBSD.md) を参照してください。
 
 ビルド時の固定依存物はrequirements-build.txtを参照してください。
 アプリ設定の組み込み既定値はwune/config.pyのConfigにあり、末尾のCFGで開発用の値を指定できます。

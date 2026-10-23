@@ -7,7 +7,7 @@
 ## 動作環境
 
 - **対応OS / アーキテクチャ**: **FreeBSD 14.x / 15.x（amd64）**（FreeBSD 15.1-STABLE 実機にて動作確認済み）
-  *(実機検証構成: i915kms + modesetting Xorg, Openbox, Firefox + PulseAudio, `devel/freebsd` ブランチ)*
+  *(実機検証構成: i915kms + modesetting Xorg, Openbox, Firefox + PulseAudio)*
 - **音声サーバー**: **PulseAudio** または **PipeWire**（PulseAudio互換レイヤー）
 - **ディスプレイ**: **X11** または **Wayland**
 - **ステレオ音声を再生できる出力デバイス**（スピーカー、ヘッドホン等）

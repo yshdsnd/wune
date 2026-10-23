@@ -7,7 +7,7 @@ Installation and usage guide for **Wune**, the 80s-90s mini-hifi-inspired LED sp
 ## System Requirements
 
 - **Supported OS & Architecture**: **FreeBSD 14.x / 15.x (amd64)** (Verified on physical FreeBSD 15.1-STABLE)
-  *(Hardware test setup: i915kms + modesetting Xorg, Openbox, Firefox + PulseAudio, initial port on `devel/freebsd` branch)*
+  *(Hardware test setup: i915kms + modesetting Xorg, Openbox, Firefox + PulseAudio)*
 - **Audio Server**: **PulseAudio** or **PipeWire** (PulseAudio compatibility layer)
 - **Display**: **X11** or **Wayland**
 - **Audio Output**: Any stereo playback device (speakers, headphones, etc.)
