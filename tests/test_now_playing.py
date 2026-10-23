@@ -166,6 +166,33 @@ class NowPlayingCoordinatorTests(unittest.TestCase):
         coordinator_all = NowPlayingCoordinator([p], only_playing=False)
         self.assertEqual(coordinator_all.update(), track_paused)
 
+    def test_prioritizes_playing_provider_over_paused_higher_rank_provider(self):
+        track_paused = NowPlaying(title="Paused High", artist="Artist A", is_playing=False)
+        track_playing = NowPlaying(title="Playing Low", artist="Artist B", is_playing=True)
+
+        p_high = DummyProvider(name="p_high", priority=10, result=track_paused)
+        p_low = DummyProvider(name="p_low", priority=50, result=track_playing)
+
+        # Actively playing provider wins over paused higher priority provider even with only_playing=False
+        coordinator_all = NowPlayingCoordinator([p_high, p_low], only_playing=False)
+        self.assertEqual(coordinator_all.update(), track_playing)
+
+        coordinator_playing = NowPlayingCoordinator([p_high, p_low], only_playing=True)
+        self.assertEqual(coordinator_playing.update(), track_playing)
+
+    def test_falls_back_to_higher_rank_paused_when_no_provider_playing(self):
+        track_paused_high = NowPlaying(title="Paused High", artist="Artist A", is_playing=False)
+        track_paused_low = NowPlaying(title="Paused Low", artist="Artist B", is_playing=False)
+
+        p_high = DummyProvider(name="p_high", priority=10, result=track_paused_high)
+        p_low = DummyProvider(name="p_low", priority=50, result=track_paused_low)
+
+        coordinator_all = NowPlayingCoordinator([p_high, p_low], only_playing=False)
+        self.assertEqual(coordinator_all.update(), track_paused_high)
+
+        coordinator_playing = NowPlayingCoordinator([p_high, p_low], only_playing=True)
+        self.assertIsNone(coordinator_playing.update())
+
     def test_exception_isolation_does_not_crash_coordinator(self):
         broken = DummyProvider(
             name="broken", priority=10, raises=RuntimeError("COM failure")
