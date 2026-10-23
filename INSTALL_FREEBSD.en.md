@@ -93,8 +93,13 @@ You can change Wune's capture source in real time using the `pavucontrol` GUI:
 
 ### Current Verification Status and Scope
 
-At present, hardware testing has verified PulseAudio startup, stream capture, and spectrum animation under the specified setup.
-Preserving configuration across OS reboots, direct OSS (`/dev/dsp`), `virtual_oss`, PipeWire, settings persistence, and resizing/fullscreen stability remain subjects for ongoing verification.
+On physical hardware (FreeBSD 15.1-STABLE, i915kms + modesetting Xorg, Openbox, Firefox + PulseAudio), the following have been verified:
+- Startup, audio capture via PulseAudio, and spectrum analyzer visualization
+- Window resizing (scaling up and down)
+- Settings saving and persistence across application restarts
+- Settings dialog layout and font rendering (proper window dimensions without overlapping text)
+
+*Note: Preserving PulseAudio default settings across OS reboots, direct OSS (`/dev/dsp`), `virtual_oss`, PipeWire compatibility, and fullscreen stability remain subjects for ongoing verification.*
 
 ## Now Playing Track Titles
 

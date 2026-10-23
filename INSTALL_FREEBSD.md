@@ -93,8 +93,13 @@ GUI ボリューム調整ツール `pavucontrol` を使用して、Wune の動�
 
 ### 動作確認状況と今後の検証範囲
 
-現時点で実機確認できているのは、上記環境での PulseAudio 経由の起動・再生音取り込み・スペアナ描画までです。
-OS 再起動後の PulseAudio 設定維持、OSS 直接（`/dev/dsp`）や `virtual_oss`、PipeWire 経由での動作、設定保存やリサイズ・フルスクリーンの安定性については順次検証を進めています。
+実機環境（FreeBSD 15.1-STABLE, i915kms + modesetting Xorg, Openbox, Firefox + PulseAudio）にて、以下が確認済みです。
+- PulseAudio 経由での起動、再生音取り込み、スペアナ描画
+- ウィンドウのリサイズ（拡大・縮小）
+- 設定の保存および次回起動時の復元
+- 設定画面のレイアウト・フォント表示（ダイアログサイズが過大にならず、文字の重なりがないこと）
+
+※ OS 再起動後の PulseAudio 既定設定の維持、OSS 直接（`/dev/dsp`）や `virtual_oss`、PipeWire 経由での動作、フルスクリーン表示の安定性については今後の検証範囲です。
 
 ## Now Playing（再生中楽曲表示）について
 
