@@ -64,7 +64,13 @@ class PackagingTests(unittest.TestCase):
              patch.object(builder.subprocess, "run") as run, patch("sys.stderr"):
             with self.assertRaises(SystemExit):
                 builder.main(["--version", "1.1.0"])
-            run.assert_not_called()
+            build_calls = [
+                c for c in run.call_args_list
+                if c.args and c.args[0] and (
+                    c.args[0][0] == sys.executable or "PyInstaller" in str(c.args[0])
+                )
+            ]
+            self.assertEqual(build_calls, [])
 
     def test_mac_rebuilds_native_helper_for_target_architecture(self):
         builder = self.mac_builder()

@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 
 def select_macos_output(cfg: Config) -> Any:
-    """Select macOS audio endpoint, respecting user configuration."""
-    import soundcard as sc
+    from .soundcard_compat import get_soundcard
+    sc = get_soundcard()
 
     if cfg.output_device is not None:
         for lookup in (sc.get_speaker, sc.get_microphone):
@@ -96,8 +96,8 @@ def is_macos_tap_supported() -> bool:
 
 
 def _find_virtual_loopback_microphone() -> Any | None:
-    """Search for virtual loopback audio devices (e.g. BlackHole, Soundflower)."""
-    import soundcard as sc
+    from .soundcard_compat import get_soundcard
+    sc = get_soundcard()
 
     try:
         mics = sc.all_microphones()
@@ -217,7 +217,8 @@ def open_macos_capture(
     Capture an explicit input or a virtual loopback device.
     An output endpoint never silently becomes a physical microphone.
     """
-    import soundcard as sc
+    from .soundcard_compat import get_soundcard
+    sc = get_soundcard()
 
     target_mic = None
 

@@ -41,10 +41,10 @@ class WasapiLoopbackBackend:
     """Windows WASAPI loopback capture backend."""
 
     def __init__(self, cfg: Config, blocksize: int | None = None):
-        import soundcard as sc
-        from .soundcard_compat import prepare_soundcard, output_sample_rate
+        from .soundcard_compat import prepare_soundcard, output_sample_rate, get_soundcard
 
         prepare_soundcard()
+        sc = get_soundcard()
         speaker = (
             sc.default_speaker()
             if cfg.output_device is None

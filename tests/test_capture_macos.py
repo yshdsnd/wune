@@ -4,6 +4,9 @@ import types
 import unittest
 from unittest.mock import MagicMock, patch
 
+from wune.soundcard_compat import prepare_soundcard
+prepare_soundcard()
+
 from wune.config import Config
 from wune.capture_macos import (
     select_macos_output,
