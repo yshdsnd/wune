@@ -13,7 +13,18 @@ Installation and usage guide for **Wune**, the 80s-90s mini-hifi-inspired LED sp
 - **Audio Output**: Any stereo playback device (speakers, headphones, etc.)
 - **Recommended**: Japanese fonts (Google Noto Fonts), `playerctl` (for Now Playing track titles), `pavucontrol` (for GUI audio routing and capture source switching)
 
-## Installation Steps
+## Installation Options
+
+There are two ways to install and run Wune on FreeBSD:
+
+1. **FreeBSD Ports / Pkg (Recommended)**
+   Using the Ports skeleton included in this repository, you can build and install Wune natively as a FreeBSD port or generate `.pkg` binary packages.
+   See the **[FreeBSD Ports / Pkg Guide](packaging/freebsd/README.md)** for detailed instructions.
+
+2. **Run from Source via Virtual Environment**
+   Set up a Python virtual environment leveraging system packages and run Wune directly. Follow the steps below.
+
+## Running from Source Steps
 
 ### 1. Install System Dependencies
 

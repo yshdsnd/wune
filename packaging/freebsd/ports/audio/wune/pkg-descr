@@ -1,0 +1,10 @@
+Wune is an LED audio spectrum visualizer inspired by 80s and 90s
+mini-hifi stereo systems.
+
+Features:
+- Real-time stereo frequency analysis
+- Audio capture via PulseAudio loopback monitors
+- Customizable LED shapes, layouts, and colors
+- Responsive ballistics and theme presets
+- Now Playing track metadata via MPRIS2 (playerctl)
+- Window resizing and settings persistence

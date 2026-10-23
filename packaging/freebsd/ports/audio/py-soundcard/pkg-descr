@@ -1,0 +1,4 @@
+SoundCard is a Python library for playing and recording audio
+without resorting to CPython extensions. Instead, it uses CFFI
+and the native audio libraries of the operating system (PulseAudio
+on FreeBSD).
