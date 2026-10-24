@@ -45,7 +45,8 @@ sudo pkg add packages/py*-soundcard-*.pkg
 sudo pkg add packages/wune-*.pkg
 ```
 
-インストール後、`/usr/local/bin/wune` またはデスクトップ環境のアプリケーションメニューから直接起動できます。
+インストール後、`/usr/local/bin/wune` またはデスクトップ環境のアプリケーションメニューから直接起動できます。  
+各種ドキュメント（`README.md`, `README.en.md`, `INSTALL_FREEBSD.md`, `INSTALL_FREEBSD.en.md`）は `/usr/local/share/doc/wune-<version>/` 配下にインストールされます。
 
 #### 方法 2: システムの Ports ツリー（`/usr/ports/`）に配置してビルド
 ```bash
@@ -100,3 +101,6 @@ Or install individually in dependency order:
 sudo pkg add packages/py*-soundcard-*.pkg
 sudo pkg add packages/wune-*.pkg
 ```
+
+After installation, Wune can be launched via `/usr/local/bin/wune` or desktop application menus.  
+Documentation files (`README.md`, `README.en.md`, `INSTALL_FREEBSD.md`, `INSTALL_FREEBSD.en.md`) are installed to `/usr/local/share/doc/wune-<version>/`.

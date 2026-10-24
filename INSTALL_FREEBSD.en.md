@@ -18,7 +18,7 @@ Installation and usage guide for **Wune**, the 80s-90s mini-hifi-inspired LED sp
 There are two ways to install and run Wune on FreeBSD:
 
 1. **FreeBSD Ports / Pkg (Recommended)**
-   Using the Ports skeleton included in this repository, you can build and install Wune natively as a FreeBSD port or generate `.pkg` binary packages.
+   Using the Ports skeleton included in this repository, you can build and install Wune natively as a FreeBSD port or generate `.pkg` binary packages. When installed via package, documentation files (README and this troubleshooting/usage guide) are also installed under `/usr/local/share/doc/wune-<version>/`.
    See the **[FreeBSD Ports / Pkg Guide](packaging/freebsd/README.md)** for detailed instructions.
 
 2. **Run from Source via Virtual Environment**

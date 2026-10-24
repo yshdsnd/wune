@@ -35,8 +35,11 @@ RUN_DEPENDS=	${PYTHON_PKGNAMEPREFIX}cffi>0:devel/py-cffi@${PY_FLAVOR} \
 USES=		desktop-file-utils python
 USE_PYTHON=	autoplist distutils
 
-OPTIONS_DEFINE=		MPRIS PAVUCONTROL
-OPTIONS_DEFAULT=	MPRIS PAVUCONTROL
+OPTIONS_DEFINE=		DOCS MPRIS PAVUCONTROL
+OPTIONS_DEFAULT=	DOCS MPRIS PAVUCONTROL
+
+DOCSDIR=		${PREFIX}/share/doc/${PORTNAME}-${DISTVERSION}
+PORTDOCS=		README.md README.en.md INSTALL_FREEBSD.md INSTALL_FREEBSD.en.md
 
 MPRIS_DESC=		Now Playing track display via playerctl
 MPRIS_RUN_DEPENDS=	playerctl:multimedia/playerctl
@@ -58,5 +61,12 @@ post-install:
 	${INSTALL_DATA} ${WRKSRC}/wune/assets/wune.png ${STAGEDIR}${PREFIX}/share/pixmaps/wune.png
 	@${PRINTF} '{\n  "release_version": "%s"\n}\n' "${DISTVERSION}" > \
 		${STAGEDIR}${PYTHONPREFIX_SITELIBDIR}/wune/build-info.json
+
+post-install-DOCS-on:
+	${MKDIR} ${STAGEDIR}${DOCSDIR}
+	${INSTALL_DATA} ${WRKSRC}/README.md ${STAGEDIR}${DOCSDIR}/
+	${INSTALL_DATA} ${WRKSRC}/README.en.md ${STAGEDIR}${DOCSDIR}/
+	${INSTALL_DATA} ${WRKSRC}/INSTALL_FREEBSD.md ${STAGEDIR}${DOCSDIR}/
+	${INSTALL_DATA} ${WRKSRC}/INSTALL_FREEBSD.en.md ${STAGEDIR}${DOCSDIR}/
 
 .include <bsd.port.mk>
