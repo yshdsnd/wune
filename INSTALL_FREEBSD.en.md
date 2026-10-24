@@ -112,6 +112,60 @@ On physical hardware (FreeBSD 15.1-STABLE, i915kms + modesetting Xorg, Openbox, 
 
 *Note: Preserving PulseAudio default settings across OS reboots, direct OSS (`/dev/dsp`), `virtual_oss`, PipeWire compatibility, and fullscreen stability remain subjects for ongoing verification.*
 
+### Troubleshooting & Tips: Handling Audio Lockups and HDMI Sound Loss
+
+#### Symptom: Wune visualizer responds, but no physical sound comes from speakers/HDMI
+If Wune's spectrum analyzer is bouncing, it means the audio application is outputting to PulseAudio and PulseAudio's loopback monitor (`<device>.monitor`) is functioning normally.  
+The issue is stalled transmission from PulseAudio to the physical hardware device (e.g., HDMI / `/dev/dsp3`).
+
+On FreeBSD systems with Intel graphics (`i915kms`) and HDMI audio, **power to the audio circuit (Power Well) may be cut off during periods of silence or display power-saving, and subsequent attempts to resume playback fail to re-power or re-synchronize the hardware clock, causing the device to become silent until reboot**.
+
+#### Prevention (Root Cause Mitigation & Recommended Settings)
+
+1. **Keep Intel GPU (i915kms) audio power wells always powered**  
+   Add the following line to `/boot/loader.conf` and reboot (or apply immediately in the current session via `sudo sysctl compat.linuxkpi.i915_disable_power_well=0`):
+   ```text
+   compat.linuxkpi.i915_disable_power_well="0"
+   ```
+   > [!TIP]
+   > With the default value `-1` (auto), power to the HDMI audio circuit is cut during silence and may fail to restore. Setting it to `0` (power wells always on) prevents this hardware sleep lockup.
+
+2. **Disable PulseAudio idle suspend**  
+   Prevent PulseAudio from releasing and closing `/dev/dsp` when audio is paused:
+   ```bash
+   mkdir -p ~/.config/pulse
+   cp /usr/local/etc/pulse/default.pa ~/.config/pulse/
+   ```
+   Comment out `load-module module-suspend-on-idle` in `~/.config/pulse/default.pa`:
+   ```diff
+   - load-module module-suspend-on-idle
+   + # load-module module-suspend-on-idle
+   ```
+   Apply the change by restarting PulseAudio: `pulseaudio -k && pulseaudio --start`.
+
+#### Recovery Steps (Restoring Sound Without an OS Reboot)
+
+On FreeBSD, sound drivers such as `snd_hda` are statically compiled into the `GENERIC` kernel and cannot be unloaded via `kldunload`. Furthermore, restarting Xorg does not affect the kernel sound subsystem.  
+To attempt recovery without rebooting the OS, use FreeBSD's `devctl(8)` utility or reconfigure the HDA codec sysctl:
+
+```bash
+# 1. Stop PulseAudio which holds the device open
+pulseaudio -k
+
+# 2. Force reset or detach/attach the PCM device with devctl
+sudo devctl reset pcm3
+# or
+sudo devctl detach -f pcm3 && sudo devctl attach pcm3
+
+# (or reconfigure the parent HDA codec device hdaa1)
+sudo sysctl dev.hdaa.1.reconfig=1
+
+# 3. Restart PulseAudio and restore default sink/source
+pulseaudio --start
+pactl set-default-sink oss_output.dsp3
+pactl set-default-source oss_output.dsp3.monitor
+```
+
 ## Now Playing Track Titles
 
 Wune integrates with MPRIS2 via `playerctl` to display playback titles and artists from Spotify, browsers, and media players.

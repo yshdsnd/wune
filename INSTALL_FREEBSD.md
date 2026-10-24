@@ -112,6 +112,60 @@ GUI ボリューム調整ツール `pavucontrol` を使用して、Wune の動�
 
 ※ OS 再起動後の PulseAudio 既定設定の維持、OSS 直接（`/dev/dsp`）や `virtual_oss`、PipeWire 経由での動作、フルスクリーン表示の安定性については今後の検証範囲です。
 
+### トラブルシューティング & Tips：音が出なくなった場合の対処と予防
+
+#### 症状：Wune のスペアナは反応しているのにスピーカーから音が出ない
+Wune のスペアナが振れているということは、再生アプリから PulseAudio への出力、およびループバックモニター（`<device>.monitor`）からの取り込みは正常に動いています。  
+止まっているのは「PulseAudio から物理デバイス（HDMI / `/dev/dsp3` 等）」への伝送です。
+
+FreeBSD + Intel グラフィックス（`i915kms`）の HDMI 音声環境では、**無音時や画面スリープ時にオーディオ回路の給電（Power Well）が落とされ、次の再生時にハードウェアの復帰・再同期に失敗してデバイスが沈黙する** という現象が知られています。
+
+#### 予防策（根本対策・推奨設定）
+
+1. **Intel GPU（i915kms）のオーディオ給電を常時維持する**  
+   `/boot/loader.conf` に以下を追記して再起動します（現在のセッションで即時適用する場合は `sudo sysctl compat.linuxkpi.i915_disable_power_well=0`）：
+   ```text
+   compat.linuxkpi.i915_disable_power_well="0"
+   ```
+   > [!TIP]
+   > デフォルト値 `-1`（auto）では無音時に HDMI 音声回路が電源断され、復帰不能になる場合があります。`0` に設定することで常に給電（power wells always on）され、突然死を防ぐことができます。
+
+2. **PulseAudio のアイドルサスペンドを無効化する**  
+   無音時に PulseAudio が `/dev/dsp` を閉じる動作を防止します：
+   ```bash
+   mkdir -p ~/.config/pulse
+   cp /usr/local/etc/pulse/default.pa ~/.config/pulse/
+   ```
+   `~/.config/pulse/default.pa` 内の `load-module module-suspend-on-idle` をコメントアウトします：
+   ```diff
+   - load-module module-suspend-on-idle
+   + # load-module module-suspend-on-idle
+   ```
+   設定後、`pulseaudio -k && pulseaudio --start` で反映します。
+
+#### 発生時の復旧手順（OS 再起動なしで復旧を試みる）
+
+FreeBSD では `snd_hda` などのサウンドドライバが GENERIC カーネルに静的組み込みされているため `kldunload` できません。また Xorg の再起動も音声サブシステムには影響しません。  
+OS 再起動を行わずに復帰を試みるには、FreeBSD のデバイス制御ツール `devctl(8)` または HDA コーデック再構成 sysctl を使用します：
+
+```bash
+# 1. デバイスを掴んでいる PulseAudio を一度停止
+pulseaudio -k
+
+# 2. devctl によるデバイスの強制リセットまたはデタッチ・再アタッチ
+sudo devctl reset pcm3
+# または
+sudo devctl detach -f pcm3 && sudo devctl attach pcm3
+
+# （または親の HDA コーデック hdaa1 を再構成）
+sudo sysctl dev.hdaa.1.reconfig=1
+
+# 3. PulseAudio を再開して既定値を再指定
+pulseaudio --start
+pactl set-default-sink oss_output.dsp3
+pactl set-default-source oss_output.dsp3.monitor
+```
+
 ## Now Playing（再生中楽曲表示）について
 
 FreeBSD 上で Spotify、ブラウザ、メディアプレイヤー等の再生中情報を取得するために、MPRIS2（`playerctl`）を利用します。
