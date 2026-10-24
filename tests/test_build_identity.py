@@ -62,6 +62,24 @@ class BuildIdentityTests(unittest.TestCase):
             with patch.object(subprocess, "check_output", side_effect=error):
                 self.assertIsNone(identity.source_commit(Path.cwd()))
 
+    def test_freebsd_and_snapshot_version_patterns(self):
+        for version in ("1.2.1.s20261024", "1.2.1.s20261024_1", "1.2.1_1", "1.0.0-rc.1"):
+            self.assertEqual(identity.format_identity({"release_version": version}),
+                             f"Wune v{version}")
+
+    def test_installed_package_uses_embedded_build_info_when_not_in_git(self):
+        with patch.object(identity.sys, "frozen", False, create=True),              patch.object(identity, "source_commit", return_value=None),              patch.object(identity, "installed_package_version", return_value="1.2.1.s20261024"):
+            self.assertEqual(identity.application_identity(), "Wune v1.2.1.s20261024")
+
+    def test_installed_package_version_resolution_order(self):
+        # 1. Embedded build-info.json
+        with patch.object(Path, "is_file", return_value=True),              patch.object(Path, "read_text", return_value=json.dumps({"release_version": "1.2.1.s20261024"})):
+            self.assertEqual(identity.installed_package_version(), "1.2.1.s20261024")
+
+        # 2. FreeBSD pkg query fallback
+        with patch.object(Path, "is_file", return_value=False),              patch.object(identity.sys, "platform", "freebsd15"),              patch.object(subprocess, "check_output", return_value=b"1.2.1.s20261024\n"):
+            self.assertEqual(identity.installed_package_version(), "1.2.1.s20261024")
+
     def test_localized_titles_share_identity(self):
         with patch.object(identity, "application_identity", return_value="Wune v1.0.0"):
             self.assertEqual(identity.window_title("en"), "Wune v1.0.0 — F2: Settings")

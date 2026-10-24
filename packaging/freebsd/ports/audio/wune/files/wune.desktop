@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Wune
+Comment=LED Bar Audio Spectrum Visualizer
+Exec=wune
+Icon=wune
+Categories=AudioVideo;Audio;
+Terminal=false
+StartupWMClass=Wune

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wune"
+version = "1.2.1"
+description = "80s-90s mini-hifi-inspired LED audio spectrum visualizer"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "BSD-2-Clause" }
+authors = [
+    { name = "Yoshihide Sonoda" }
+]
+dependencies = [
+    "numpy",
+    "pygame>=2.6.1",
+    "SoundCard>=0.4.6",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: POSIX :: BSD :: FreeBSD",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+
+[project.urls]
+Homepage = "https://github.com/yshdsnd/wune"
+Repository = "https://github.com/yshdsnd/wune"
+Issues = "https://github.com/yshdsnd/wune/issues"
+
+[project.scripts]
+wune = "wune.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["wune*"]
+
+[tool.setuptools.package-data]
+wune = [
+    "assets/*",
+    "locales/*.json",
+]

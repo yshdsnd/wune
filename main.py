@@ -5,34 +5,11 @@ ESC: leave fullscreen or ask to quit; Q: ask to quit, Alt+Enter (also F11): full
 T or left-click the preset badge: next visual preset.
 macOS: Command+F toggles fullscreen; Command+, opens settings.
 """
-# main.py
-import os
 import sys
 
-if sys.platform == "win32":
-    os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
-elif sys.platform == "darwin":
-    os.environ.setdefault("SDL_VIDEO_MAC_FULLSCREEN_SPACES", "0")
-
-import warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*avx2 capable.*")
-
 import pygame as pg
-import argparse
 
-from wune.config import CFG
-from wune.app import App
-from wune.settings import SettingsStore
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reset-settings", action="store_true",
-                        help="Reset saved preferences and geometry, then launch with built-in defaults")
-    args = parser.parse_args(argv)
-    store = SettingsStore()
-    cfg, geometry = store.reset() if args.reset_settings else store.load(CFG)
-    App(cfg, settings_store=store, saved_geometry=geometry).run()
+from wune.cli import main
 
 if __name__ == "__main__":
     import multiprocessing
