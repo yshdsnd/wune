@@ -47,7 +47,8 @@ PAVUCONTROL_RUN_DEPENDS=pavucontrol:audio/pavucontrol
 NO_ARCH=	yes
 
 PLIST_FILES=	share/applications/wune.desktop \
-		share/pixmaps/wune.png
+		share/pixmaps/wune.png \
+		%%PYTHON_SITELIBDIR%%/wune/build-info.json
 
 
 post-install:
@@ -55,5 +56,7 @@ post-install:
 	${INSTALL_DATA} ${FILESDIR}/wune.desktop ${STAGEDIR}${PREFIX}/share/applications/
 	${MKDIR} ${STAGEDIR}${PREFIX}/share/pixmaps
 	${INSTALL_DATA} ${WRKSRC}/wune/assets/wune.png ${STAGEDIR}${PREFIX}/share/pixmaps/wune.png
+	@${PRINTF} '{\n  "release_version": "%s"\n}\n' "${DISTVERSION}" > \
+		${STAGEDIR}${PYTHONPREFIX_SITELIBDIR}/wune/build-info.json
 
 .include <bsd.port.mk>

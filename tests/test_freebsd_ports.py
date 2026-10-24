@@ -26,6 +26,8 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         self.assertIn("py-soundcard", makefile)
         self.assertIn("share/applications/wune.desktop", makefile)
         self.assertIn("share/pixmaps/wune.png", makefile)
+        self.assertIn("%%PYTHON_SITELIBDIR%%/wune/build-info.json", makefile)
+        self.assertIn("build-info.json", makefile)
 
         distinfo = (wune_port / "distinfo").read_text(encoding="utf-8")
         self.assertIn("SHA256 (yshdsnd-wune-1.2.1.s20261024-9e49cd3_GH0.tar.gz) = de2f0e2a172ab22481440750371c434002460dc94ca123a1f22e8829e083a8d4", distinfo)
