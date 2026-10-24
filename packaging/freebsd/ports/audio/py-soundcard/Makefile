@@ -1,4 +1,4 @@
-PORTNAME=	SoundCard
+PORTNAME=	soundcard
 PORTVERSION=	0.4.6
 CATEGORIES=	audio python
 MASTER_SITES=	PYPI

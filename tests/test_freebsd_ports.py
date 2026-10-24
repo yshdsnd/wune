@@ -20,7 +20,7 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         self.assertIn("GH_PROJECT=\twune", makefile)
         self.assertIn("GH_TAGNAME=\t9e49cd3", makefile)
         self.assertIn("NO_CHECKSUM=\tyes", makefile)
-        self.assertIn("WRKSRC=\t\t${.CURDIR}/../../../../", makefile)
+        self.assertIn("WRKSRC=\t\t${.CURDIR}/../../../../..", makefile)
         self.assertIn("USE_PYTHON=\tautoplist distutils", makefile)
         self.assertIn("py-game", makefile)
         self.assertIn("py-soundcard", makefile)
@@ -28,8 +28,8 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         self.assertIn("share/pixmaps/wune.png", makefile)
 
         distinfo = (wune_port / "distinfo").read_text(encoding="utf-8")
-        self.assertIn("SHA256 (yshdsnd-wune-9e49cd3_GH0.tar.gz) = de2f0e2a172ab22481440750371c434002460dc94ca123a1f22e8829e083a8d4", distinfo)
-        self.assertIn("SIZE (yshdsnd-wune-9e49cd3_GH0.tar.gz) = 2470288", distinfo)
+        self.assertIn("SHA256 (yshdsnd-wune-1.2.1.s20261024-9e49cd3_GH0.tar.gz) = de2f0e2a172ab22481440750371c434002460dc94ca123a1f22e8829e083a8d4", distinfo)
+        self.assertIn("SIZE (yshdsnd-wune-1.2.1.s20261024-9e49cd3_GH0.tar.gz) = 2470288", distinfo)
 
         descr = (wune_port / "pkg-descr").read_text(encoding="utf-8")
         self.assertGreater(len(descr), 20)
@@ -42,7 +42,7 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
     def test_soundcard_port_files_exist_and_match_upstream_release(self):
         sc_port = self.freebsd_dir / "ports" / "audio" / "py-soundcard"
         makefile = (sc_port / "Makefile").read_text(encoding="utf-8")
-        self.assertIn("PORTNAME=\tSoundCard", makefile)
+        self.assertIn("PORTNAME=\tsoundcard", makefile)
         self.assertIn("PORTVERSION=\t0.4.6", makefile)
         self.assertIn("MASTER_SITES=\tPYPI", makefile)
         self.assertIn("USE_PYTHON=\tautoplist distutils", makefile)

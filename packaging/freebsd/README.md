@@ -32,12 +32,17 @@
 # 本リポジトリの packaging/freebsd/ ディレクトリへ移動
 cd packaging/freebsd
 
-# py-soundcard と wune の .pkg パッケージを一括生成
+# py-soundcard と wune の .pkg パッケージを一括生成（packages/ 配下に出力）
 make package
 
 # 生成されたパッケージを pkg add でシステムに導入
-sudo pkg add ./ports/audio/py-soundcard/work/pkg/py*-soundcard-*.pkg
-sudo pkg add ./ports/audio/wune/work/pkg/wune-*.pkg
+sudo pkg add packages/*.pkg
+```
+
+個別に追加する場合は以下の順序で行います：
+```bash
+sudo pkg add packages/py*-soundcard-*.pkg
+sudo pkg add packages/wune-*.pkg
 ```
 
 インストール後、`/usr/local/bin/wune` またはデスクトップ環境のアプリケーションメニューから直接起動できます。
@@ -86,7 +91,12 @@ This port is designed with a **hybrid build mode** to solve the chicken-and-egg 
 cd packaging/freebsd
 make package
 
-# Install the created packages:
-sudo pkg add ./ports/audio/py-soundcard/work/pkg/py*-soundcard-*.pkg
-sudo pkg add ./ports/audio/wune/work/pkg/wune-*.pkg
+# Install the created packages (collected under packages/):
+sudo pkg add packages/*.pkg
+```
+
+Or install individually in dependency order:
+```bash
+sudo pkg add packages/py*-soundcard-*.pkg
+sudo pkg add packages/wune-*.pkg
 ```

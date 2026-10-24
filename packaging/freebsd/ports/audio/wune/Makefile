@@ -9,11 +9,21 @@ WWW=		https://github.com/yshdsnd/wune
 LICENSE=	BSD2CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE
 
-# Upstream snapshot settings (used when building outside of git checkout, e.g. in /usr/ports)
+# Hybrid Mode: If building inside the repository checkout, use local sources directly
+# without fetching upstream distfiles or checking checksums.
+# Otherwise, fetch upstream snapshot from GitHub.
+.if exists(${.CURDIR}/../../../../../wune/__init__.py) && !defined(USE_UPSTREAM_DIST)
+WRKSRC=		${.CURDIR}/../../../../..
+NO_CHECKSUM=	yes
+DISTFILES=
+do-extract:
+	@${DO_NADA}
+.else
 USE_GITHUB=	yes
 GH_ACCOUNT=	yshdsnd
 GH_PROJECT=	wune
 GH_TAGNAME=	9e49cd3
+.endif
 
 RUN_DEPENDS=	${PYTHON_PKGNAMEPREFIX}cffi>0:devel/py-cffi@${PY_FLAVOR} \
 		${PYTHON_PKGNAMEPREFIX}numpy>0:math/py-numpy@${PY_FLAVOR} \
@@ -39,14 +49,6 @@ NO_ARCH=	yes
 PLIST_FILES=	share/applications/wune.desktop \
 		share/pixmaps/wune.png
 
-# Hybrid Mode: If building inside the repository checkout, use local sources directly
-# without fetching upstream distfiles or checking checksums.
-.if exists(${.CURDIR}/../../../../wune/__init__.py) && !defined(USE_UPSTREAM_DIST)
-NO_CHECKSUM=	yes
-WRKSRC=		${.CURDIR}/../../../../
-do-extract:
-	@${DO_NADA}
-.endif
 
 post-install:
 	${MKDIR} ${STAGEDIR}${PREFIX}/share/applications
