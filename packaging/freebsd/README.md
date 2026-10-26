@@ -64,6 +64,13 @@ cd /usr/ports/audio/wune
 sudo make install clean
 ```
 
+### CI / 自動ビルド
+GitHub Actions（`.github/workflows/freebsd-package.yml`）にて、FreeBSD 15.1-RELEASE VM（`vmactions/freebsd-vm`）環境下で以下の自動テストとパッケージングがコミット・PR ごとに実行されます：
+- Xvfb 仮想フレームバッファ環境下でのユニットテスト実行
+- `py-soundcard` および `wune` の `.pkg` パッケージ生成
+- 生成された `.pkg` のインストールテストおよび CLI 起動確認（`wune --help`）
+- パッケージ成果物（`.pkg` および `.sha256`）のアップロード（タグリリース時は GitHub Release へ自動添付）
+
 ---
 
 <a id="english"></a>
@@ -105,3 +112,10 @@ sudo pkg add packages/wune-*.pkg
 
 After installation, Wune can be launched via `/usr/local/bin/wune` or desktop application menus.  
 Documentation files (`README.md`, `README.en.md`, `INSTALL_FREEBSD.md`, `INSTALL_FREEBSD.en.md`) are installed to `/usr/local/share/doc/wune-<version>/`.
+
+### CI / Automated Builds
+GitHub Actions (`.github/workflows/freebsd-package.yml`) automatically runs on every commit and pull request inside a real FreeBSD 15.1-RELEASE VM (`vmactions/freebsd-vm`):
+- Executes full unit tests using Xvfb (virtual framebuffer)
+- Builds `py-soundcard` and `wune` `.pkg` packages
+- Tests package installation and verifies CLI entry point (`wune --help`)
+- Uploads `.pkg` and `.sha256` artifacts (and attaches them to GitHub Releases on version tags)
