@@ -24,6 +24,8 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         self.assertIn("USE_PYTHON=\tautoplist distutils", makefile)
         self.assertIn("py-game", makefile)
         self.assertIn("py-soundcard", makefile)
+        self.assertNotIn("PAVUCONTROL", makefile)
+        self.assertNotIn("pavucontrol", makefile)
         self.assertIn("share/applications/wune.desktop", makefile)
         self.assertIn("share/pixmaps/wune.png", makefile)
         self.assertIn("%%PYTHON_SITELIBDIR%%/wune/build-info.json", makefile)
