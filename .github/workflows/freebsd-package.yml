@@ -55,9 +55,9 @@ jobs:
             version_arg=""
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
               version="${GITHUB_REF_NAME#v}"
-              version_arg="DISTVERSION=${version}"
+              version_arg="WUNE_VERSION=${version}"
             elif [ -n "$REQUESTED_VERSION" ] && [ "$REQUESTED_VERSION" != "0.0.0-dev" ]; then
-              version_arg="DISTVERSION=${REQUESTED_VERSION}"
+              version_arg="WUNE_VERSION=${REQUESTED_VERSION}"
             fi
 
             # 2. Build FreeBSD packages for py-soundcard and wune
@@ -136,4 +136,4 @@ jobs:
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --notes 'Standalone packages. Validate installation and update release notes before publishing.' || true
           fi
-          gh release upload "$RELEASE_TAG" artifacts/*
+          gh release upload "$RELEASE_TAG" --clobber artifacts/*
