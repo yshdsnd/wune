@@ -42,7 +42,7 @@ jobs:
             pkg update -f
             pkg install -y git python312 py312-setuptools py312-cffi py312-numpy \
                            py312-game py312-tkinter pulseaudio playerctl \
-                           desktop-file-utils xorg-vfbserver
+                           desktop-file-utils xorg-vfbserver dejavu noto-basic fontconfig
             git clone --filter=blob:none --no-checkout --depth 1 https://git.freebsd.org/ports.git /usr/ports
             cd /usr/ports
             git sparse-checkout init --cone
@@ -51,15 +51,7 @@ jobs:
           run: |
             export ASSUME_ALWAYS_YES=yes
 
-            # 1. Start Xvfb virtual framebuffer for GUI tests
-            (Xvfb :99 -screen 0 1024x768x24 >/dev/null 2>&1 &)
-            sleep 1
-
-            # 2. Run unit tests
-            DISPLAY=:99 python3.12 -m unittest discover -s tests -p 'test_*.py'
-            killall Xvfb || true
-
-            # 3. Determine version argument if building from release tag or custom input
+            # 1. Determine version argument if building from release tag or custom input
             version_arg=""
             if [ "$GITHUB_REF_TYPE" = "tag" ]; then
               version="${GITHUB_REF_NAME#v}"
@@ -68,21 +60,27 @@ jobs:
               version_arg="DISTVERSION=${REQUESTED_VERSION}"
             fi
 
-            # 4. Build FreeBSD packages
+            # 2. Build FreeBSD packages for py-soundcard and wune
             make -C packaging/freebsd ${version_arg} package
 
-            # 5. Test installation of the created packages
+            # 3. Install packages (provides soundcard dependency and validates installation)
             pkg install -y packaging/freebsd/packages/py*-soundcard-*.pkg
             pkg install -y packaging/freebsd/packages/wune-*.pkg
 
-            # 6. Verify package metadata and installed documentation
+            # 4. Verify package metadata and installed documentation
             pkg info wune
             pkg info -d wune
             pkg info -l wune
             ls -la /usr/local/share/doc/wune-*
 
-            # 7. Sanity check CLI entry point
+            # 5. Sanity check CLI entry point
             wune --help
+
+            # 6. Run full unit test suite in Xvfb virtual framebuffer
+            (Xvfb :99 -screen 0 1024x768x24 >/dev/null 2>&1 &)
+            sleep 1
+            DISPLAY=:99 python3.12 -m unittest discover -s tests -p 'test_*.py'
+            killall Xvfb || true
 
       - name: Generate SHA-256 checksums
         shell: bash

@@ -91,6 +91,8 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         self.assertIn("packaging/freebsd", workflow)
         self.assertIn("xorg-vfbserver", workflow)
         self.assertIn("Wune-freebsd-pkg", workflow)
+        self.assertIn("dejavu", workflow)
+        self.assertIn("fontconfig", workflow)
 
 
 if __name__ == "__main__":
