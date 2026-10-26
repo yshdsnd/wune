@@ -76,11 +76,26 @@ jobs:
             # 5. Sanity check CLI entry point
             wune --help
 
-            # 6. Run full unit test suite in Xvfb virtual framebuffer
+            # 6. Start audio daemon and run full unit test suite in Xvfb
             (Xvfb :99 -screen 0 1024x768x24 >/dev/null 2>&1 &)
             sleep 1
-            DISPLAY=:99 python3.12 -m unittest discover -s tests -p 'test_*.py'
+
+            # Configure and launch headless PulseAudio daemon with a null sink
+            cat << 'EOF' > /tmp/pulse-ci.pa
+            load-module module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-socket auth-cookie-enabled=0
+            load-module module-null-sink sink_name=wune_dummy sink_properties=device.description="Wune_Dummy_Speaker"
+            set-default-sink wune_dummy
+            set-default-source wune_dummy.monitor
+            EOF
+
+            pulseaudio --system --disallow-exit --disallow-module-loading=0 --disable-shm -n -F /tmp/pulse-ci.pa --daemonize || pulseaudio --disable-shm -n -F /tmp/pulse-ci.pa --daemonize || true
+
+            export PULSE_SERVER=unix:/tmp/pulse-socket
+            pactl info || true
+
+            DISPLAY=:99 PULSE_SERVER=unix:/tmp/pulse-socket python3.12 -m unittest discover -s tests -p 'test_*.py'
             killall Xvfb || true
+            killall pulseaudio || true
 
       - name: Generate SHA-256 checksums
         shell: bash

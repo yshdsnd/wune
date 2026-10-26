@@ -6,6 +6,7 @@ version-pinned until the upstream declaration/allocation is corrected.
 """
 
 import sys
+import types
 from importlib.metadata import version
 
 
@@ -17,7 +18,20 @@ def prepare_soundcard():
             sys.platform = "linux"
             if sys.argv and sys.argv[0] == "-c" and len(sys.argv) == 1:
                 sys.argv.append("python")
-            import soundcard  # noqa: F401
+            try:
+                import soundcard  # noqa: F401
+            except AssertionError:
+                # If PulseAudio daemon is not running during headless testing,
+                # stub minimal soundcard namespace in sys.modules to allow mocks
+                if "soundcard" not in sys.modules:
+                    mod = types.ModuleType("soundcard")
+                    mod.default_speaker = None
+                    mod.default_microphone = None
+                    mod.get_speaker = None
+                    mod.get_microphone = None
+                    mod.all_speakers = None
+                    mod.all_microphones = None
+                    sys.modules["soundcard"] = mod
         finally:
             sys.platform = orig_platform
             sys.argv[:] = orig_argv
@@ -34,18 +48,7 @@ def prepare_soundcard():
 
 def get_soundcard():
     """Import and return the soundcard module with platform compatibility applied."""
-    if sys.platform.startswith("freebsd") and "soundcard" not in sys.modules:
-        orig_platform = sys.platform
-        orig_argv = list(sys.argv)
-        try:
-            sys.platform = "linux"
-            if sys.argv and sys.argv[0] == "-c" and len(sys.argv) == 1:
-                sys.argv.append("python")
-            import soundcard as sc
-        finally:
-            sys.platform = orig_platform
-            sys.argv[:] = orig_argv
-        return sc
+    prepare_soundcard()
     import soundcard as sc
     return sc
 
