@@ -90,5 +90,5 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           $assets = @(Get-ChildItem -LiteralPath artifacts -File | ForEach-Object { $_.FullName })
-          gh release upload $env:RELEASE_TAG @assets
+          gh release upload $env:RELEASE_TAG --clobber @assets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

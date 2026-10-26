@@ -62,6 +62,9 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         helper = (self.freebsd_dir / "Makefile").read_text(encoding="utf-8")
         self.assertIn("package-soundcard", helper)
         self.assertIn("package-wune", helper)
+        self.assertIn("SOUNDCARD_DISTVERSION?=\t0.4.6", helper)
+        self.assertIn("WUNE_DISTVERSION_ARG=", helper)
+        self.assertIn("DISTVERSION=${SOUNDCARD_DISTVERSION}", helper)
 
         readme = (self.freebsd_dir / "README.md").read_text(encoding="utf-8")
         self.assertIn("pkg add", readme)
