@@ -35,17 +35,14 @@ RUN_DEPENDS=	${PYTHON_PKGNAMEPREFIX}cffi>0:devel/py-cffi@${PY_FLAVOR} \
 USES=		desktop-file-utils python
 USE_PYTHON=	autoplist distutils
 
-OPTIONS_DEFINE=		DOCS MPRIS PAVUCONTROL
-OPTIONS_DEFAULT=	DOCS MPRIS PAVUCONTROL
+OPTIONS_DEFINE=		DOCS MPRIS
+OPTIONS_DEFAULT=	DOCS MPRIS
 
 DOCSDIR=		${PREFIX}/share/doc/${PORTNAME}-${DISTVERSION}
 PORTDOCS=		README.md README.en.md INSTALL_FREEBSD.md INSTALL_FREEBSD.en.md
 
 MPRIS_DESC=		Now Playing track display via playerctl
 MPRIS_RUN_DEPENDS=	playerctl:multimedia/playerctl
-
-PAVUCONTROL_DESC=	Audio routing and volume control via pavucontrol
-PAVUCONTROL_RUN_DEPENDS=pavucontrol:audio/pavucontrol
 
 NO_ARCH=	yes
 

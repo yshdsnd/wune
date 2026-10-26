@@ -9,14 +9,15 @@
 
 このディレクトリには、FreeBSD の Ports ツリーおよび `pkg` パッケージを作成するための Ports スケルトン一式が含まれています。
 
-### ハイブリッド動作（ローカル直接ビルド & スナップショット取得）
-本 Ports 定義は、**鶏卵問題を回避するハイブリッド方式** で動作します：
-1. **リポジトリクローン内でビルドする場合（推奨・即テスト可能）**:
-   - `packaging/freebsd/` 配下で `make package` を実行すると、親ディレクトリ（手元の作業ツリー）のソースを直接使用して `.pkg` を生成します。
-   - 外部からのダウンロードを行わないため、最新の修正や手元の変更を即座にバイナリパッケージ化してテストできます。
-2. **`/usr/ports/` など外部ツリーに配置してビルドする場合**:
-   - GitHub から FreeBSD 対応済みの最新スナップショット（コミット `9e49cd3`）のアーカイブを自動フェッチし、チェックサム検証の上でビルドします。
-   - 正式リリース（例: v1.3.0）後は、`DISTVERSION= 1.3.0` と `DISTVERSIONPREFIX= v` を指定して公式タグリファレンスに切り替えることができます。
+### ソース取得モード（ローカル作業ツリー / 上流アーカイブ）
+本 Ports 定義は、ビルドを実行する場所に応じて自動的にソース取得方法を切り替えます：
+
+1. **リポジトリクローン内でビルドする場合（作業ツリーを直接パッケージ化）**:
+   - `packaging/freebsd/` 配下で `make package` を実行すると、手元の作業ツリーのソースコードを直接使用して `.pkg` を生成します。
+   - 外部からのダウンロードを行わないため、手元の変更内容を即座にバイナリパッケージ化してテストできます。
+2. **`/usr/ports/` など外部ツリーに配置してビルドする場合（上流アーカイブを取得）**:
+   - GitHub からリリースアーカイブまたはスナップショット（デフォルトではコミット `9e49cd3`）を自動的にダウンロードし、チェックサム検証の上でビルドします。
+   - `USE_UPSTREAM_DIST=1` を指定して強制的に上流アーカイブからのビルドを行うことも可能です。
 
 ### 構成内容
 - **`ports/audio/wune/`**: Wune 本体の Ports 定義（`Makefile`, `distinfo`, `pkg-descr`, `files/wune.desktop`）。
@@ -70,14 +71,14 @@ sudo make install clean
 
 This directory contains the FreeBSD Ports skeleton to build and package Wune natively using FreeBSD's Ports framework and `pkg`.
 
-### Hybrid Build Mechanism
-This port is designed with a **hybrid build mode** to solve the chicken-and-egg problem during active development:
-1. **Building within the repository clone (Recommended)**:
-   - When running `make package` from `packaging/freebsd/`, the port automatically detects the local source tree and packages directly from it without downloading.
-   - Any local edits are immediately reflected in the resulting `.pkg`.
-2. **Building from an external Ports tree (e.g., `/usr/ports/`)**:
-   - Automatically downloads the snapshot tarball from GitHub (`9e49cd3`) and verifies it using `distinfo`.
-   - After a formal release (e.g., v1.3.0), update `DISTVERSION` to point to the release tag.
+### Source Acquisition Modes
+This port automatically switches its source acquisition mode based on where it is built:
+
+1. **Building within the repository clone (Direct working tree packaging)**:
+   - Running `make package` under `packaging/freebsd/` packages the local working tree directly without downloading external distribution archives.
+   - Local edits can be packaged and tested immediately.
+2. **Building from an external Ports tree (Upstream distribution archive)**:
+   - When placed in `/usr/ports/` or when `USE_UPSTREAM_DIST=1` is specified, the port downloads and verifies the source tarball from GitHub (default: snapshot `9e49cd3`).
 
 ### Structure
 - **`ports/audio/wune/`**: Port definition for Wune application (`Makefile`, `distinfo`, `pkg-descr`, `files/wune.desktop`).
