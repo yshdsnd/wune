@@ -181,8 +181,8 @@ Remove usernames or other information you do not want to share publicly from log
 ## Development / running from source
 
 For normal use, choose the ZIP described above.
-See the **[developer guide (Japanese)](docs/development.md)** for Python setup, running from source, development settings, and tests.
-See the **[packaging guide (Japanese)](docs/packaging.md)** for building the distribution ZIP and checks before publication.
+See the **[developer guide](docs/en/development.md)** for Python setup, running from source, development settings, and tests.
+See the **[packaging guide](docs/en/packaging.md)** for building the distribution packages and checks before publication.
 
 ## Credits and license
 

@@ -1,5 +1,7 @@
 # Issue #58: Windows配布物のライセンス確認
 
+[English](en/license-audit.md) / **日本語**
+
 2026-09-26、Windows 11 x64 / Python 3.13.14 / `requirements-build.txt`の固定版を用い、
 `tools/build_windows.py --version 0.0.0-issue58`で実際のZIPを生成して確認した。
 Wune本体のBSD 2-Clause（Copyright 2026 Yoshihide Sonoda）は既存のLICENSEを維持した。

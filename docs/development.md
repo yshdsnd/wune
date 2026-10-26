@@ -1,5 +1,7 @@
 # 開発・ソースからの実行
 
+[English](en/development.md) / **日本語**
+
 [利用者向けREADME](../README.md) / [パッケージの作成](packaging.md)
 
 ## 環境と起動
@@ -79,7 +81,7 @@ Python.3.13の部分は使用中のPythonで変わります。この説明はSto
 音源ファイルのレートやDAC内部の動作レートを検出するものではありません。
 起動後のデバイス・レート変更には追従せず、再起動が必要です。
 自動取得に失敗した場合はエラーで終了し、別のレート・マイク・疑似音声へ切り替えません。
-WindowsではSoundCardによる共有モードのWASAPIループバック、macOSではCore Audio Process Tap、LinuxではPulseAudio/PipeWireモニターキャプチャを使います。
+WindowsではSoundCardによる共有モードのWASAPIループバック、macOSではCore Audio Process Tap、LinuxではPulseAudio/PipeWireモニターキャプチャ、FreeBSDではSoundCardのPulseAudioバックエンドを使います。
 
 別の出力先を検証するには、次で一覧を取得し、IDまたは名前をConfigのoutput_deviceに指定します。
 確実な指定にはIDを使用してください。再生アプリも同じ出力先を使う必要があります。
@@ -210,9 +212,9 @@ python3 -m venv .venv
 
 Core Audio補助ライブラリはソース起動時に未生成ならコンパイルします。配布ビルドでは毎回再生成します。
 システムオーディオの許可は[Mac導入ガイド](../INSTALL_MACOS.md)を参照してください。
-Windows向け音声設定の説明はWASAPIに適用され、MacおよびLinuxは[音声バックエンド](audio-backends.md)の条件に従います。
+Windows向け音声設定の説明はWASAPIに適用され、Mac、Linux、FreeBSDは[音声バックエンド](audio-backends.md)の条件に従います。
 Macの設定は `~/Library/Application Support/Wune/settings.json` に保存されます。
-設定画面は各OS（Windows、macOS、Linux）ともにspawnプロセスで動作します。
+設定画面は各OS（Windows、macOS、Linux、FreeBSD）ともにspawnプロセスで動作します。
 
 ## Linux開発
 
@@ -228,4 +230,23 @@ python3 main.py
 PulseAudio / PipeWire環境でシステムのモニター音声を自動取得します。楽曲メタデータはMPRIS2（`playerctl`）から取得します。
 Linuxの設定は `~/.config/Wune/settings.json`、ログは `~/.config/Wune/Wune.log` に保存されます。
 
-次期リリースはv1.2.1、開発本線はmainです。[統合記録](integration-v1.2.1.md)を参照してください。
+## FreeBSD開発
+
+FreeBSD 14.x / 15.x（amd64）とTkinterを含むPython 3.10+環境を使用します。
+
+```bash
+# 依存パッケージの導入
+sudo pkg install -y py312-tkinter py312-cffi py312-numpy pulseaudio playerctl \
+    v4l_compat noto-basic dejavu pkgconf sdl2 sdl2_image sdl2_mixer sdl2_ttf
+
+# 仮想環境と起動
+python3.12 -m venv --system-site-packages .venv
+.venv/bin/pip install SoundCard==0.4.6
+CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" .venv/bin/pip install pygame
+.venv/bin/python main.py
+```
+
+Ports スケルトンやパッケージ生成（`.pkg`）については [FreeBSD Ports / Pkg ガイド](../packaging/freebsd/README.md) を参照してください。
+FreeBSD の設定は `~/.config/Wune/settings.json`、ログは `~/.config/Wune/Wune.log` に保存されます。
+
+現在の開発本線はmainです（次期リリース: v1.3.0）。[統合記録](integration-v1.3.0.md)を参照してください。
