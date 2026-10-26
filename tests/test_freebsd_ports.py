@@ -84,6 +84,16 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         import wune.cli as cli
         self.assertTrue(callable(cli.main))
 
+    def test_freebsd_workflow_definition_exists_and_targets_15_1(self):
+        workflow = (self.root / ".github" / "workflows" / "freebsd-package.yml").read_text(encoding="utf-8")
+        self.assertIn("vmactions/freebsd-vm@v1", workflow)
+        self.assertIn('release: "15.1"', workflow)
+        self.assertIn("packaging/freebsd", workflow)
+        self.assertIn("xorg-vfbserver", workflow)
+        self.assertIn("Wune-freebsd-pkg", workflow)
+        self.assertIn("dejavu", workflow)
+        self.assertIn("fontconfig", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

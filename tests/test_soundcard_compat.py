@@ -81,6 +81,28 @@ class PropVariantTests(unittest.TestCase):
                 import sys
                 self.assertEqual(sys.platform, "freebsd15")
 
+    def test_freebsd_prepare_soundcard_stubs_when_pulse_daemon_assertion_fails(self):
+        with patch("wune.soundcard_compat.sys.platform", "freebsd15"):
+            # Ensure soundcard is not in sys.modules initially
+            with patch.dict("sys.modules", {}):
+                import sys
+                sys.modules.pop("soundcard", None)
+                import builtins
+                orig_import = builtins.__import__
+                def fake_import(name, *args, **kwargs):
+                    if name == "soundcard":
+                        raise AssertionError("PulseAudio not ready")
+                    return orig_import(name, *args, **kwargs)
+
+                with patch("builtins.__import__", side_effect=fake_import):
+                    prepare_soundcard()
+                    self.assertIn("soundcard", sys.modules)
+                    sc = sys.modules["soundcard"]
+                    self.assertTrue(hasattr(sc, "default_speaker"))
+                    self.assertTrue(hasattr(sc, "default_microphone"))
+                    self.assertTrue(hasattr(sc, "all_speakers"))
+                    self.assertTrue(hasattr(sc, "all_microphones"))
+
 
 
 class ComErrorFilterTests(unittest.TestCase):

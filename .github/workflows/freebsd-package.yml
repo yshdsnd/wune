@@ -1,0 +1,139 @@
+name: FreeBSD package
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version without v (e.g. 1.3.0)
+        required: true
+        default: 0.0.0-dev
+      release_identity:
+        description: Build a release-identified candidate without creating a tag or publishing
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      REQUESTED_VERSION: ${{ inputs.version }}
+      RELEASE_IDENTITY: ${{ inputs.release_identity }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test in FreeBSD 15.1 VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "15.1"
+          usesh: true
+          sync: rsync
+          envs: 'REQUESTED_VERSION RELEASE_IDENTITY'
+          prepare: |
+            export ASSUME_ALWAYS_YES=yes
+            pkg bootstrap -f
+            pkg update -f
+            pkg install -y git python312 py312-setuptools py312-cffi py312-numpy \
+                           py312-game py312-tkinter pulseaudio playerctl \
+                           desktop-file-utils xorg-vfbserver dejavu noto-basic fontconfig
+            git clone --filter=blob:none --no-checkout --depth 1 https://git.freebsd.org/ports.git /usr/ports
+            cd /usr/ports
+            git sparse-checkout init --cone
+            git sparse-checkout set Mk Templates lang
+            git checkout
+          run: |
+            export ASSUME_ALWAYS_YES=yes
+
+            # 1. Determine version argument if building from release tag or custom input
+            version_arg=""
+            if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+              version="${GITHUB_REF_NAME#v}"
+              version_arg="DISTVERSION=${version}"
+            elif [ -n "$REQUESTED_VERSION" ] && [ "$REQUESTED_VERSION" != "0.0.0-dev" ]; then
+              version_arg="DISTVERSION=${REQUESTED_VERSION}"
+            fi
+
+            # 2. Build FreeBSD packages for py-soundcard and wune
+            make -C packaging/freebsd ${version_arg} package
+
+            # 3. Install packages (provides soundcard dependency and validates installation)
+            pkg install -y packaging/freebsd/packages/py*-soundcard-*.pkg
+            pkg install -y packaging/freebsd/packages/wune-*.pkg
+
+            # 4. Verify package metadata and installed documentation
+            pkg info wune
+            pkg info -d wune
+            pkg info -l wune
+            ls -la /usr/local/share/doc/wune-*
+
+            # 5. Sanity check CLI entry point
+            wune --help
+
+            # 6. Start audio daemon and run full unit test suite in Xvfb
+            (Xvfb :99 -screen 0 1024x768x24 >/dev/null 2>&1 &)
+            sleep 1
+
+            # Configure and launch headless PulseAudio daemon with a null sink
+            cat << 'EOF' > /tmp/pulse-ci.pa
+            load-module module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-socket auth-cookie-enabled=0
+            load-module module-null-sink sink_name=wune_dummy sink_properties=device.description="Wune_Dummy_Speaker"
+            set-default-sink wune_dummy
+            set-default-source wune_dummy.monitor
+            EOF
+
+            pulseaudio --system --disallow-exit --disallow-module-loading=0 --disable-shm -n -F /tmp/pulse-ci.pa --daemonize || pulseaudio --disable-shm -n -F /tmp/pulse-ci.pa --daemonize || true
+
+            export PULSE_SERVER=unix:/tmp/pulse-socket
+            pactl info || true
+
+            DISPLAY=:99 PULSE_SERVER=unix:/tmp/pulse-socket python3.12 -m unittest discover -s tests -p 'test_*.py'
+            killall Xvfb || true
+            killall pulseaudio || true
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          cd packaging/freebsd/packages
+          for f in *.pkg; do
+            [ -f "$f" ] && sha256sum "$f" > "${f}.sha256"
+          done
+          ls -lh
+
+      - name: Upload FreeBSD package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wune-freebsd-pkg
+          path: |
+            packaging/freebsd/packages/*.pkg
+            packaging/freebsd/packages/*.pkg.sha256
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Wune-freebsd-pkg
+          path: artifacts
+      - name: Attach to a release (new releases remain drafts)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --notes 'Standalone packages. Validate installation and update release notes before publishing.' || true
+          fi
+          gh release upload "$RELEASE_TAG" artifacts/*
