@@ -1,9 +1,12 @@
-# Windows・macOS・Linuxパッケージの作成
+# Windows・macOS・Linux・FreeBSDパッケージの作成
 
-配布形式はPyInstallerのonedirをアーカイブ／パッケージ化したものです。
+[English](en/packaging.md) / **日本語**
+
+配布形式はPyInstallerのonedirをアーカイブ／パッケージ化したもの（Windows、macOS、Linux）、およびFreeBSD Portsによるバイナリパッケージ（`.pkg`）です。
 - Windows: `Wune-vX.Y.Z-win64.zip`（`Wune/Wune.exe`、`_internal/` を同梱）
 - macOS: `Wune-vX.Y.Z-macos-arm64.zip`（`Wune.app` を同梱）
 - Linux: `Wune-vX.Y.Z-linux-x64.tar.gz`、`Wune-vX.Y.Z-linux-x64.zip`、`Wune-vX.Y.Z-1.x86_64.rpm`、`wune_X.Y.Z_amd64.deb`
+- FreeBSD: `wune-X.Y.Z.pkg`、`py312-soundcard-0.4.6.pkg`（Ports経由で生成）
 
 ## 開発者向けローカルビルド
 
@@ -12,8 +15,8 @@ Windows x64とPython 3.13.14 x64を使い、専用の仮想環境で実行しま
 
 ```powershell
 python -m venv .venv-package
-.venv-package\Scripts\python -m pip install -r requirements-build.txt
-.venv-package\Scripts\python tools/build_windows.py --version 1.2.1
+.\.venv-package\Scripts\python -m pip install -r requirements-build.txt
+.\.venv-package\Scripts\python tools/build_windows.py --version 1.3.0
 ```
 
 ### Linux (x86_64)
@@ -23,13 +26,24 @@ Fedora / RHEL または Ubuntu / Debian 上で実行します（`.rpm` 生成に
 python3 -m venv .venv-package
 source .venv-package/bin/activate
 pip install -r requirements-build.txt
-python3 tools/build_linux.py --version 1.2.1
+python3 tools/build_linux.py --version 1.3.0
 ```
 
 テスト、PyInstaller、別フォルダーへコピーしたバイナリの依存物チェック、アーカイブ・パッケージとSHA-256作成を順に行います。
 同じ名前の既存成果物は上書きしません。出力は `dist/`、作業ファイルは `build/` です。
 依存物チェックの結果とログは `%TEMP%/Wune-package-check-*` に残します。
 音声機器のないCIでもチェックできるよう、この確認では録音せずWASAPIライブラリの読み込みまでを検証します。
+
+### FreeBSD (amd64)
+FreeBSD Ports スケルトンを利用して、リポジトリ作業ツリーから直接 `.pkg` バイナリパッケージを生成できます。
+詳細は **[FreeBSD Ports / Pkg ガイド](../packaging/freebsd/README.md)** を参照してください。
+
+```bash
+cd packaging/freebsd
+make package
+```
+
+生成された `.pkg` は `packaging/freebsd/packages/` 配下に出力されます。
 
 ## ライセンスと対応ソースの検証
 
@@ -76,16 +90,16 @@ PRと手動実行はZIPをActionsの `Wune-win64` artifactに保存します。
 ## 最終候補と公開
 
 1. リリース準備の変更をmainへ取り込む。
-2. ActionsのWindows package、macOS package、Linux packageを同じmainコミットで手動実行し、versionを1.2.1、release_identityをオンにする。
+2. ActionsのWindows package、macOS package、Linux package、FreeBSD packageを同じmainコミットで手動実行し、versionを1.3.0、release_identityをオンにする。
 3. 候補ZIP・アーカイブ・パッケージ、SHA-256と同梱ファイルを確認し、下記の実機確認を完了する。
-4. 確認したコミットにv1.2.1タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
+4. 確認したコミットにv1.3.0タグを作成する。タグのビルド後に生成されるReleaseはdraftのまま保持する。
 5. タグ版のSHA-256・識別情報・ライセンスを再確認し、リリース本文を記入して公開する。
 
 実機確認が未完了の候補を、確認済みとしてタグ付け・公開しないこと。
 
 ## 実機確認
 
-各OS（Windows 11、macOS Apple Silicon、Linux Fedora 44）で再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限、LinuxはPipeWire／PulseAudioのループバック取得とMPRIS2曲名表示も確認します（RHEL系やUbuntu／Debian系はCIでのパッケージ生成・スモークテストのみ実施）。CIの非録音テストはこれらの代わりにはなりません。
+各OS（Windows 11、macOS Apple Silicon、Linux Fedora、FreeBSD 15.1）で再生／停止、出力レート、設定のプレビュー・保存・取消、全画面、英日表示、背景、メニュー、終了確認、無音復帰を確認します。Windowsは同一モニター全画面復元、MacはSpaces／設定の前面表示と音声権限、Linux/FreeBSDはPulseAudio/PipeWireのループバック取得と曲名表示も確認します。CIの非録音テストはこれらの代わりにはなりません。
 
 参考: [PyInstaller spec files](https://pyinstaller.org/en/stable/spec-files.html)、
 [windowedの標準入出力](https://pyinstaller.org/en/stable/common-issues-and-pitfalls.html)、
@@ -98,15 +112,15 @@ Python 3.13.14（Tk対応）、Xcode Command Line Toolsを用意します。
 ```sh
 python3 -m venv .venv-package
 .venv-package/bin/python -m pip install -r requirements-build.txt
-.venv-package/bin/python tools/build_macos.py --version 1.2.1
+.venv-package/bin/python tools/build_macos.py --version 1.3.0
 ```
 
 arm64専用です。Core Audioライブラリをソースから再生成し、全テスト、PyInstaller、アドホック署名・検証、移動後のアプリ起動チェックを実行します。チェックは音声権限を要求せず、ライブラリ読み込み、背景・メニュー・確認画面、日本語／英語、設定保存、実際の設定用子プロセスを検証します。
 
-出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド（`INSTALL.md` / `INSTALL.en.md`）、LICENSE、licenses、build-info.jsonを含みます。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
+出力は `dist/Wune-vX.Y.Z-macos-arm64.zip` とSHA-256です。ZIP直下に `Wune.app`、日英README・導入ガイド（`INSTALL_MACOS.md` / `INSTALL_MACOS.en.md`）、LICENSE、licenses、build-info.jsonを含みます。Macのアプリ内識別情報は `Contents/MacOS/build-info.json`、Info.plistには数値版のみを記録します。
 
 Macの `licenses/inventory.json` は署名後アプリのファイルハッシュ、PyInstaller収集元、依存wheelの通知を記録します。Windows専用のDLLハッシュ照合をMacへ流用しません。Macのネイティブ依存物の最終ライセンス確認はリリース確認項目として残ります。通知と対応ソースはZIP内の実データでも照合します。
 
 MacはDeveloper ID署名・公証済みではありません。初回起動は[導入ガイド](../INSTALL_MACOS.md)の手順で許可します。
 
-Actionsの **macOS package** は `macos-15` のApple Siliconで実行し、artifact `Wune-macos` に保存します。Windowsと同様、PR・手動実行は公開せず、タグ時のみReleaseに添付します。同名assetは上書きしません。v1.2.1公開前には各OSのワークフローを同じコミットから実行し、実機確認を終えてからタグ・公開へ進みます。
+Actionsの **macOS package** は `macos-15` のApple Siliconで実行し、artifact `Wune-macos` に保存します。Windowsと同様、PR・手動実行は公開せず、タグ時のみReleaseに添付します。同名assetは上書きしません。v1.3.0公開前には各OSのワークフローを同じコミットから実行し、実機確認を終えてからタグ・公開へ進みます。

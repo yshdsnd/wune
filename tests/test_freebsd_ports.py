@@ -13,7 +13,7 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         wune_port = self.freebsd_dir / "ports" / "audio" / "wune"
         makefile = (wune_port / "Makefile").read_text(encoding="utf-8")
         self.assertIn("PORTNAME=\twune", makefile)
-        self.assertIn("DISTVERSION=\t1.2.1.s20261024", makefile)
+        self.assertIn("DISTVERSION=\t1.3.0", makefile)
         self.assertIn("CATEGORIES=\taudio", makefile)
         self.assertIn("USE_GITHUB=\tyes", makefile)
         self.assertIn("GH_ACCOUNT=\tyshdsnd", makefile)
@@ -72,12 +72,12 @@ class FreeBsdPortsPackagingTests(unittest.TestCase):
         pyproject_content = (self.root / "pyproject.toml").read_bytes()
         data = tomllib.loads(pyproject_content.decode("utf-8"))
         self.assertEqual(data["project"]["name"], "wune")
-        self.assertEqual(data["project"]["version"], "1.2.1")
+        self.assertEqual(data["project"]["version"], "1.3.0")
         self.assertEqual(data["project"]["scripts"]["wune"], "wune.cli:main")
 
         setup_content = (self.root / "setup.py").read_text(encoding="utf-8")
         self.assertIn('name="wune"', setup_content)
-        self.assertIn('version="1.2.1"', setup_content)
+        self.assertIn('version="1.3.0"', setup_content)
         self.assertIn('"wune = wune.cli:main"', setup_content)
 
     def test_cli_entry_point_imports_cleanly(self):

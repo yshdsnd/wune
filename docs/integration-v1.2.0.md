@@ -1,6 +1,8 @@
 # v1.2.0 main統合記録
 
-次期メジャー/マイナーアップデート v1.2.0 に向けた main ブランチの変更・統合記録です。
+[English](en/integration-v1.2.0.md) / **日本語**
+
+メジャー/マイナーアップデート v1.2.0 に向けた main ブランチの変更・統合記録です。
 主な変更点は、Linux プラットフォームの正式サポート（Issue #76）、ヘッダーフォントおよび情報バーフォントのカスタマイズ機能（Issue #176）、メディア情報取得と UI レイアウトの改善です。
 
 | 機能 | 統合内容・対応 | 関連 Issue / PR |
@@ -57,12 +59,3 @@
 - **wune/config.py / settings.py**: `info_font_bold` 設定の保持と永続化。
 - **tools/build_linux.py / Wune-linux.spec / .github/workflows/linux-package.yml**: Linux 向けバイナリ・パッケージ生成（tar.gz, zip, rpm, deb）および CI ビルド。
 - **INSTALL_LINUX.md / INSTALL_LINUX.en.md**: Fedora, RHEL, Ubuntu, Debian 向けの導入手順および実機検証情報。
-
-## リリース前の確認事項
-
-1. 各 OS（Windows 11、macOS Apple Silicon、Linux Fedora 44）でのパッケージビルドとスモークテスト。
-2. 音声ループバックキャプチャ（WASAPI / Core Audio Process Tap / PulseAudio・PipeWire）の動作確認。
-3. 再生中楽曲（GSMTC / Music Center / Apple Music / MPRIS2）のメタデータ表示確認。
-4. 設定画面（フォントサイズ・ファミリ・太字、スペクトラムの自動調整ボタンおよびリサイズ時チェックボックス、コンボボックス表示、言語切替、テーマ、ウィンドウサイズプリセット）の変更・保存・キャンセル動作確認。
-5. Linux 環境（Fedora 44 / Ubuntu 等）での設定画面表示（テーマ一覧 Treeview の文字潰れがないこと、UI 余白の確認）。
-6. 全単体テスト（tests/*.py）が正常に PASS することの確認。

@@ -1,38 +1,31 @@
-# Cross-platform window and settings integration
+# クロスプラットフォームのウィンドウと設定画面統合
 
-Settings dialogs run in a spawned child process (`multiprocessing.get_context("spawn")`)
-across Windows, macOS, and Linux so Tkinter owns that process's main thread without
-interfering with pygame's rendering loop or audio capture.
-The main application loop retains ownership of preferences:
-preview, apply, save, and cancel exchange serializable snapshots over multiprocessing queues.
-An unexpected child-process failure rolls back any uncommitted preview.
-Closing settings joins the worker process and releases its queues; a worker that
-does not exit within the shutdown timeout is terminated.
+[English](en/macos-windows.md) / **日本語**
 
-## Platform Differences
+設定ダイアログは、Windows、macOS、Linux、FreeBSD のいずれの環境でも spawn 子プロセス（`multiprocessing.get_context("spawn")`）として実行されます。これにより、Tkinter がそのプロセスのメインスレッドを占有し、pygame の描画ループや音声キャプチャと干渉することを防いでいます。
+メインアプリケーションループが設定値の所有権を保持し、プレビュー、適用、保存、取消の各操作はマルチプロセッシングキューを介して直列化可能なスナップショットとしてやり取りされます。
+子プロセスで予期せぬ例外が発生した場合は、未確定のプレビュー内容が直ちにロールバックされます。
+設定画面を閉じるとワーカプロセスの終了を待機（join）してキューを解放し、シャットダウンタイムアウト内に終了しなかったワーカプロセスは強制終了されます。
+
+## プラットフォーム固有の挙動
 
 ### Windows
-- Window ownership: Passes the Win32 window handle (`winfo_id()`) to maintain proper
-  z-order above fullscreen pygame surfaces and safe ownership rebinding during display changes.
-- Dialog sizing: Default minimum window size is 580x460 px, tailored to Segoe UI font metrics and compact tab layouts.
-- Keyboard shortcuts: F2 (settings), Alt+Enter / F11 (fullscreen), Space (pause), Esc / Q (quit).
+- ウィンドウの親子関係: Win32 ウィンドウハンドル（`winfo_id()`）を渡すことで、全画面表示中の pygame サーフェスよりも手前にダイアログを適切に配置（Z オーダー維持）し、画面構成変更時も安全に親ウィンドウへ再バインドします。
+- ダイアログサイズ: Segoe UI のフォントメトリクスとコンパクトなタブレイアウトに合わせ、初期・最小サイズを 580x460 px に設定。
+- キーボードショートカット: F2（設定）、Alt+Enter / F11（全画面）、Space（一時停止）、Esc / Q（終了確認）。
 
 ### macOS
-- Frontmost activation: Settings do not use Win32 handles; they activate their own process
-  via `SetFrontProcessWithOptions` and `focus_force()`.
-- Keyboard shortcuts: Adds Command+F (fullscreen) and Command+, (settings) alongside standard shortcuts.
-- Monitor bounds: Obtained via CoreGraphics (`CGGetActiveDisplayList`), with fallback to online
-  displays and pygame. Bounds are desktop coordinates rather than Retina physical pixel sizes.
-- Fullscreen restoration: macOS currently launches windowed on startup.
+- 最前面アクティベーション: Win32 ハンドルは使用せず、`SetFrontProcessWithOptions` および `focus_force()` により設定ダイアログプロセス自身を最前面にアクティブ化します。
+- ショートカット: 標準のショートカットに加え、Command+F（全画面）および Command+,（設定）をサポート。
+- モニター解像度の取得: CoreGraphics（`CGGetActiveDisplayList`）経由で取得し、必要に応じてオンラインディスプレイ一覧や pygame へフォールバック。解像度は Retina の物理ピクセルではなくデスクトップ座標系で取得します。
+- 全画面復元: macOS では現在、起動時はウィンドウ表示から開始します。
 
-### Linux / Unix
-- Dialog sizing: Minimum window size is 640x540 px to accommodate Linux desktop font metrics
-  (Noto Sans / DejaVu Sans), dynamic Treeview row heights for CJK text, and comfortable widget padding.
-- Window management: Respects X11 and Wayland window manager placement.
-- Shortcuts: Standard F2, Alt+Enter / F11, Space, Esc / Q.
+### Linux / FreeBSD / Unix
+- ダイアログサイズ: X11 / Wayland 環境でのデスクトップフォント（Noto Sans / DejaVu Sans）、CJK テキスト向けの動的 Treeview 行高、適正なウィジェット余白を考慮し、最小サイズを 640x540 px に設定。
+- ウィンドウ管理: X11 および Wayland のウィンドウマネージャーによる配置ルールを尊重。
+- ショートカット: 標準の F2、Alt+Enter / F11、Space、Esc / Q をサポート。
 
-## Multiprocessing and Frozen Bundles
+## マルチプロセッシングと配布パッケージ
 
-Source and packaged entry points invoke `multiprocessing.freeze_support()`.
-In packaged builds, the child process must enter multiprocessing routines before log
-initialization to prevent recursive application startup or truncation of the parent's `Wune.log`.
+ソース起動およびパッケージ版のエントリポイントの両方で `multiprocessing.freeze_support()` を呼び出します。
+パッケージ化されたビルドでは、ログの初期化前に子プロセスがマルチプロセッシングルーチンに入らなければならず、これによりアプリケーションの再帰的な二重起動や親プロセスの `Wune.log` 切り捨てを防止しています。
