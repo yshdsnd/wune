@@ -85,6 +85,10 @@ class App:
         self.now_playing.start()
         self.update_info_text()
         self.update_now_playing_text()
+        from .sleep_inhibitor import SleepInhibitor
+        self.sleep_inhibitor = SleepInhibitor()
+        self._silence_start_time = None
+        self.sleep_inhibitor.set_inhibited(False)
 
     def _set_mode(self, size, flags, *, display=None, hidden=False):
         hidden_flag = getattr(pg, "HIDDEN", 0)
@@ -104,6 +108,8 @@ class App:
             # releasing the old one; queued events may still reference it.
             from pygame._sdl2.video import Window
             self._display_window = Window.from_display_module()
+        if hasattr(self, "sleep_inhibitor"):
+            self.sleep_inhibitor.apply()
 
     def _geometry_window(self):
         if self._display_window is None:
@@ -514,6 +520,9 @@ class App:
         warnings.warn("System resume detected; refreshing audio capture stream.", RuntimeWarning)
         self.spectrum.restart_capture()
         self._idle_frames = 0
+        self._silence_start_time = None
+        if hasattr(self, "sleep_inhibitor"):
+            self.sleep_inhibitor.set_inhibited(False)
         self._redraw_requested = True
         self.clock.tick()  # Reset clock interval to prevent huge dt spike
         self.update_info_text()
@@ -548,6 +557,20 @@ class App:
                                or self.menu.anchor is not None
                                or self.exit_confirmation.active)
                 self._idle_frames = self._idle_frames + 1 if silent and not interactive else 0
+
+                # Manage screen turn-off and sleep suppression based on audio playback state
+                is_audio_active = (not self.paused) and not silent
+                now_mono = time.monotonic()
+                if is_audio_active:
+                    self._silence_start_time = None
+                    self.sleep_inhibitor.set_inhibited(True)
+                else:
+                    if self._silence_start_time is None:
+                        self._silence_start_time = now_mono
+                    idle_timeout = getattr(self.cfg, "sleep_inhibit_idle_seconds", 10.0)
+                    if now_mono - self._silence_start_time >= idle_timeout:
+                        self.sleep_inhibitor.set_inhibited(False)
+
                 if self._idle_frames > 30 and self._idle_frames % 60 != 0:
                     continue
                 # Pause reuses the last levels and freezes peak timers.
@@ -570,6 +593,11 @@ class App:
                 self.cfg.confirm_keyboard_exit = False
             self.save_settings()
         finally:
+            if hasattr(self, "sleep_inhibitor"):
+                try:
+                    self.sleep_inhibitor.close()
+                except Exception:
+                    pass
             if hasattr(self, "now_playing") and self.now_playing is not None:
                 try:
                     self.now_playing.stop()
