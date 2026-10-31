@@ -87,6 +87,7 @@ class Config:
 
     silence_rms_threshold: float = 5e-3     # 無音判定
     quiet_dbfs_floor: float = -55.0         # これ未満は“静寂”扱いにする
+    sleep_inhibit_idle_seconds: float = 10.0 # 無音時に画面消灯・スリープ抑止を解除するまでの待機秒数
 
     # ビジュアルエンベロープの調整
     vis_attack_ms: int = 5
