@@ -204,6 +204,10 @@ def layout_has_clearance(layout, cfg, size) -> bool:
     scale = getattr(layout, "ui_scale", 1.0)
     gap = max(4, round(4 * scale))
 
+    # Horizontal boundary check (ensure left labels and right plot edge fit inside window)
+    if layout.plots[-1][0] + layout.plots[-1][2] + 16 > width:
+        return False
+
     # Top boundary check (Now playing bar / top info bar)
     top_limit = 0
     if layout.now_playing_rect:
@@ -355,8 +359,12 @@ def calculate_layout(size, cfg):
     bar_gap = getattr(cfg, "bar_gap", 2)
     is_fvert = (cfg.spectrum_orientation == "frequency_vertical")
     adaptive = getattr(cfg, "adaptive_fill", False)
+    min_group_x = max(0, round(32 * (scale - 1.0)))
 
     if adaptive:
+        # Subtract the required left group margin (min_group_x) so adaptive fill does not expand
+        # into the label margin area, preventing right-edge overflow when group_x is positioned.
+        adaptive_avail_w = max(nx, available_w - (min_group_x // cols if cols > 1 else min_group_x))
         min_ratio = max(0.8, round(ratio * 0.6, 2))
         max_ratio = min(5.0, round(ratio * 2.2, 2))
         best_area = -1
@@ -370,7 +378,7 @@ def calculate_layout(size, cfg):
             plot_h = ny * h + (ny - 1) * y_gap
             if plot_h > available_h:
                 continue
-            avail_bar_space = available_w - (nx - 1) * x_gap
+            avail_bar_space = adaptive_avail_w - (nx - 1) * x_gap
             if avail_bar_space < nx:
                 continue
             max_w_from_avail = avail_bar_space // nx
@@ -379,7 +387,7 @@ def calculate_layout(size, cfg):
             if target_w < int(h * min_ratio):
                 continue
             plot_w = nx * target_w + (nx - 1) * x_gap
-            if plot_w <= available_w and plot_h <= available_h:
+            if plot_w <= adaptive_avail_w and plot_h <= available_h:
                 area = plot_w * plot_h
                 if area > best_area:
                     best_area = area
@@ -418,8 +426,9 @@ def calculate_layout(size, cfg):
     total_h = rows * packed_h + (rows - 1) * cfg.channel_gap
 
     # Group centering with safety margins to prevent overlapping with info bars or window edges
-    min_group_x = max(0, round(32 * (scale - 1.0)))
-    group_x = max(min_group_x, (width - total_w) // 2)
+    group_x = (width - total_w) // 2
+    if group_x < min_group_x:
+        group_x = max(0, min(min_group_x, width - total_w))
     group_y = min_group_y + max(0, (max_plot_bottom - min_group_y - total_h)) // 2
 
     for ch in range(cfg.display_channels):

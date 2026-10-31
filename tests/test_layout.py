@@ -168,3 +168,48 @@ class LayoutTests(unittest.TestCase):
             minimum_window_size(Config(channel_layout="invalid"))
         with self.assertRaises(ValueError):
             minimum_window_size(Config(bars=0))
+
+    def test_issue_200_no_right_edge_overflow_at_high_res_and_fullscreen(self):
+        """Issue #200: Vertical layout when maximized or fullscreen on high-DPI displays
+        must not clip spectrum bars or labels on the right, while preserving left label clearance.
+        """
+        resolutions = ((3840, 2088), (3840, 2160), (2560, 1440), (1920, 1080))
+        for channel_layout in ("vertical", "horizontal"):
+            for orientation in ("frequency_horizontal", "frequency_vertical"):
+                for adaptive in (True, False):
+                    cfg = Config(channel_layout=channel_layout,
+                                 spectrum_orientation=orientation,
+                                 adaptive_fill=adaptive,
+                                 bars=32)
+                    for size in resolutions:
+                        with self.subTest(channel_layout=channel_layout,
+                                         orientation=orientation,
+                                         adaptive=adaptive,
+                                         size=size):
+                            layout = calculate_layout(size, cfg)
+                            for ch_idx, plot in enumerate(layout.plots):
+                                px, py, pw, ph = plot
+                                # Right edge must not exceed window width (minimum 16px right margin)
+                                self.assertLessEqual(px + pw, size[0] - 16,
+                                                     f"Plot {ch_idx} right edge overflows at {size}")
+                                # Left edge must leave clearance for axis labels
+                                self.assertGreaterEqual(px, max(50, cfg.margin_lr),
+                                                        f"Plot {ch_idx} left clearance violated at {size}")
+
+        # Also verify renderer rendering with 20kHz scale and dB labels at 4K maximized
+        cfg_4k = Config(channel_layout="vertical", adaptive_fill=True, bars=32)
+        surf_4k = pg.Surface((3840, 2088))
+        renderer = LedBarRenderer(surf_4k, cfg_4k)
+        scale = renderer.ui_scale
+        pad = max(4, round(cfg_4k.db_label_pad * scale))
+        for plot in renderer.plots:
+            # 20kHz frequency label position
+            freq_img = renderer.font_scale.render("20kHz", True, cfg_4k.theme.scale_text)
+            freq_rect = freq_img.get_rect()
+            freq_rect.left = max(plot.left, min(freq_rect.left, plot.right - freq_rect.width))
+            self.assertLessEqual(freq_rect.right, 3840)
+
+            # Left dB label position
+            db_img = renderer.font_scale.render("-60", True, cfg_4k.theme.db_text)
+            db_left = (plot.left - pad) - db_img.get_width()
+            self.assertGreaterEqual(db_left, 0)
