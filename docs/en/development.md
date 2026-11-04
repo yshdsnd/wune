@@ -209,4 +209,4 @@ CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" .venv/bin/pip install p
 See the [FreeBSD Ports / Pkg Guide](../../packaging/freebsd/README.md) for ports and package generation.
 Settings are stored in `~/.config/Wune/settings.json`, and logs in `~/.config/Wune/Wune.log`.
 
-The active development branch is `main` (Next release: v1.3.0). See the [Integration Log](integration-v1.3.0.md).
+The active development branch is `main` (Next release: v1.3.1). See the [Integration Log](integration-v1.3.1.md).
