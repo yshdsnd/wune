@@ -249,4 +249,4 @@ CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" .venv/bin/pip install p
 Ports スケルトンやパッケージ生成（`.pkg`）については [FreeBSD Ports / Pkg ガイド](../packaging/freebsd/README.md) を参照してください。
 FreeBSD の設定は `~/.config/Wune/settings.json`、ログは `~/.config/Wune/Wune.log` に保存されます。
 
-現在の開発本線はmainです（次期リリース: v1.3.0）。[統合記録](integration-v1.3.0.md)を参照してください。
+現在の開発本線はmainです（次期リリース: v1.3.1）。[統合記録](integration-v1.3.1.md)を参照してください。

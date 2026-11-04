@@ -1,5 +1,5 @@
 PORTNAME=	wune
-DISTVERSION=	1.3.0
+DISTVERSION=	1.3.1
 CATEGORIES=	audio
 
 MAINTAINER=	yshd.snd@gmail.com
