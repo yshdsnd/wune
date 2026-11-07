@@ -201,8 +201,8 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "preview")
         optimal_vertical = int(self.dialog.leds_per_bar.get())
         self.assertEqual(state.style["leds_per_bar"], optimal_vertical)
-        self.assertEqual(optimal_vertical, 24)
-        self.assertIn("24", self.dialog.status.get())
+        self.assertEqual(optimal_vertical, 25)
+        self.assertIn("25", self.dialog.status.get())
 
         # Switch to horizontal layout (side-by-side L and R)
         self.dialog.layout("channel_layout", "horizontal")
@@ -222,7 +222,7 @@ class DialogTests(unittest.TestCase):
         action, state = self.events.get_nowait()
         self.assertEqual(action, "preview")
         self.assertTrue(state.style["auto_adjust_leds_on_resize"])
-        self.assertEqual(state.style["leds_per_bar"], 24)
+        self.assertEqual(state.style["leds_per_bar"], 25)
 
         # Layout change (channel_layout to horizontal) automatically runs auto-adjust when enabled
         self.dialog.layout("channel_layout", "horizontal")

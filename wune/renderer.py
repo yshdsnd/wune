@@ -50,6 +50,7 @@ class LedBarRenderer:
         # 表示用インフォテキスト（外部からセット）
         self.info_text = ""
         self.now_playing_text = ""
+        self.badge_hovered = False
         self.resize(surf)
 
     def _create_fonts(self, scale: float = 1.0):
@@ -176,22 +177,34 @@ class LedBarRenderer:
         if not self.cfg.show_badge:
             return None
         scale = getattr(self, "ui_scale", 1.0)
-        width, height = self.badge_text().get_size()
         pad_x = max(16, round(16 * scale))
         pad_y = max(8, round(8 * scale))
-        right_pad = max(24, round(24 * scale))
+        right_pad = max(16, round(16 * scale))
         y = max(14, round(14 * scale))
-        return pg.Rect(self.width - width - pad_x - right_pad, y, width + pad_x, height + pad_y)
+        btn_rect = ApplicationMenu.button_rect(self.font_menu, self.cfg.language)
+        font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
+        ref_w = max(font.size("FIREBIRD")[0], font.size("00000000")[0])
+        badge_w = ref_w + pad_x
+        badge_h = max(btn_rect.height, font.get_height() + pad_y)
+        return pg.Rect(self.width - badge_w - right_pad, y, badge_w, badge_h)
 
-    def badge_text(self):
+    def badge_text(self, dimmed: bool = False):
         font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
         name = self.preset_name
-        available = self.width - ApplicationMenu.button_rect(self.font_menu, self.cfg.language).right - 64
-        if font.size(name)[0] > available:
-            while name and font.size(name + "…")[0] > available:
+        ref_w = max(font.size("FIREBIRD")[0], font.size("00000000")[0])
+        if len(name) > 8:
+            name = name[:7]
+            while name and font.size(name + "…")[0] > ref_w:
                 name = name[:-1]
             name += "…"
-        return font.render(name, True, self.cfg.theme.badge_text)
+        elif font.size(name)[0] > ref_w:
+            while name and font.size(name + "…")[0] > ref_w:
+                name = name[:-1]
+            name += "…"
+        color = self.cfg.theme.badge_text
+        if dimmed:
+            color = tuple(round(c * 0.55) for c in color)
+        return font.render(name, True, color)
 
     def badge_contains(self, pos):
         rect = self.badge_rect()
@@ -200,10 +213,21 @@ class LedBarRenderer:
     def now_playing_rect(self) -> pg.Rect | None:
         if not self.cfg.show_now_playing:
             return None
-        if self._layout and self._layout.now_playing_rect:
-            return pg.Rect(self._layout.now_playing_rect)
-        rect = calculate_layout(self.surf.get_size(), self.cfg).now_playing_rect
-        return pg.Rect(rect) if rect else None
+        btn_rect = ApplicationMenu.button_rect(self.font_menu, self.cfg.language)
+        scale = getattr(self, "ui_scale", 1.0)
+        gap = max(8, round(8 * scale))
+        x_margin = max(16, round(16 * scale))
+        np_x = btn_rect.right + gap
+        if self.cfg.show_badge:
+            b_rect = self.badge_rect()
+            np_right = (b_rect.left - gap) if b_rect else (self.width - x_margin)
+        else:
+            np_right = self.width - x_margin
+        np_w = max(20, np_right - np_x)
+        b_rect = self.badge_rect() if self.cfg.show_badge else None
+        badge_h = b_rect.height if b_rect else 0
+        h = max(btn_rect.height, badge_h)
+        return pg.Rect(np_x, btn_rect.y, np_w, h)
 
     def draw_panel(self):
         self.background.draw(self.surf, self.cfg)
@@ -212,19 +236,26 @@ class LedBarRenderer:
         # テーマ切り替えバッジ（アプリ名はウィンドウのタイトルバーに表示）
         if self.cfg.show_badge:
             scale = getattr(self, "ui_scale", 1.0)
-            text = self.badge_text()
+            hovered = getattr(self, "badge_hovered", False)
+            text = self.badge_text(dimmed=not hovered)
             tw, th = text.get_size()
             rect = self.badge_rect()
             bx, by = rect.topleft
             glow_pad = max(2, round(2 * scale))
-            corner_radius = max(8, round(10 * scale))
-            # グロー風
-            pg.draw.rect(self.surf, self.cfg.theme.badge_glow,
-                         (bx - glow_pad, by - glow_pad, rect.width + glow_pad * 2, rect.height + glow_pad * 2),
-                         border_radius=corner_radius)
-            pg.draw.rect(self.surf, self.cfg.theme.badge_background, rect, border_radius=corner_radius)
+            corner_radius = max(6, round(8 * scale))
+            if hovered:
+                # グロー風
+                pg.draw.rect(self.surf, self.cfg.theme.badge_glow,
+                             (bx - glow_pad, by - glow_pad, rect.width + glow_pad * 2, rect.height + glow_pad * 2),
+                             border_radius=corner_radius)
+                pg.draw.rect(self.surf, self.cfg.theme.badge_background, rect, border_radius=corner_radius)
+                pg.draw.rect(self.surf, self.cfg.theme.badge_glow, rect, width=1, border_radius=corner_radius)
+            else:
+                pg.draw.rect(self.surf, self.cfg.theme.badge_background, rect, border_radius=corner_radius)
+                dim_border = tuple(round(c * 0.40) for c in self.cfg.theme.border)
+                pg.draw.rect(self.surf, dim_border, rect, width=1, border_radius=corner_radius)
             self.surf.blit(text, (bx + (rect.width - tw) // 2, by + (rect.height - th) // 2))
-        # 再生中の曲情報バー（メニューの下：ウィンドウサイズ維持のため設定ON時は枠を常設）
+        # 再生中の曲情報バー（タイトルバー風）
         if self.cfg.show_now_playing:
             scale = getattr(self, "ui_scale", 1.0)
             bar_rect = self.now_playing_rect()
@@ -241,7 +272,8 @@ class LedBarRenderer:
                     if fitted:
                         text_surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
                         ty = bar_rect.y + (ih - text_surf.get_height()) // 2
-                        self.surf.blit(text_surf, (bar_rect.x + text_pad, ty))
+                        tx = bar_rect.x + text_pad
+                        self.surf.blit(text_surf, (tx, ty))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:
             scale = getattr(self, "ui_scale", 1.0)

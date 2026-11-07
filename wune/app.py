@@ -414,6 +414,19 @@ class App:
         elif event.type == pg.WINDOWSIZECHANGED:
             # pygame 2 updates the display Surface when the native window resizes.
             self.resize_window(self.screen.get_size())
+        elif event.type == pg.MOUSEMOTION:
+            menu_btn = self.menu.button_rect(self.renderer.font_menu, self.cfg.language)
+            m_hover = menu_btn.collidepoint(event.pos)
+            b_hover = self.renderer.badge_contains(event.pos)
+            if m_hover != getattr(self.menu, "hovered", False) or b_hover != getattr(self.renderer, "badge_hovered", False):
+                self.menu.hovered = m_hover
+                self.renderer.badge_hovered = b_hover
+                self._redraw_requested = True
+        elif getattr(pg, "WINDOWLEAVE", None) is not None and event.type == pg.WINDOWLEAVE:
+            if getattr(self.menu, "hovered", False) or getattr(self.renderer, "badge_hovered", False):
+                self.menu.hovered = False
+                self.renderer.badge_hovered = False
+                self._redraw_requested = True
         elif event.type == pg.MOUSEBUTTONDOWN:
             if self.settings_dialog is None and event.button == 1 and self.renderer.badge_contains(event.pos):
                 self.renderer.next_preset()
@@ -580,7 +593,7 @@ class App:
                 if self.paused:
                     self.renderer.draw_pause_overlay()
                 self.menu.draw(self.screen, self.renderer.font_menu, self.cfg.language,
-                               self._fullscreen, self.cfg.theme)
+                               self._fullscreen, self.cfg.theme, hovered=getattr(self.menu, "hovered", False))
                 self.exit_confirmation.draw(self.screen, self.renderer.font_small,
                                             self.cfg.language, self.cfg.theme)
                 pg.display.flip()

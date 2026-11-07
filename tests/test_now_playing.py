@@ -464,12 +464,9 @@ class NowPlayingRendererTests(unittest.TestCase):
         self.assertIsNotNone(layout_with.now_playing_rect)
 
         np_rect = pg.Rect(layout_with.now_playing_rect)
-        # Menu button is at y=14..44; frame must be below it
-        self.assertGreaterEqual(np_rect.top, 44)
+        # In unified single-row header, Now Playing is at y=14 sharing row 1
+        self.assertEqual(np_rect.top, 14)
         self.assertEqual(np_rect.height, cfg_with.info_height)
-
-        # Plots must be shifted down when now_playing is enabled
-        self.assertGreater(layout_with.plots[0][1], layout_without.plots[0][1])
 
         # Channel label "L" is drawn above plots[0] (group_y = plots[0].y - header)
         # Verify that the channel area (including L label) is strictly below now_playing_rect
