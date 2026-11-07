@@ -177,21 +177,28 @@ class LedBarRenderer:
         if not self.cfg.show_badge:
             return None
         scale = getattr(self, "ui_scale", 1.0)
-        width, height = self.badge_text().get_size()
         pad_x = max(16, round(16 * scale))
         pad_y = max(8, round(8 * scale))
         right_pad = max(16, round(16 * scale))
         y = max(14, round(14 * scale))
         btn_rect = ApplicationMenu.button_rect(self.font_menu, self.cfg.language)
-        badge_h = max(btn_rect.height, height + pad_y)
-        return pg.Rect(self.width - width - pad_x - right_pad, y, width + pad_x, badge_h)
+        font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
+        ref_w = max(font.size("FIREBIRD")[0], font.size("00000000")[0])
+        badge_w = ref_w + pad_x
+        badge_h = max(btn_rect.height, font.get_height() + pad_y)
+        return pg.Rect(self.width - badge_w - right_pad, y, badge_w, badge_h)
 
     def badge_text(self, dimmed: bool = False):
         font = self.font_badge_user if self.preset_name in self.user_presets else self.font_badge
         name = self.preset_name
-        available = self.width - ApplicationMenu.button_rect(self.font_menu, self.cfg.language).right - 64
-        if font.size(name)[0] > available:
-            while name and font.size(name + "…")[0] > available:
+        ref_w = max(font.size("FIREBIRD")[0], font.size("00000000")[0])
+        if len(name) > 8:
+            name = name[:7]
+            while name and font.size(name + "…")[0] > ref_w:
+                name = name[:-1]
+            name += "…"
+        elif font.size(name)[0] > ref_w:
+            while name and font.size(name + "…")[0] > ref_w:
                 name = name[:-1]
             name += "…"
         color = self.cfg.theme.badge_text
@@ -265,7 +272,7 @@ class LedBarRenderer:
                     if fitted:
                         text_surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
                         ty = bar_rect.y + (ih - text_surf.get_height()) // 2
-                        tx = bar_rect.x + (bar_rect.width - text_surf.get_width()) // 2
+                        tx = bar_rect.x + text_pad
                         self.surf.blit(text_surf, (tx, ty))
         # 入力スペックのインフォバー
         if self.cfg.info_enabled:

@@ -345,11 +345,14 @@ def calculate_layout(size, cfg):
         gap = max(8, round(8 * scale))
         x_margin = max(16, round(16 * scale))
         btn_pt = max(12, round(getattr(cfg, "button_font_size", 14) * (scale if auto_scale else 1.0)))
-        btn_w = round(btn_pt * 4.2) + max(20, round(20 * scale))
+        btn_font_h = max(16, round(btn_pt * 1.6))
+        btn_scale = max(1.0, btn_font_h / 18.0)
+        btn_w = max(28, btn_font_h + round(10 * btn_scale))
         np_x = x_margin + btn_w + gap
         if cfg.show_badge:
             badge_pt = max(14, round(getattr(cfg, "badge_font_size", 18) * (scale if auto_scale else 1.0)))
-            badge_w = round(badge_pt * 4.5) + max(16, round(16 * scale))
+            ref_w = round(badge_pt * 4.3)
+            badge_w = ref_w + max(16, round(16 * scale))
             np_right = width - x_margin - badge_w - gap
         else:
             np_right = width - x_margin

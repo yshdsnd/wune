@@ -80,14 +80,28 @@ class ThemeRenderingTests(unittest.TestCase):
 
     def test_badge_hit_area_follows_name_and_visibility(self):
         r = self.renderer()
+        expected_w = max(r.font_badge.size("FIREBIRD")[0], r.font_badge.size("00000000")[0]) + 16
         for preset in PRESETS:
             r.apply_preset(preset.name)
             rect = r.badge_rect()
             self.assertTrue(r.badge_contains(rect.center))
             self.assertFalse(r.badge_contains((rect.right, rect.bottom)))
-            self.assertEqual(rect.width, r.font_badge.size(preset.name)[0] + 16)
+            # Theme badge has a fixed width for ~8 characters so preset switching does not alter width
+            self.assertEqual(rect.width, expected_w)
         r.cfg.show_badge = False
         self.assertFalse(r.badge_contains(rect.center))
+
+    def test_badge_text_truncation_for_long_names(self):
+        r = self.renderer()
+        ref_w = max(r.font_badge.size("FIREBIRD")[0], r.font_badge.size("00000000")[0])
+        # Short name fits without truncation
+        r.preset_name = "AMBER"
+        text_surf = r.badge_text()
+        self.assertLessEqual(text_surf.get_width(), ref_w)
+        # Long name > 8 characters is truncated with ellipsis and fits within fixed badge width
+        r.preset_name = "VERY_LONG_PRESET_NAME"
+        long_surf = r.badge_text()
+        self.assertLessEqual(long_surf.get_width(), ref_w)
 
     def test_unknown_preset_does_not_change_appearance(self):
         r = self.renderer()

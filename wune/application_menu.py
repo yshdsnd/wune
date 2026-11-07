@@ -38,14 +38,12 @@ class ApplicationMenu:
         return tuple(items)
 
     @staticmethod
-    def button_rect(font, language):
+    def button_rect(font, language=None):
         scale = max(1.0, font.get_height() / 18.0)
-        text_w = font.size(Translator(language)("menu.open"))[0]
-        pad_x = max(20, round(20 * scale))
         height = max(28, font.get_height() + round(10 * scale))
         x = max(16, round(16 * scale))
         y = max(14, round(14 * scale))
-        return pg.Rect(x, y, text_w + pad_x, height)
+        return pg.Rect(x, y, height, height)
 
     def geometry(self, size, font, language, fullscreen):
         items = self.items(language, fullscreen)
@@ -134,15 +132,23 @@ class ApplicationMenu:
         if is_active:
             pg.draw.rect(surface, theme.info_background, button, border_radius=radius)
             pg.draw.rect(surface, theme.info_text, button, max(1, round(1 * scale)), border_radius=radius)
-            text_surf = font.render(Translator(language)("menu.open"), True, theme.info_text)
+            icon_color = theme.info_text
         else:
             dim_border = tuple(round(c * 0.40) for c in theme.info_border)
             dim_text = tuple(round(c * 0.55) for c in theme.info_text)
             pg.draw.rect(surface, theme.info_background, button, border_radius=radius)
             pg.draw.rect(surface, dim_border, button, max(1, round(1 * scale)), border_radius=radius)
-            text_surf = font.render(Translator(language)("menu.open"), True, dim_text)
-        surface.blit(text_surf,
-                     (button.centerx - text_surf.get_width() // 2, button.centery - font.get_height() // 2))
+            icon_color = dim_text
+        # 3 horizontal bars (hamburger icon)
+        bar_w = max(12, round(14 * scale))
+        bar_h = max(2, round(2 * scale))
+        gap = max(3, round(3.5 * scale))
+        total_icon_h = 3 * bar_h + 2 * gap
+        start_y = button.centery - total_icon_h // 2
+        start_x = button.centerx - bar_w // 2
+        for i in range(3):
+            bar_y = start_y + i * (bar_h + gap)
+            pg.draw.rect(surface, icon_color, (start_x, bar_y, bar_w, bar_h), border_radius=max(1, bar_h // 2))
         if self.anchor is None:
             return
         rect, rows = self.geometry(surface.get_size(), font, language, fullscreen)
