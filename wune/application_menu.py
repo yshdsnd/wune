@@ -10,6 +10,7 @@ class ApplicationMenu:
         self.selected = 0
         self.submenu = None
         self.user_window_presets = {}
+        self.hovered = False
 
     def close(self):
         self.anchor = None
@@ -40,9 +41,9 @@ class ApplicationMenu:
     def button_rect(font, language):
         scale = max(1.0, font.get_height() / 18.0)
         text_w = font.size(Translator(language)("menu.open"))[0]
-        pad_x = max(24, round(24 * scale))
-        height = max(30, font.get_height() + round(10 * scale))
-        x = max(24, round(24 * scale))
+        pad_x = max(20, round(20 * scale))
+        height = max(28, font.get_height() + round(10 * scale))
+        x = max(16, round(16 * scale))
         y = max(14, round(14 * scale))
         return pg.Rect(x, y, text_w + pad_x, height)
 
@@ -125,14 +126,23 @@ class ApplicationMenu:
             self.close()
         return False, None
 
-    def draw(self, surface, font, language, fullscreen, theme):
+    def draw(self, surface, font, language, fullscreen, theme, hovered=False):
         button = self.button_rect(font, language)
         scale = max(1.0, font.get_height() / 18.0)
         radius = max(6, round(6 * scale))
-        pg.draw.rect(surface, theme.info_background, button, border_radius=radius)
-        pg.draw.rect(surface, theme.info_text, button, max(1, round(1 * scale)), border_radius=radius)
-        surface.blit(font.render(Translator(language)("menu.open"), True, theme.info_text),
-                     (button.x + max(12, round(12 * scale)), button.centery - font.get_height() // 2))
+        is_active = hovered or getattr(self, "hovered", False) or (self.anchor is not None)
+        if is_active:
+            pg.draw.rect(surface, theme.info_background, button, border_radius=radius)
+            pg.draw.rect(surface, theme.info_text, button, max(1, round(1 * scale)), border_radius=radius)
+            text_surf = font.render(Translator(language)("menu.open"), True, theme.info_text)
+        else:
+            dim_border = tuple(round(c * 0.40) for c in theme.info_border)
+            dim_text = tuple(round(c * 0.55) for c in theme.info_text)
+            pg.draw.rect(surface, theme.info_background, button, border_radius=radius)
+            pg.draw.rect(surface, dim_border, button, max(1, round(1 * scale)), border_radius=radius)
+            text_surf = font.render(Translator(language)("menu.open"), True, dim_text)
+        surface.blit(text_surf,
+                     (button.centerx - text_surf.get_width() // 2, button.centery - font.get_height() // 2))
         if self.anchor is None:
             return
         rect, rows = self.geometry(surface.get_size(), font, language, fullscreen)

@@ -252,9 +252,11 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
 
                     self.assertIsNotNone(np_rect)
                     self.assertIsNotNone(badge_rect)
-                    # Now playing bar must be strictly below menu button and theme badge with clearance >= 4
-                    self.assertGreaterEqual(np_rect.top - btn_rect.bottom, 4)
-                    self.assertGreaterEqual(np_rect.top - badge_rect.bottom, 4)
+                    # In unified single-row header, Now playing bar is between menu button and theme badge horizontally
+                    self.assertGreaterEqual(np_rect.left - btn_rect.right, 4)
+                    self.assertGreaterEqual(badge_rect.left - np_rect.right, 4)
+                    self.assertFalse(btn_rect.colliderect(np_rect))
+                    self.assertFalse(np_rect.colliderect(badge_rect))
 
     def test_menu_button_size_independent_of_info_font_size(self):
         size = (1280, 800)
@@ -279,7 +281,7 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         # Now playing bar clearance remains comfortable even with large info_font_size
         np_24 = renderer_24.now_playing_rect()
         self.assertIsNotNone(np_24)
-        self.assertGreaterEqual(np_24.top - btn_24.bottom, 8)
+        self.assertGreaterEqual(np_24.left - btn_24.right, 4)
 
     def test_configurable_button_and_badge_font_sizes(self):
         size = (1280, 800)
@@ -311,8 +313,10 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         # Now playing clearance remains preserved even with maximum header font sizes
         np_max = renderer_max.now_playing_rect()
         self.assertIsNotNone(np_max)
-        self.assertGreaterEqual(np_max.top - btn_max.bottom, 4)
-        self.assertGreaterEqual(np_max.top - badge_max.bottom, 4)
+        self.assertGreaterEqual(np_max.left - btn_max.right, 4)
+        self.assertGreaterEqual(badge_max.left - np_max.right, 4)
+        self.assertFalse(btn_max.colliderect(np_max))
+        self.assertFalse(np_max.colliderect(badge_max))
 
     def test_renderer_resize_updates_fonts_on_header_font_size_change(self):
         size = (1280, 800)
@@ -419,16 +423,16 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
 
     def test_calculate_optimal_leds_per_bar(self):
         # 1280x800 default window:
-        # Vertical layout (2 rows) has limited height per channel -> optimal is 20 leds
+        # Vertical layout (2 rows) has limited height per channel -> optimal is 21 leds with unified header
         cfg_vertical = Config(channel_layout="vertical", bars=32)
         optimal_v = calculate_optimal_leds_per_bar((1280, 800), cfg_vertical)
-        self.assertEqual(optimal_v, 20)
+        self.assertEqual(optimal_v, 21)
 
-        # Horizontal layout (1 row) has ample vertical space -> optimal expands to 64 leds
-        # to fill the huge vertical blank gap without sacrificing bar thickness
+        # Horizontal layout (1 row) has ample vertical space -> optimal expands to 67 leds with unified header
+        # to fill the vertical blank gap without sacrificing bar thickness
         cfg_horizontal = Config(channel_layout="horizontal", bars=32)
         optimal_h = calculate_optimal_leds_per_bar((1280, 800), cfg_horizontal)
-        self.assertEqual(optimal_h, 64)
+        self.assertEqual(optimal_h, 67)
 
         # When bars=64 in horizontal mode, optimal reaches the upper bound (100)
         cfg_h64 = Config(channel_layout="horizontal", bars=64)
@@ -452,7 +456,7 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         # inflate the size and must return the lower optimal segment count.
         cfg_high = Config(channel_layout="vertical", bars=32, leds_per_bar=100)
         optimal_shrunk = calculate_optimal_leds_per_bar((1280, 800), cfg_high)
-        self.assertEqual(optimal_shrunk, 20)
+        self.assertEqual(optimal_shrunk, 21)
 
         # Custom bounds can be respected
         optimal_custom = calculate_optimal_leds_per_bar((1280, 800), cfg_horizontal, min_leds=30, max_leds=50)
@@ -472,20 +476,20 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         app.renderer = MagicMock()
         app.settings_dialog = MagicMock()
 
-        # Resize to same size (1280, 800) with auto_adjust enabled -> optimal is 64
+        # Resize to same size (1280, 800) with auto_adjust enabled -> optimal is 67
         app.resize_window((1280, 800))
-        self.assertEqual(app.cfg.leds_per_bar, 64)
+        self.assertEqual(app.cfg.leds_per_bar, 67)
         app.save_settings.assert_called_once()
         app.renderer.resize.assert_called_with(app.screen)
         app.settings_dialog.update_window_size.assert_called_with((1280, 800))
 
         # Shrinking test: when window was enlarged and segment count became high (e.g. 60),
-        # shrinking the window down to (1280, 800) in vertical mode must shrink leds_per_bar to 20
+        # shrinking the window down to (1280, 800) in vertical mode must shrink leds_per_bar to 21
         # and must NOT ratchet / get stuck at large window size.
         app.cfg.channel_layout = "vertical"
         app.cfg.leds_per_bar = 60
         app.resize_window((1280, 800))
-        self.assertEqual(app.cfg.leds_per_bar, 20)
+        self.assertEqual(app.cfg.leds_per_bar, 21)
         self.assertEqual(app._windowed_size, (1280, 800))
 
         # When auto_adjust_leds_on_resize is False, resizing does not change leds_per_bar
@@ -573,7 +577,7 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         user_cfg = Config(channel_layout="vertical", bars=64, led_aspect_ratio=2.0,
                           show_now_playing=True, info_position="bottom")
         optimal = calculate_optimal_leds_per_bar((1800, 1200), user_cfg)
-        self.assertLessEqual(optimal, 27)
+        self.assertLessEqual(optimal, 30)
 
         surf = pg.Surface((1800, 1200))
         applied_cfg = replace(user_cfg, leds_per_bar=optimal)

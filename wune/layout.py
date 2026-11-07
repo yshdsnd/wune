@@ -36,11 +36,12 @@ def info_bar_base_height(cfg) -> int:
 
 
 def header_elements_bottom(cfg, scale: float = 1.0) -> int:
-    """Calculate the estimated bottom boundary of menu button and theme badge."""
+    """Calculate the estimated bottom boundary of the unified top header row."""
     auto_scale = getattr(cfg, "auto_scale_fonts", True)
     effective_scale = scale if auto_scale else 1.0
     button_size = getattr(cfg, "button_font_size", 14)
     badge_size = getattr(cfg, "badge_font_size", 18)
+    base_info = info_bar_base_height(cfg)
 
     # Menu button uses button_font_size scaled by UI scale (independent of info_font_size)
     menu_pt = max(12, round(button_size * effective_scale))
@@ -52,13 +53,17 @@ def header_elements_bottom(cfg, scale: float = 1.0) -> int:
 
     # font_badge pt uses badge_font_size
     badge_pt = max(14, round(badge_size * effective_scale))
-    badge_font_h = max(18, round(badge_pt * 1.35))
+    badge_font_h = max(18, round(badge_pt * 1.6))
     badge_pad_y = max(8, round(8 * scale))
-    badge_glow = max(2, round(2 * scale))
+    badge_glow = max(2, round(2 * scale)) * 2
     badge_y = max(14, round(14 * scale))
     badge_bottom = badge_y + badge_font_h + badge_pad_y + badge_glow
 
-    return max(btn_bottom, badge_bottom)
+    # Info / Now Playing component on the unified header row
+    bar_h = max(20, round(base_info * effective_scale))
+    np_bottom = max(14, round(14 * scale)) + bar_h
+
+    return max(btn_bottom, badge_bottom, np_bottom)
 
 
 def _dimensions(cfg):
@@ -81,7 +86,7 @@ def _dimensions(cfg):
         scale = max(30, cfg.scale_reserved) if cfg.show_db_scale else 0
     base_info = info_bar_base_height(cfg)
     info = base_info + 12 if cfg.info_enabled else 0
-    now_playing = base_info + 8 if cfg.show_now_playing else 0
+    now_playing = 0  # In unified 1-row header, Now Playing shares the top row
     return cols, rows, margin, left, header, scale, info, now_playing
 
 
@@ -108,7 +113,8 @@ def minimum_window_size(cfg):
     plot_w = nx * w + (nx - 1) * x_gap
     plot_h = ny * h + (ny - 1) * y_gap
     width = cols * (left + plot_w + 16) + (cols - 1) * cfg.channel_gap
-    height = 2 * margin + 40 + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
+    overhead = max(2 * margin + 40, header_elements_bottom(cfg, 1.0) + 6 + margin)
+    height = overhead + info + now_playing + rows * (header + plot_h + scale) + (rows - 1) * cfg.channel_gap
     return max(480, width), height
 
 
@@ -128,10 +134,7 @@ def _vertical_overhead(size, cfg, scale: float) -> tuple[int, int]:
     scale_extra = max(0, round(28 * (scale - 1.0)))
     header_clearance = header_elements_bottom(cfg, scale) + max(6, round(6 * scale))
     top = max(margin + 40, header_clearance)
-    top_bar_bottom = 0
-    if now_playing:
-        np_y = top
-        top_bar_bottom = np_y + bar_h
+    top_bar_bottom = header_elements_bottom(cfg, scale) if cfg.show_now_playing else 0
     if info and cfg.info_position == "top":
         info_top = (top_bar_bottom + max(6, round(6 * scale))) if top_bar_bottom > 0 else top
         top_bar_bottom = info_top + bar_h
@@ -157,7 +160,10 @@ def fit_window_size(size, cfg):
     for _ in range(5):
         cur_scale = calculate_ui_scale((width, h))
         min_gy, bot_extra = _vertical_overhead((width, h), cfg, cur_scale)
-        needed_h = max(base_height, min_gy + bot_extra + total_h)
+        header_clearance = header_elements_bottom(cfg, cur_scale) + max(6, round(6 * cur_scale))
+        top = max(margin + 40, header_clearance)
+        bottom_reserve = margin + (info if info and cfg.info_position == "bottom" else 0)
+        needed_h = max(base_height, min_gy + bot_extra + total_h, top + bottom_reserve + total_h)
         if needed_h == h:
             break
         h = needed_h
@@ -191,7 +197,10 @@ def channel_mode_window_size(size, previous_cfg, cfg):
     for _ in range(5):
         cur_scale = calculate_ui_scale((width, h))
         min_gy, bot_extra = _vertical_overhead((width, h), cfg, cur_scale)
-        needed_h = max(base_height, min_gy + bot_extra + total_h)
+        header_clearance = header_elements_bottom(cfg, cur_scale) + max(6, round(6 * cur_scale))
+        top = max(margin + 40, header_clearance)
+        bottom_reserve = margin + (info if info and cfg.info_position == "bottom" else 0)
+        needed_h = max(base_height, min_gy + bot_extra + total_h, top + bottom_reserve + total_h)
         if needed_h == h:
             break
         h = needed_h
@@ -323,17 +332,29 @@ def calculate_layout(size, cfg):
     cols, rows, margin, left, header, scale_reserved, info, now_playing = _dimensions(cfg)
     auto_scale = getattr(cfg, "auto_scale_fonts", True)
     bar_scale = scale if auto_scale else 1.0
-    bar_h = max(20, round(info_bar_base_height(cfg) * bar_scale))
+    base_info = info_bar_base_height(cfg)
+    bar_h = max(20, round(base_info * bar_scale))
 
     header_clearance = header_elements_bottom(cfg, scale) + max(6, round(6 * scale))
     top = max(margin + 40, header_clearance)
     bottom = height - margin
 
     now_playing_rect = None
-    if now_playing:
-        np_y = top
-        now_playing_rect = (16, np_y, width - 32, bar_h)
-        top = np_y + bar_h + max(6, round(6 * scale))
+    if cfg.show_now_playing:
+        top_y = max(14, round(14 * scale))
+        gap = max(8, round(8 * scale))
+        x_margin = max(16, round(16 * scale))
+        btn_pt = max(12, round(getattr(cfg, "button_font_size", 14) * (scale if auto_scale else 1.0)))
+        btn_w = round(btn_pt * 4.2) + max(20, round(20 * scale))
+        np_x = x_margin + btn_w + gap
+        if cfg.show_badge:
+            badge_pt = max(14, round(getattr(cfg, "badge_font_size", 18) * (scale if auto_scale else 1.0)))
+            badge_w = round(badge_pt * 4.5) + max(16, round(16 * scale))
+            np_right = width - x_margin - badge_w - gap
+        else:
+            np_right = width - x_margin
+        np_w = max(20, np_right - np_x)
+        now_playing_rect = (np_x, top_y, np_w, bar_h)
 
     info_rect = None
     if info:
