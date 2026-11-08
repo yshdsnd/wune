@@ -182,5 +182,8 @@
   "presets.window.fhd": "Full HD (1920 × 1080)",
   "presets.window.ultrawide": "Ultrawide (2560 × 1080)",
   "presets.window.wqhd": "WQHD (2560 × 1440)",
-  "presets.window.4k": "4K UHD (3840 × 2160)"
+  "presets.window.4k": "4K UHD (3840 × 2160)",
+  "settings.borderless": "Borderless window",
+  "menu.enter_borderless": "Borderless Window",
+  "menu.exit_borderless": "Standard Window"
 }

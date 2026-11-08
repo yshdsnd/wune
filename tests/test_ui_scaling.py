@@ -198,7 +198,7 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         surface_size = (3840, 2160)
         menu_rect, rows = menu.geometry(surface_size, font_large, "en", False)
         self.assertTrue(pg.Rect((0, 0), surface_size).contains(menu_rect))
-        self.assertEqual(len(rows), 4)
+        self.assertEqual(len(rows), 5)
         for i in range(len(rows) - 1):
             self.assertGreaterEqual(rows[i + 1].top, rows[i].bottom)
 

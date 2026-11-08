@@ -562,5 +562,16 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "apply")
         self.assertTrue(state.layout["info_font_bold"])
 
+    def test_borderless_toggle_and_submit(self):
+        self.assertFalse(self.dialog.borderless.get())
+        self.dialog.borderless.set(True)
+        self.dialog.layout("borderless", True)
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertTrue(state.layout["borderless"])
 
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertTrue(state.layout["borderless"])
 

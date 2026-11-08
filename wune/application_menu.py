@@ -11,14 +11,16 @@ class ApplicationMenu:
         self.submenu = None
         self.user_window_presets = {}
         self.hovered = False
+        self.borderless = False
 
     def close(self):
         self.anchor = None
         self.submenu = None
 
-    def items(self, language, fullscreen):
+    def items(self, language, fullscreen, borderless=None):
         t = Translator(language)
         mac = sys.platform == "darwin"
+        is_borderless = self.borderless if borderless is None else borderless
         if self.submenu == "window_size":
             from .window_presets import get_all_window_presets
             presets = get_all_window_presets(self.user_window_presets)
@@ -33,6 +35,7 @@ class ApplicationMenu:
             ("fullscreen", t("menu.exit_fullscreen" if fullscreen else "menu.enter_fullscreen"), "Cmd+F" if mac else "Alt+Enter"),
         ]
         if not fullscreen:
+            items.append(("borderless", t("menu.exit_borderless" if is_borderless else "menu.enter_borderless"), "F10"))
             items.append(("window_size", t("menu.window_size"), ">"))
         items.append(("exit", t("menu.exit"), "Q" if fullscreen else "Q / Esc"))
         return tuple(items)
@@ -45,8 +48,8 @@ class ApplicationMenu:
         y = max(14, round(14 * scale))
         return pg.Rect(x, y, height, height)
 
-    def geometry(self, size, font, language, fullscreen):
-        items = self.items(language, fullscreen)
+    def geometry(self, size, font, language, fullscreen, borderless=None):
+        items = self.items(language, fullscreen, borderless)
         scale = max(1.0, font.get_height() / 18.0)
         pad_w = max(52, round(52 * scale))
         pad_h = max(12, round(12 * scale))
@@ -58,7 +61,7 @@ class ApplicationMenu:
                 for i in range(len(items))]
         return rect, rows
 
-    def handle(self, event, size, font, language, fullscreen):
+    def handle(self, event, size, font, language, fullscreen, borderless=None):
         """Return (consumed, command); never run a nested event loop."""
         if event.type in (pg.WINDOWFOCUSLOST, pg.WINDOWMINIMIZED, pg.VIDEORESIZE, pg.WINDOWSIZECHANGED):
             self.close()
@@ -75,14 +78,14 @@ class ApplicationMenu:
             return True, None
         if self.anchor is None:
             return False, None
-        _, rows = self.geometry(size, font, language, fullscreen)
+        _, rows = self.geometry(size, font, language, fullscreen, borderless)
         if event.type == pg.MOUSEMOTION:
             self.selected = next((i for i, row in enumerate(rows) if row.collidepoint(event.pos)), -1)
             return True, None
         if event.type == pg.MOUSEBUTTONDOWN:
             index = next((i for i, row in enumerate(rows) if row.collidepoint(event.pos)), -1)
             if event.button == 1 and index >= 0:
-                command = self.items(language, fullscreen)[index][0]
+                command = self.items(language, fullscreen, borderless)[index][0]
                 if command == "window_size":
                     self.submenu = "window_size"
                     self.selected = 0
@@ -108,7 +111,7 @@ class ApplicationMenu:
                 return True, None
             if event.key in (pg.K_RETURN, pg.K_KP_ENTER) and not getattr(event, "mod", 0) & pg.KMOD_ALT:
                 if self.selected >= 0:
-                    command = self.items(language, fullscreen)[self.selected][0]
+                    command = self.items(language, fullscreen, borderless)[self.selected][0]
                     if command == "window_size":
                         self.submenu = "window_size"
                         self.selected = 0
@@ -124,7 +127,7 @@ class ApplicationMenu:
             self.close()
         return False, None
 
-    def draw(self, surface, font, language, fullscreen, theme, hovered=False):
+    def draw(self, surface, font, language, fullscreen, theme, hovered=False, borderless=None):
         button = self.button_rect(font, language)
         scale = max(1.0, font.get_height() / 18.0)
         radius = max(6, round(6 * scale))
@@ -151,10 +154,10 @@ class ApplicationMenu:
             pg.draw.rect(surface, icon_color, (start_x, bar_y, bar_w, bar_h), border_radius=max(1, bar_h // 2))
         if self.anchor is None:
             return
-        rect, rows = self.geometry(surface.get_size(), font, language, fullscreen)
+        rect, rows = self.geometry(surface.get_size(), font, language, fullscreen, borderless)
         pg.draw.rect(surface, theme.info_background, rect, border_radius=radius)
         pg.draw.rect(surface, theme.info_text, rect, max(1, round(1 * scale)), border_radius=radius)
-        for index, ((_, label, shortcut), row) in enumerate(zip(self.items(language, fullscreen), rows)):
+        for index, ((_, label, shortcut), row) in enumerate(zip(self.items(language, fullscreen, borderless), rows)):
             if index == self.selected:
                 pg.draw.rect(surface, theme.badge_background, row, border_radius=max(4, round(4 * scale)))
             y = row.centery - font.get_height() // 2
