@@ -46,6 +46,12 @@ class SettingsTests(unittest.TestCase):
             loaded, _ = SettingsStore(self.path).load(Config())
             self.assertEqual(loaded.show_now_playing, enabled)
 
+    def test_borderless_preference_survives_restart_and_reenable(self):
+        for enabled in (True, False):
+            self.assertTrue(self.store.save(Config(borderless=enabled), (1280, 800), (0, 0), "CLASSIC"))
+            loaded, _ = SettingsStore(self.path).load(Config())
+            self.assertEqual(loaded.borderless, enabled)
+
     def test_font_preferences_survive_restart(self):
         for font_size, auto_scale, info_size, btn_size, badge_size, sync, font_family, font_bold in (
             (10, False, 10, 10, 14, True, "", False),

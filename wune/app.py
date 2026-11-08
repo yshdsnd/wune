@@ -55,11 +55,20 @@ class App:
         if settings_store is not None:
             from .window_geometry import restore_geometry, work_areas
             self._windowed_size, self._windowed_position = restore_geometry(cfg, saved_geometry or {}, work_areas())
-        self._set_mode(self._windowed_size, pg.RESIZABLE, hidden=True)
+        self._window_dragging = False
+        self._window_resizing = None
+        self._drag_start_cursor = None
+        self._drag_start_win_pos = None
+        self._resize_start_size = None
+        self._resize_start_cursor = None
+        self._resize_start_win_pos = None
+        self._current_cursor = None
+        self._set_mode(self._windowed_size, self._windowed_flags(), hidden=True)
         self._restore_position()
         self.clock = pg.time.Clock()
         self.renderer = LedBarRenderer(self.screen, cfg)
         self.menu = ApplicationMenu()
+        self.menu.borderless = getattr(cfg, "borderless", False)
         if settings_store is not None:
             self.menu.user_window_presets = deepcopy(settings_store.user_window_presets)
         self.exit_confirmation = ExitConfirmation()
@@ -110,6 +119,98 @@ class App:
             self._display_window = Window.from_display_module()
         if hasattr(self, "sleep_inhibitor"):
             self.sleep_inhibitor.apply()
+        cfg = getattr(self, "cfg", None)
+        if getattr(cfg, "borderless", False) and not getattr(self, "_fullscreen", False):
+            try:
+                win = self._geometry_window()
+                win.borderless = True
+                win.resizable = True
+            except Exception:
+                pass
+
+    def _windowed_flags(self) -> int:
+        flags = pg.RESIZABLE
+        cfg = getattr(self, "cfg", None)
+        if getattr(cfg, "borderless", False):
+            flags |= getattr(pg, "NOFRAME", 0)
+        return flags
+
+    def set_borderless(self, borderless: bool):
+        self.cfg.borderless = borderless
+        self.menu.borderless = borderless
+        if not self._fullscreen:
+            try:
+                win = self._geometry_window()
+                win.borderless = borderless
+                if borderless:
+                    win.resizable = True
+            except Exception:
+                self._set_mode(self.screen.get_size(), self._windowed_flags())
+            self._redraw_requested = True
+
+    def _get_cursor_pos(self, fallback_pos=None):
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+                pt = wintypes.POINT()
+                if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
+                    return (pt.x, pt.y)
+            except Exception:
+                pass
+        elif sys.platform == "darwin":
+            try:
+                import ctypes
+                from ctypes import c_void_p, Structure, c_double
+                class CGPoint(Structure):
+                    _fields_ = [("x", c_double), ("y", c_double)]
+                cg = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
+                cg.CGEventGetLocation.restype = CGPoint
+                cg.CGEventGetLocation.argtypes = [c_void_p]
+                cg.CGEventCreate.restype = c_void_p
+                cg.CGEventCreate.argtypes = [c_void_p]
+                ev = cg.CGEventCreate(None)
+                if ev:
+                    pt = cg.CGEventGetLocation(ev)
+                    return (int(pt.x), int(pt.y))
+            except Exception:
+                pass
+        return fallback_pos
+
+    def _get_win_pos(self):
+        try:
+            return self._geometry_window().position
+        except Exception:
+            return getattr(self, "_windowed_position", (0, 0))
+
+    def _detect_resize_edge(self, pos):
+        cfg = getattr(self, "cfg", None)
+        if not (getattr(cfg, "borderless", False) and not getattr(self, "_fullscreen", False)):
+            return (False, False, False, False)
+        w, h = self.screen.get_size()
+        scale = getattr(self.renderer, "ui_scale", 1.0)
+        bw = max(6, round(6 * scale))
+        x, y = pos
+        return (x < bw, x >= w - bw, y < bw, y >= h - bw)
+
+    def _update_cursor_for_edge(self, edge):
+        on_left, on_right, on_top, on_bottom = edge
+        if (on_top and on_left) or (on_bottom and on_right):
+            cursor = getattr(pg, "SYSTEM_CURSOR_SIZENWSE", None)
+        elif (on_top and on_right) or (on_bottom and on_left):
+            cursor = getattr(pg, "SYSTEM_CURSOR_SIZENESW", None)
+        elif on_left or on_right:
+            cursor = getattr(pg, "SYSTEM_CURSOR_SIZEWE", None)
+        elif on_top or on_bottom:
+            cursor = getattr(pg, "SYSTEM_CURSOR_SIZENS", None)
+        else:
+            cursor = getattr(pg, "SYSTEM_CURSOR_ARROW", None)
+        if cursor is not None and getattr(self, "_current_cursor", None) != cursor:
+            try:
+                pg.mouse.set_cursor(cursor)
+                self._current_cursor = cursor
+            except Exception:
+                pass
 
     def _geometry_window(self):
         if self._display_window is None:
@@ -148,7 +249,7 @@ class App:
             self._geometry_window().set_windowed()
         except Exception:
             pass
-        self._set_mode(clamp_window_size(self._windowed_size, self.cfg), pg.RESIZABLE)
+        self._set_mode(clamp_window_size(self._windowed_size, self.cfg), self._windowed_flags())
         self._fullscreen = False
         self._restore_position()
 
@@ -256,7 +357,10 @@ class App:
         previous_layout = self.cfg.channel_layout
         previous_orientation = self.cfg.spectrum_orientation
         previous_cap = self.cfg.limit_to_20khz
+        previous_borderless = getattr(self.cfg, "borderless", False)
         state.apply(self.cfg)
+        if getattr(self.cfg, "borderless", False) != previous_borderless:
+            self.set_borderless(self.cfg.borderless)
         if self.cfg.channel_mode != previous_mode:
             if size is None and not self._fullscreen:
                 size = channel_mode_window_size(self.screen.get_size(), previous_cfg, self.cfg)
@@ -293,7 +397,7 @@ class App:
             else:
                 clamped = clamp_window_size(self.screen.get_size(), self.cfg)
                 if not self._fullscreen and self.screen.get_size() != clamped:
-                    self._set_mode(clamped, pg.RESIZABLE)
+                    self._set_mode(clamped, self._windowed_flags())
                     self._windowed_size = clamped
                 self.renderer.resize(self.screen)
 
@@ -422,12 +526,101 @@ class App:
                 self.menu.hovered = m_hover
                 self.renderer.badge_hovered = b_hover
                 self._redraw_requested = True
+
+            if getattr(self, "_window_resizing", None) is not None:
+                cur_pos = self._get_cursor_pos(event.pos)
+                if cur_pos and self._resize_start_cursor:
+                    dx = cur_pos[0] - self._resize_start_cursor[0]
+                    dy = cur_pos[1] - self._resize_start_cursor[1]
+                else:
+                    dx = getattr(event, "rel", (0, 0))[0]
+                    dy = getattr(event, "rel", (0, 0))[1]
+                on_left, on_right, on_top, on_bottom = self._window_resizing
+                orig_w, orig_h = self._resize_start_size
+                orig_x, orig_y = self._resize_start_win_pos
+                from .layout import minimum_window_size
+                min_w, min_h = minimum_window_size(self.cfg)
+                new_w, new_h = orig_w, orig_h
+                new_x, new_y = orig_x, orig_y
+                if on_right:
+                    new_w = max(min_w, orig_w + dx)
+                elif on_left:
+                    new_w = max(min_w, orig_w - dx)
+                    new_x = orig_x + (orig_w - new_w)
+                if on_bottom:
+                    new_h = max(min_h, orig_h + dy)
+                elif on_top:
+                    new_h = max(min_h, orig_h - dy)
+                    new_y = orig_y + (orig_h - new_h)
+                clamped = clamp_window_size((new_w, new_h), self.cfg)
+                try:
+                    win = self._geometry_window()
+                    win.size = clamped
+                    if on_left or on_top:
+                        win.position = (new_x, new_y)
+                        self._windowed_position = (new_x, new_y)
+                except Exception:
+                    pass
+                self.resize_window(clamped)
+                self._windowed_size = clamped
+            elif getattr(self, "_window_dragging", False):
+                cur_pos = self._get_cursor_pos(event.pos)
+                if cur_pos and self._drag_start_cursor:
+                    dx = cur_pos[0] - self._drag_start_cursor[0]
+                    dy = cur_pos[1] - self._drag_start_cursor[1]
+                    new_pos = (self._drag_start_win_pos[0] + dx, self._drag_start_win_pos[1] + dy)
+                else:
+                    cur_win = self._get_win_pos()
+                    rel = getattr(event, "rel", (0, 0))
+                    new_pos = (cur_win[0] + rel[0], cur_win[1] + rel[1])
+                try:
+                    self._geometry_window().position = new_pos
+                    self._windowed_position = new_pos
+                except Exception:
+                    pass
+            elif getattr(self.cfg, "borderless", False) and not self._fullscreen and self.settings_dialog is None:
+                edge = self._detect_resize_edge(event.pos)
+                self._update_cursor_for_edge(edge)
         elif getattr(pg, "WINDOWLEAVE", None) is not None and event.type == pg.WINDOWLEAVE:
+            self._window_dragging = False
+            self._window_resizing = None
+            self._update_cursor_for_edge((False, False, False, False))
             if getattr(self.menu, "hovered", False) or getattr(self.renderer, "badge_hovered", False):
                 self.menu.hovered = False
                 self.renderer.badge_hovered = False
                 self._redraw_requested = True
+        elif event.type == pg.MOUSEBUTTONUP:
+            if event.button == 1:
+                self._window_dragging = False
+                if getattr(self, "_window_resizing", None) is not None:
+                    self._window_resizing = None
+                    self._update_cursor_for_edge((False, False, False, False))
         elif event.type == pg.MOUSEBUTTONDOWN:
+            if event.button == 1 and getattr(self.cfg, "borderless", False) and not self._fullscreen and self.settings_dialog is None:
+                edge = self._detect_resize_edge(event.pos)
+                if any(edge):
+                    self._window_resizing = edge
+                    self._resize_start_size = self.screen.get_size()
+                    self._resize_start_cursor = self._get_cursor_pos(event.pos)
+                    self._resize_start_win_pos = self._get_win_pos()
+                    return
+                menu_btn = self.menu.button_rect(self.renderer.font_menu, self.cfg.language)
+                if not menu_btn.collidepoint(event.pos) and not self.renderer.badge_contains(event.pos):
+                    if sys.platform == "win32":
+                        try:
+                            import ctypes
+                            hwnd = pg.display.get_wm_info().get("window")
+                            if hwnd:
+                                ctypes.windll.user32.ReleaseCapture()
+                                ctypes.windll.user32.SendMessageW(hwnd, 0x00A1, 2, 0)
+                                self._windowed_position = self._get_win_pos()
+                                return
+                        except Exception:
+                            pass
+                    self._window_dragging = True
+                    self._drag_start_cursor = self._get_cursor_pos(event.pos)
+                    self._drag_start_win_pos = self._get_win_pos()
+                    return
             if self.settings_dialog is None and event.button == 1 and self.renderer.badge_contains(event.pos):
                 self.renderer.next_preset()
                 self._redraw_requested = True
@@ -462,7 +655,7 @@ class App:
                     else:
                         clamped = clamp_window_size(self.screen.get_size(), self.cfg)
                         if not self._fullscreen and self.screen.get_size() != clamped:
-                            self._set_mode(clamped, pg.RESIZABLE)
+                            self._set_mode(clamped, self._windowed_flags())
                             self._windowed_size = clamped
                         self._redraw_requested = True
                         self.renderer.resize(self.screen)
@@ -472,11 +665,15 @@ class App:
                     self._redraw_requested = True
             elif event.key == pg.K_F2:
                 self.execute_command("settings")
+            elif event.key == pg.K_F10:
+                self.execute_command("borderless")
 
     def execute_command(self, command):
         self.menu.close()
         if command == "settings":
             self.open_settings()
+        elif command == "borderless":
+            self.set_borderless(not self.cfg.borderless)
         elif command == "fullscreen":
             self.toggle_fullscreen()
         elif command.startswith("window_preset:"):

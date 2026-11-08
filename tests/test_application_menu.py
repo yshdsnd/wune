@@ -21,7 +21,7 @@ class ApplicationMenuTests(unittest.TestCase):
     def test_button_and_right_click_share_commands(self):
         for event in (dict(button=1, pos=self.menu.button_rect(self.font, "en").center),
                       dict(button=3, pos=(470, 390))):
-            for index, expected in enumerate(("settings", "fullscreen", "window_size", "exit")):
+            for index, expected in enumerate(("settings", "fullscreen", "borderless", "window_size", "exit")):
                 self.menu.close()
                 self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, **event), (True, None))
                 rect, rows = self.menu.geometry((480, 400), self.font, "en", False)
@@ -93,3 +93,12 @@ class ApplicationMenuTests(unittest.TestCase):
                     rect, _ = self.menu.geometry(size, renderer.font_menu, language, True)
                     self.assertTrue(surface.get_rect().contains(rect))
                     self.menu.draw(surface, renderer.font_menu, language, True, cfg.theme)
+
+    def test_borderless_menu_item_and_labels(self):
+        items_decorated = self.menu.items("en", False, borderless=False)
+        self.assertEqual(items_decorated[2], ("borderless", "Borderless Window", "F10"))
+        items_borderless = self.menu.items("en", False, borderless=True)
+        self.assertEqual(items_borderless[2], ("borderless", "Standard Window", "F10"))
+        # Borderless toggle is not shown when in fullscreen
+        items_fs = self.menu.items("en", True, borderless=True)
+        self.assertNotIn("borderless", [cmd for cmd, *_ in items_fs])

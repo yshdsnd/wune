@@ -182,5 +182,8 @@
   "presets.window.fhd": "フルHD (1920 × 1080)",
   "presets.window.ultrawide": "ウルトラワイド (2560 × 1080)",
   "presets.window.wqhd": "WQHD (2560 × 1440)",
-  "presets.window.4k": "4K UHD (3840 × 2160)"
+  "presets.window.4k": "4K UHD (3840 × 2160)",
+  "settings.borderless": "ボーダレスウィンドウ",
+  "menu.enter_borderless": "ボーダレスウィンドウ",
+  "menu.exit_borderless": "標準ウィンドウに戻す"
 }

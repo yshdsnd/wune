@@ -450,6 +450,11 @@ class _Dialog:
                         variable=self.confirm_keyboard_exit,
                         command=lambda: self.layout("confirm_keyboard_exit", self.confirm_keyboard_exit.get())).grid(
                             row=3, column=0, columnspan=2, sticky="w", pady=4 if is_win else 6)
+        self.borderless = tk.BooleanVar()
+        ttk.Checkbutton(general, text=self.t("settings.borderless"),
+                        variable=self.borderless,
+                        command=lambda: self.layout("borderless", self.borderless.get())).grid(
+                            row=4, column=0, columnspan=2, sticky="w", pady=4 if is_win else 6)
 
         theme_row = ttk.Frame(colors)
         theme_row.pack(fill="x", pady=(0, 2 if is_win else 4))
@@ -556,6 +561,7 @@ class _Dialog:
             state="disabled" if state.layout["channel_mode"] == "stereo_mix" else "readonly")
         self.background_path.set(state.background["background_path"])
         self.confirm_keyboard_exit.set(state.layout["confirm_keyboard_exit"])
+        self.borderless.set(bool(state.layout.get("borderless", False)))
         self.info.set(state.layout["info_enabled"])
         self.show_now_playing.set(state.layout.get("show_now_playing", True))
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
