@@ -134,7 +134,7 @@ class MacOsTapTests(unittest.TestCase):
     def test_renderer_status_text_renders_japanese_device_names(self):
         """Verify Japanese text in status area renders successfully without glyph failure."""
         import pygame as pg
-        pg.init()
+        pg.font.init()
         from wune.renderer import LedBarRenderer
 
         surf = pg.Surface((800, 600))

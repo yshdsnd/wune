@@ -15,7 +15,6 @@ from wune.settings import SettingsStore
 class BorderlessWindowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        pg.init()
         pg.font.init()
 
     def setUp(self):
