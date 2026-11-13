@@ -18,7 +18,7 @@ class InfoVersionRendererTests(unittest.TestCase):
     def test_default_config_version_settings(self):
         cfg = Config()
         self.assertFalse(cfg.info_show_version)
-        self.assertEqual(cfg.info_version_position, "right")
+        self.assertFalse(hasattr(cfg, "info_version_position"))
 
     def test_renderer_renders_version_on_right(self):
         cfg = Config(info_enabled=True, info_show_version=False)
@@ -28,30 +28,14 @@ class InfoVersionRendererTests(unittest.TestCase):
         bytes_without_version = pg.image.tobytes(self.surf, "RGB")
 
         cfg.info_show_version = True
-        cfg.info_version_position = "right"
         self.surf.fill((0, 0, 0))
         renderer.draw_panel()
-        bytes_with_version_right = pg.image.tobytes(self.surf, "RGB")
+        bytes_with_version = pg.image.tobytes(self.surf, "RGB")
 
-        self.assertNotEqual(bytes_without_version, bytes_with_version_right)
-
-    def test_renderer_renders_version_on_left(self):
-        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="left")
-        renderer = LedBarRenderer(self.surf, cfg)
-        renderer.info_text = "OUTPUT: Test Device | 48.0 kHz | 2 ch"
-        self.surf.fill((0, 0, 0))
-        renderer.draw_panel()
-        bytes_left = pg.image.tobytes(self.surf, "RGB")
-
-        cfg.info_version_position = "right"
-        self.surf.fill((0, 0, 0))
-        renderer.draw_panel()
-        bytes_right = pg.image.tobytes(self.surf, "RGB")
-
-        self.assertNotEqual(bytes_left, bytes_right)
+        self.assertNotEqual(bytes_without_version, bytes_with_version)
 
     def test_renderer_with_empty_info_text(self):
-        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="right")
+        cfg = Config(info_enabled=True, info_show_version=True)
         renderer = LedBarRenderer(self.surf, cfg)
         renderer.info_text = ""
         # Should not raise exception
@@ -59,7 +43,7 @@ class InfoVersionRendererTests(unittest.TestCase):
 
     def test_renderer_with_narrow_surface_truncation(self):
         from wune.layout import clamp_window_size
-        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="right")
+        cfg = Config(info_enabled=True, info_show_version=True)
         min_w, min_h = clamp_window_size((1, 1), cfg)
         small_surf = pg.Surface((min_w, min_h))
         renderer = LedBarRenderer(small_surf, cfg)
@@ -74,26 +58,8 @@ class InfoVersionRendererTests(unittest.TestCase):
         renderer.info_text = "OUTPUT: Test Device"
         renderer.draw_panel()
 
-    def test_left_position_uses_pipe_separator(self):
-        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="left")
-        renderer = LedBarRenderer(self.surf, cfg)
-        renderer.app_identity = "Wune v1.3.1"
-        renderer.info_text = "OUTPUT: Speakers | 48.0 kHz | 2 ch"
-        with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
-            renderer.draw_panel()
-            fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
-            self.assertIn("Wune v1.3.1 | OUTPUT: Speakers | 48.0 kHz | 2 ch", fitted_inputs)
-
-        # When info_text is empty, no trailing pipe is added
-        renderer.info_text = ""
-        with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
-            renderer.draw_panel()
-            fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
-            self.assertIn("Wune v1.3.1", fitted_inputs)
-            self.assertNotIn("Wune v1.3.1 | ", fitted_inputs)
-
     def test_right_position_dynamic_separator_wide_vs_narrow(self):
-        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="right")
+        cfg = Config(info_enabled=True, info_show_version=True)
         renderer = LedBarRenderer(self.surf, cfg)
         renderer.app_identity = "Wune v1.3.1"
 

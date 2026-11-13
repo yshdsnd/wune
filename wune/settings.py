@@ -25,7 +25,6 @@ CHOICES = {
     "channel_mode": ("stereo", "stereo_mix"),
     "channel_layout": ("vertical", "horizontal"),
     "info_position": ("top", "bottom"),
-    "info_version_position": ("right", "left"),
 }
 PREFERENCES = (*CHOICES, "background_path", "led_aspect_ratio", "adaptive_fill", "leds_per_bar", "auto_adjust_leds_on_resize", "bar_gap", "auto_adjust_bar_gap_on_resize", "display_gain_db", "bars", "channels", "info_enabled", "info_show_version", "show_now_playing", "limit_to_20khz", "confirm_keyboard_exit", "borderless", "label_font_size", "info_font_size", "button_font_size", "badge_font_size", "sync_header_font_sizes", "info_font_family", "info_font_bold", "auto_scale_fonts", *MOTION_LIMITS)
 

@@ -418,18 +418,9 @@ class _Dialog:
         self.info_show_version = tk.BooleanVar(root)
         ttk.Checkbutton(ver_opts, text=self.t('settings.show_info_version'), variable=self.info_show_version,
                         command=lambda: self.layout("info_show_version", self.info_show_version.get())).pack(side="left", padx=(0, 16))
-        ttk.Label(ver_opts, text=self.t('settings.info_version_position')).pack(side="left", padx=(0, 6))
-        ver_pos_var = tk.StringVar(root)
-        self.variables["info_version_position"] = ver_pos_var
-        ver_pos_options = {self.t('settings.right'): "right", self.t('settings.left'): "left"}
-        ver_pos_combo = ttk.Combobox(ver_opts, textvariable=ver_pos_var, values=list(ver_pos_options), state="readonly", width=8)
-        ver_pos_combo.pack(side="left")
-        ver_pos_combo.bind("<<ComboboxSelected>>", lambda event: self.layout("info_version_position", ver_pos_options[ver_pos_var.get()]))
-        self.combos["info_version_position"] = (ver_pos_combo, ver_pos_options)
-
         from .build_identity import application_identity
-        self.version_label = ttk.Label(info_tab, text=self.t('settings.version', identity=application_identity()))
-        self.version_label.grid(row=12, column=0, columnspan=2, sticky="w", pady=(pad_y * 2, pad_y))
+        self.version_label = ttk.Label(ver_opts, text=self.t('settings.version', identity=application_identity()))
+        self.version_label.pack(side="left")
 
         # Tab 3: Background
         background.columnconfigure(1, weight=1)

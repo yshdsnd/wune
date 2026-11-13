@@ -287,47 +287,39 @@ class LedBarRenderer:
             text_pad = max(10, round(10 * scale))
             show_version = getattr(self.cfg, "info_show_version", False)
             ver_text = getattr(self, "app_identity", "") if show_version else ""
-            ver_pos = getattr(self.cfg, "info_version_position", "right")
             inner_w = max(0, bar_rect.width - text_pad * 2)
 
             if show_version and ver_text:
-                if ver_pos == "left":
-                    combined = f"{ver_text} | {self.info_text}" if self.info_text else ver_text
-                    fitted = self._fit_text(combined, self.font_small, inner_w)
-                    if fitted:
-                        surf = self.font_small.render(fitted, True, self.cfg.theme.info_text)
-                        self.surf.blit(surf, (bar_rect.x + text_pad, bar_rect.y + (ih - surf.get_height()) // 2))
-                else:
-                    info_full_w = self.font_small.size(self.info_text)[0] if self.info_text else 0
-                    ver_plain_w = self.font_small.size(ver_text)[0]
-                    sep_threshold = max(36, round(48 * scale))
-                    needs_sep = bool(self.info_text) and (info_full_w + sep_threshold + ver_plain_w > inner_w)
+                info_full_w = self.font_small.size(self.info_text)[0] if self.info_text else 0
+                ver_plain_w = self.font_small.size(ver_text)[0]
+                sep_threshold = max(36, round(48 * scale))
+                needs_sep = bool(self.info_text) and (info_full_w + sep_threshold + ver_plain_w > inner_w)
 
-                    if needs_sep:
-                        ver_fitted = self._fit_text(f"| {ver_text}", self.font_small, max(20, inner_w))
-                        ver_surf = self.font_small.render(ver_fitted, True, self.cfg.theme.info_text) if ver_fitted else None
-                        ver_w = ver_surf.get_width() if ver_surf else 0
-                        gap = max(6, round(8 * scale)) if ver_w else 0
-                        avail_info_w = max(0, inner_w - ver_w - gap)
-                        info_fitted = self._fit_text(self.info_text, self.font_small, avail_info_w) if avail_info_w > 0 else ""
-                        if not info_fitted:
-                            ver_fitted = self._fit_text(ver_text, self.font_small, max(20, inner_w))
-                            ver_surf = self.font_small.render(ver_fitted, True, self.cfg.theme.info_text) if ver_fitted else None
-                            ver_w = ver_surf.get_width() if ver_surf else 0
-                            info_surf = None
-                        else:
-                            info_surf = self.font_small.render(info_fitted, True, self.cfg.theme.info_text)
-                    else:
+                if needs_sep:
+                    ver_fitted = self._fit_text(f"| {ver_text}", self.font_small, max(20, inner_w))
+                    ver_surf = self.font_small.render(ver_fitted, True, self.cfg.theme.info_text) if ver_fitted else None
+                    ver_w = ver_surf.get_width() if ver_surf else 0
+                    gap = max(6, round(8 * scale)) if ver_w else 0
+                    avail_info_w = max(0, inner_w - ver_w - gap)
+                    info_fitted = self._fit_text(self.info_text, self.font_small, avail_info_w) if avail_info_w > 0 else ""
+                    if not info_fitted:
                         ver_fitted = self._fit_text(ver_text, self.font_small, max(20, inner_w))
                         ver_surf = self.font_small.render(ver_fitted, True, self.cfg.theme.info_text) if ver_fitted else None
                         ver_w = ver_surf.get_width() if ver_surf else 0
-                        info_fitted = self._fit_text(self.info_text, self.font_small, max(0, inner_w - ver_w)) if self.info_text else ""
-                        info_surf = self.font_small.render(info_fitted, True, self.cfg.theme.info_text) if info_fitted else None
+                        info_surf = None
+                    else:
+                        info_surf = self.font_small.render(info_fitted, True, self.cfg.theme.info_text)
+                else:
+                    ver_fitted = self._fit_text(ver_text, self.font_small, max(20, inner_w))
+                    ver_surf = self.font_small.render(ver_fitted, True, self.cfg.theme.info_text) if ver_fitted else None
+                    ver_w = ver_surf.get_width() if ver_surf else 0
+                    info_fitted = self._fit_text(self.info_text, self.font_small, max(0, inner_w - ver_w)) if self.info_text else ""
+                    info_surf = self.font_small.render(info_fitted, True, self.cfg.theme.info_text) if info_fitted else None
 
-                    if ver_surf:
-                        self.surf.blit(ver_surf, (bar_rect.right - text_pad - ver_w, bar_rect.y + (ih - ver_surf.get_height()) // 2))
-                    if info_surf:
-                        self.surf.blit(info_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - info_surf.get_height()) // 2))
+                if ver_surf:
+                    self.surf.blit(ver_surf, (bar_rect.right - text_pad - ver_w, bar_rect.y + (ih - ver_surf.get_height()) // 2))
+                if info_surf:
+                    self.surf.blit(info_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - info_surf.get_height()) // 2))
             else:
                 info_fitted = self._fit_text(self.info_text, self.font_small, inner_w)
                 if info_fitted:

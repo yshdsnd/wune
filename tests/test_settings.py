@@ -54,12 +54,10 @@ class SettingsTests(unittest.TestCase):
 
     def test_info_version_preferences_survive_restart(self):
         for enabled in (True, False):
-            for position in ("right", "left"):
-                cfg = Config(info_show_version=enabled, info_version_position=position)
-                self.assertTrue(self.store.save(cfg, (1280, 800), (0, 0), "CLASSIC"))
-                loaded, _ = SettingsStore(self.path).load(Config())
-                self.assertEqual(loaded.info_show_version, enabled)
-                self.assertEqual(loaded.info_version_position, position)
+            cfg = Config(info_show_version=enabled)
+            self.assertTrue(self.store.save(cfg, (1280, 800), (0, 0), "CLASSIC"))
+            loaded, _ = SettingsStore(self.path).load(Config())
+            self.assertEqual(loaded.info_show_version, enabled)
 
     def test_font_preferences_survive_restart(self):
         for font_size, auto_scale, info_size, btn_size, badge_size, sync, font_family, font_bold in (

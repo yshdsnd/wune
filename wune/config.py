@@ -36,7 +36,6 @@ class Config:
     info_height: int = 28
     info_position: str = "bottom"    # "top" or "bottom"
     info_show_version: bool = False
-    info_version_position: str = "right"  # "right" or "left"
 
     # Time-based peak marker motion
     peak_hold_ms: float = 500
