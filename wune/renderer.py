@@ -51,6 +51,8 @@ class LedBarRenderer:
         self.info_text = ""
         self.now_playing_text = ""
         self.badge_hovered = False
+        from .build_identity import application_identity
+        self.app_identity = application_identity()
         self.resize(surf)
 
     def _create_fonts(self, scale: float = 1.0):
@@ -283,8 +285,34 @@ class LedBarRenderer:
             pg.draw.rect(self.surf, self.cfg.theme.info_background, bar_rect, border_radius=corner_radius)
             pg.draw.rect(self.surf, self.cfg.theme.info_border, bar_rect, width=1, border_radius=corner_radius)
             text_pad = max(10, round(10 * scale))
-            info_surf = self.font_small.render(self._fit_text(self.info_text, self.font_small, bar_rect.width - text_pad * 2), True, self.cfg.theme.info_text)
-            self.surf.blit(info_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - info_surf.get_height()) // 2))
+            show_version = getattr(self.cfg, "info_show_version", False)
+            ver_text = getattr(self, "app_identity", "") if show_version else ""
+            ver_pos = getattr(self.cfg, "info_version_position", "right")
+
+            if show_version and ver_text:
+                ver_fitted = self._fit_text(ver_text, self.font_small, max(20, bar_rect.width - text_pad * 2))
+                ver_surf = self.font_small.render(ver_fitted, True, self.cfg.theme.info_text) if ver_fitted else None
+                ver_w = ver_surf.get_width() if ver_surf else 0
+                gap = max(12, round(16 * scale)) if ver_w else 0
+                avail_info_w = max(0, bar_rect.width - text_pad * 2 - ver_w - gap)
+                info_fitted = self._fit_text(self.info_text, self.font_small, avail_info_w) if avail_info_w > 0 else ""
+                info_surf = self.font_small.render(info_fitted, True, self.cfg.theme.info_text) if info_fitted else None
+
+                if ver_pos == "left":
+                    if ver_surf:
+                        self.surf.blit(ver_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - ver_surf.get_height()) // 2))
+                    if info_surf:
+                        self.surf.blit(info_surf, (bar_rect.x + text_pad + ver_w + gap, bar_rect.y + (ih - info_surf.get_height()) // 2))
+                else:
+                    if ver_surf:
+                        self.surf.blit(ver_surf, (bar_rect.right - text_pad - ver_w, bar_rect.y + (ih - ver_surf.get_height()) // 2))
+                    if info_surf:
+                        self.surf.blit(info_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - info_surf.get_height()) // 2))
+            else:
+                info_fitted = self._fit_text(self.info_text, self.font_small, max(0, bar_rect.width - text_pad * 2))
+                if info_fitted:
+                    info_surf = self.font_small.render(info_fitted, True, self.cfg.theme.info_text)
+                    self.surf.blit(info_surf, (bar_rect.x + text_pad, bar_rect.y + (ih - info_surf.get_height()) // 2))
 
 
     def update_peaks(self, level_leds, dt=None):

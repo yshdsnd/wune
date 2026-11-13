@@ -575,3 +575,29 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(action, "apply")
         self.assertTrue(state.layout["borderless"])
 
+    def test_info_version_toggle_and_position(self):
+        self.assertFalse(self.dialog.info_show_version.get())
+        self.dialog.info_show_version.set(True)
+        self.dialog.layout("info_show_version", True)
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertTrue(state.layout["info_show_version"])
+
+        self.assertEqual(self.dialog.variables["info_version_position"].get(), self.dialog.t("settings.right"))
+        left_label = self.dialog.t("settings.left")
+        self.dialog.variables["info_version_position"].set(left_label)
+        self.dialog.layout("info_version_position", "left")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "preview")
+        self.assertEqual(state.layout["info_version_position"], "left")
+
+        from wune.build_identity import application_identity
+        identity_str = application_identity()
+        self.assertIn(identity_str, self.dialog.version_label.cget("text"))
+
+        self.dialog.submit("apply")
+        action, state = self.events.get_nowait()
+        self.assertEqual(action, "apply")
+        self.assertTrue(state.layout["info_show_version"])
+        self.assertEqual(state.layout["info_version_position"], "left")
+
