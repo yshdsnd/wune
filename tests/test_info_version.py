@@ -74,6 +74,44 @@ class InfoVersionRendererTests(unittest.TestCase):
         renderer.info_text = "OUTPUT: Test Device"
         renderer.draw_panel()
 
+    def test_left_position_uses_pipe_separator(self):
+        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="left")
+        renderer = LedBarRenderer(self.surf, cfg)
+        renderer.app_identity = "Wune v1.3.1"
+        renderer.info_text = "OUTPUT: Speakers | 48.0 kHz | 2 ch"
+        with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
+            renderer.draw_panel()
+            fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
+            self.assertIn("Wune v1.3.1 | OUTPUT: Speakers | 48.0 kHz | 2 ch", fitted_inputs)
+
+        # When info_text is empty, no trailing pipe is added
+        renderer.info_text = ""
+        with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
+            renderer.draw_panel()
+            fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
+            self.assertIn("Wune v1.3.1", fitted_inputs)
+            self.assertNotIn("Wune v1.3.1 | ", fitted_inputs)
+
+    def test_right_position_dynamic_separator_wide_vs_narrow(self):
+        cfg = Config(info_enabled=True, info_show_version=True, info_version_position="right")
+        renderer = LedBarRenderer(self.surf, cfg)
+        renderer.app_identity = "Wune v1.3.1"
+
+        # Short text on 800px wide surface -> plenty of gap -> no pipe prefix on version
+        renderer.info_text = "OUTPUT: Speakers"
+        with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
+            renderer.draw_panel()
+            fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
+            self.assertIn("Wune v1.3.1", fitted_inputs)
+            self.assertNotIn("| Wune v1.3.1", fitted_inputs)
+
+        # Long text that reaches close to version -> dynamic pipe separator appears
+        renderer.info_text = "OUTPUT: Realtek High Definition Audio Speakers (Loopback Capture Device) | 192.0 kHz | 2 ch"
+        with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
+            renderer.draw_panel()
+            fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
+            self.assertIn("| Wune v1.3.1", fitted_inputs)
+
 
 if __name__ == "__main__":
     unittest.main()
