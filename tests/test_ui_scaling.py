@@ -198,12 +198,12 @@ class UiScalingAndFlexibleWindowTests(unittest.TestCase):
         surface_size = (3840, 2160)
         menu_rect, rows = menu.geometry(surface_size, font_large, "en", False)
         self.assertTrue(pg.Rect((0, 0), surface_size).contains(menu_rect))
-        self.assertEqual(len(rows), 5)
+        self.assertEqual(len(rows), 6)
         for i in range(len(rows) - 1):
             self.assertGreaterEqual(rows[i + 1].top, rows[i].bottom)
 
         menu_rect_fs, rows_fs = menu.geometry(surface_size, font_large, "en", True)
-        self.assertEqual(len(rows_fs), 3)
+        self.assertEqual(len(rows_fs), 4)
 
     def test_flexible_window_sizing_preserves_custom_sizes(self):
         cfg = Config(bars=32)

@@ -5,6 +5,7 @@
   "menu.back": "戻る",
   "menu.enter_fullscreen": "全画面にする",
   "menu.exit_fullscreen": "全画面を解除",
+  "menu.reload_audio": "音声出力を再読み込み",
   "menu.exit": "終了",
   "background.tab": "背景",
   "background.mode": "背景の種類",

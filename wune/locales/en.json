@@ -5,6 +5,7 @@
   "menu.back": "Back",
   "menu.enter_fullscreen": "Enter Fullscreen",
   "menu.exit_fullscreen": "Exit Fullscreen",
+  "menu.reload_audio": "Reload Audio Output",
   "menu.exit": "Exit",
   "background.tab": "Background",
   "background.mode": "Background mode",

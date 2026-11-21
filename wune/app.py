@@ -98,6 +98,8 @@ class App:
         self.sleep_inhibitor = SleepInhibitor()
         self._silence_start_time = None
         self.sleep_inhibitor.set_inhibited(False)
+        self._last_device_check = time.monotonic()
+        self._device_check_interval = 2.0
 
     def _set_mode(self, size, flags, *, display=None, hidden=False):
         hidden_flag = getattr(pg, "HIDDEN", 0)
@@ -665,6 +667,8 @@ class App:
                     self._redraw_requested = True
             elif event.key == pg.K_F2:
                 self.execute_command("settings")
+            elif event.key == pg.K_F5:
+                self.execute_command("reload_audio")
             elif event.key == pg.K_F10:
                 self.execute_command("borderless")
 
@@ -672,6 +676,8 @@ class App:
         self.menu.close()
         if command == "settings":
             self.open_settings()
+        elif command == "reload_audio":
+            self.reload_audio_capture()
         elif command == "borderless":
             self.set_borderless(not self.cfg.borderless)
         elif command == "fullscreen":
@@ -724,18 +730,34 @@ class App:
             self.renderer.now_playing_text = t("app.now_playing_empty")
 
 
+    def reload_audio_capture(self):
+        """Reopen the audio capture stream and sync spectrum range and info bar."""
+        self.spectrum.restart_capture()
+        sr = getattr(self.spectrum, "sr", None)
+        if isinstance(sr, (int, float)) and sr > 0:
+            requested_max = getattr(self, "_requested_max_freq_hz", self.cfg.max_freq_hz)
+            maximum = self.cfg.spectrum_upper_hz(sr, requested_max_hz=requested_max)
+            if maximum != getattr(self.spectrum, "fmax", None):
+                self.spectrum.set_range(self.cfg.min_freq_hz, maximum)
+                self.cfg.max_freq_hz = self.spectrum.fmax
+                if hasattr(self, "levels") and self.levels is not None:
+                    self.levels.fill(0)
+                if hasattr(self, "renderer") and self.renderer is not None:
+                    self.renderer.reset_peaks()
+        self._idle_frames = 0
+        self._redraw_requested = True
+        self._last_device_check = time.monotonic()
+        self.update_info_text()
+
     def on_system_resume(self):
         """Handle system resume from sleep or suspend by refreshing capture."""
         import warnings
         warnings.warn("System resume detected; refreshing audio capture stream.", RuntimeWarning)
-        self.spectrum.restart_capture()
-        self._idle_frames = 0
+        self.reload_audio_capture()
         self._silence_start_time = None
         if hasattr(self, "sleep_inhibitor"):
             self.sleep_inhibitor.set_inhibited(False)
-        self._redraw_requested = True
         self.clock.tick()  # Reset clock interval to prevent huge dt spike
-        self.update_info_text()
 
     def run(self):
         try:
@@ -755,6 +777,15 @@ class App:
                 if not self.running:
                     break
                 self.poll_settings()
+
+                now_check = time.monotonic()
+                check_interval = getattr(self, "_device_check_interval", 2.0)
+                last_check = getattr(self, "_last_device_check", 0.0)
+                if now_check - last_check >= check_interval:
+                    self._last_device_check = now_check
+                    needs_restart = getattr(self.spectrum, "needs_capture_restart", None)
+                    if callable(needs_restart) and needs_restart() is True:
+                        self.reload_audio_capture()
 
                 if not self.paused:
                     self.levels = self.spectrum.step(dt)

@@ -66,7 +66,10 @@ class WasapiLoopbackBackend:
         if not loopback.isloopback:
             raise RuntimeError("The selected playback endpoint has no loopback capture.")
 
+        self._device_id = str(getattr(speaker, "id", ""))
         self._device_name = str(speaker.name)
+        self._follow_default = cfg.output_device is None
+        self._follow_sample_rate = cfg.sample_rate is None
         self._channels = 2
         self._stack = ExitStack()
 
@@ -93,6 +96,29 @@ class WasapiLoopbackBackend:
     @property
     def device_name(self) -> str:
         return self._device_name
+
+    def needs_restart(self) -> bool:
+        """Return True if the Windows default playback device or mix rate changed."""
+        if not self._follow_default:
+            return False
+        try:
+            from .soundcard_compat import get_soundcard, output_sample_rate
+
+            sc = get_soundcard()
+            speaker = sc.default_speaker()
+            if speaker is None:
+                return False
+            current_id = str(getattr(speaker, "id", ""))
+            current_name = str(getattr(speaker, "name", ""))
+            if current_id != self._device_id or current_name != self._device_name:
+                return True
+            if self._follow_sample_rate:
+                current_rate = int(output_sample_rate(speaker))
+                if current_rate > 0 and current_rate != self._sample_rate:
+                    return True
+        except Exception:
+            return False
+        return False
 
     def close(self) -> None:
         try:
@@ -223,6 +249,10 @@ class PulseAudioLoopbackBackend:
     def device_name(self) -> str:
         return self._device_name
 
+    def needs_restart(self) -> bool:
+        """Extension hook for future PulseAudio/PipeWire automatic device tracking."""
+        return False
+
     def close(self) -> None:
         try:
             self._stack.close()
@@ -253,6 +283,10 @@ class MacOsCaptureBackend:
     @property
     def device_name(self) -> str:
         return self._backend.device_name
+
+    def needs_restart(self) -> bool:
+        """Extension hook for future macOS automatic device tracking."""
+        return False
 
     def close(self) -> None:
         try:
