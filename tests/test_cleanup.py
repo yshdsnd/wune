@@ -734,6 +734,19 @@ class AppCleanupTests(unittest.TestCase):
                 os.environ.get("SDL_WINDOWS_DPI_AWARENESS"), "permonitorv2")
             self.app_module.App(Config(language="en"))
 
+    def test_mouse_focus_clickthrough_is_set_before_pygame_init(self):
+        import os
+        with patch.dict(os.environ, {}, clear=True), \
+             patch.object(self.app_module, "set_app_id"):
+            self.pg.init.side_effect = lambda: self.assertEqual(
+                os.environ.get("SDL_MOUSE_FOCUS_CLICKTHROUGH"), "1")
+            self.app_module.App(Config(language="en"))
+        with patch.dict(os.environ, {"SDL_MOUSE_FOCUS_CLICKTHROUGH": "0"}, clear=True), \
+             patch.object(self.app_module, "set_app_id"):
+            self.pg.init.side_effect = lambda: self.assertEqual(
+                os.environ.get("SDL_MOUSE_FOCUS_CLICKTHROUGH"), "0")
+            self.app_module.App(Config(language="en"))
+
     def test_focus_loss_keeps_fullscreen_audio_and_drawing_running(self):
         self.app._fullscreen = True
         self.pg.WINDOWFOCUSLOST = 1001
