@@ -132,7 +132,7 @@ class PulseAudioLoopbackBackend:
     """Linux and Unix PulseAudio / PipeWire loopback capture backend."""
 
     def __init__(self, cfg: Config, blocksize: int | None = None):
-        from .soundcard_compat import get_soundcard
+        from .soundcard_compat import get_soundcard, pulseaudio_output_sample_rate
         sc = get_soundcard()
 
         speaker = (
@@ -153,16 +153,26 @@ class PulseAudioLoopbackBackend:
 
         requested_rate = cfg.sample_rate
         if requested_rate is None:
-            requested_rate = 48000
+            try:
+                detected_rate = int(pulseaudio_output_sample_rate(speaker, sc=sc))
+            except Exception:
+                detected_rate = 0
+            requested_rate = detected_rate if detected_rate > 0 else 48000
         self._sample_rate = int(requested_rate)
         if self._sample_rate <= 0:
             raise ValueError("Sample rate must be positive.")
 
+        self._device_id = str(getattr(speaker, "id", ""))
+        self._speaker_name = str(speaker.name)
+        self._exact_match = bool(exact_match)
+        self._follow_default = cfg.output_device is None
+        self._follow_sample_rate = cfg.sample_rate is None
         if exact_match:
-            self._device_name = str(speaker.name)
+            self._device_name = self._speaker_name
         else:
-            self._device_name = str(getattr(loopback, "name", speaker.name))
+            self._device_name = str(getattr(loopback, "name", self._speaker_name))
         self._channels = 2
+        self._closed = False
         self._stack = ExitStack()
 
         nfft = int(cfg.block_size if blocksize is None else blocksize)
@@ -229,6 +239,8 @@ class PulseAudioLoopbackBackend:
         return None, False
 
     def record(self, numframes: int) -> np.ndarray:
+        if getattr(self, "_closed", False):
+            raise RuntimeError("PulseAudio capture stream is closed.")
         data = self._stream.record(numframes=numframes)
         if self._duplicate_mono or data.ndim == 1 or data.shape[1] == 1:
             if data.ndim == 1:
@@ -250,10 +262,39 @@ class PulseAudioLoopbackBackend:
         return self._device_name
 
     def needs_restart(self) -> bool:
-        """Extension hook for future PulseAudio/PipeWire automatic device tracking."""
+        """Return True if the PulseAudio/PipeWire default playback device or sample rate changed."""
+        if not getattr(self, "_follow_default", False):
+            return False
+        if getattr(self, "_closed", False):
+            return False
+        try:
+            from .soundcard_compat import get_soundcard, pulseaudio_output_sample_rate
+
+            sc = get_soundcard()
+            speaker = sc.default_speaker()
+            if speaker is None:
+                return False
+            current_id = str(getattr(speaker, "id", ""))
+            current_name = str(getattr(speaker, "name", ""))
+            expected_name = getattr(self, "_speaker_name", getattr(self, "_device_name", ""))
+            if current_id != getattr(self, "_device_id", "") or current_name != expected_name:
+                return True
+            if not getattr(self, "_exact_match", True):
+                monitor, exact = self._find_monitor_source(sc, speaker, allow_fallback=False)
+                if monitor is not None and exact:
+                    return True
+            if getattr(self, "_follow_sample_rate", False):
+                current_rate = int(pulseaudio_output_sample_rate(speaker, sc=sc))
+                if current_rate > 0 and current_rate != self._sample_rate:
+                    return True
+        except Exception:
+            return False
         return False
 
     def close(self) -> None:
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
         try:
             self._stack.close()
         except Exception as error:

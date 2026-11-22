@@ -143,6 +143,46 @@ def _install_recorder_exit(backend):
 
 
 
+def pulseaudio_output_sample_rate(speaker, sc=None):
+    """Read the PulseAudio/PipeWire sink's current sample rate in Hz, or 0 if unavailable."""
+    try:
+        device_id = getattr(speaker, "id", getattr(speaker, "_id", None))
+        if not isinstance(device_id, str) or not device_id:
+            return 0
+        if sc is not None:
+            pa = getattr(sc, "pulseaudio", None)
+        else:
+            if not (sys.platform == "linux" or sys.platform.startswith("freebsd")):
+                return 0
+            from soundcard import pulseaudio as pa
+        if pa is None:
+            return 0
+        pulse = getattr(pa, "_pulse", None)
+        ffi = getattr(pa, "_ffi", None)
+        if pulse is None or ffi is None:
+            return 0
+        get_sink_info = getattr(pulse, "_pa_context_get_sink_info_by_name", None)
+        context = getattr(pulse, "context", None)
+        callback_factory = getattr(ffi, "callback", None)
+        if not callable(get_sink_info) or context is None or not callable(callback_factory):
+            return 0
+        null_ptr = getattr(ffi, "NULL", None)
+
+        rates = []
+
+        @callback_factory("pa_sink_info_cb_t")
+        def callback(ctx, sink_info, eol, userdata):
+            if not eol and sink_info != null_ptr:
+                rate = int(sink_info.sample_spec.rate)
+                if rate > 0:
+                    rates.append(rate)
+
+        get_sink_info(context, device_id.encode("utf-8"), callback, null_ptr)
+        return rates[0] if rates else 0
+    except Exception:
+        return 0
+
+
 def output_sample_rate(speaker):
     """Read the selected endpoint's shared-mode mix rate before capture starts."""
     if sys.platform == "darwin":
@@ -158,6 +198,8 @@ def output_sample_rate(speaker):
         except Exception:
             pass
         return 0
+    if sys.platform == "linux" or sys.platform.startswith("freebsd"):
+        return pulseaudio_output_sample_rate(speaker)
     from soundcard import mediafoundation
     return _mix_sample_rate(speaker, mediafoundation)
 

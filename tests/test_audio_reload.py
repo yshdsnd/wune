@@ -52,7 +52,148 @@ class WasapiNeedsRestartTests(unittest.TestCase):
         with patch("wune.soundcard_compat.get_soundcard", side_effect=RuntimeError("COM error")):
             self.assertFalse(backend.needs_restart())
 
-    def test_pulseaudio_backend_hook_returns_false(self):
+
+class PulseAudioNeedsRestartTests(unittest.TestCase):
+    def _make_backend(
+        self,
+        *,
+        device_id="alsa_output.pci-0000_00_1f.3.analog-stereo",
+        speaker_name="Built-in Audio Analog Stereo",
+        device_name=None,
+        sample_rate=48000,
+        follow_default=True,
+        follow_sample_rate=True,
+        exact_match=True,
+        closed=False,
+    ):
+        backend = PulseAudioLoopbackBackend.__new__(PulseAudioLoopbackBackend)
+        backend._device_id = device_id
+        backend._speaker_name = speaker_name
+        backend._device_name = speaker_name if device_name is None else device_name
+        backend._sample_rate = sample_rate
+        backend._follow_default = follow_default
+        backend._follow_sample_rate = follow_sample_rate
+        backend._exact_match = exact_match
+        backend._closed = closed
+        return backend
+
+    def test_returns_false_when_unchanged(self):
+        backend = self._make_backend()
+        speaker = SimpleNamespace(
+            id="alsa_output.pci-0000_00_1f.3.analog-stereo",
+            name="Built-in Audio Analog Stereo",
+        )
+        fake_sc = SimpleNamespace(default_speaker=lambda: speaker)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=48000):
+            self.assertFalse(backend.needs_restart())
+
+    def test_returns_true_when_default_speaker_id_changes(self):
+        backend = self._make_backend()
+        speaker = SimpleNamespace(id="alsa_output.usb-DAC-00.analog-stereo", name="USB DAC")
+        fake_sc = SimpleNamespace(default_speaker=lambda: speaker)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=48000):
+            self.assertTrue(backend.needs_restart())
+
+    def test_returns_true_when_default_speaker_name_changes(self):
+        backend = self._make_backend()
+        speaker = SimpleNamespace(
+            id="alsa_output.pci-0000_00_1f.3.analog-stereo",
+            name="Built-in Audio Headphones",
+        )
+        fake_sc = SimpleNamespace(default_speaker=lambda: speaker)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=48000):
+            self.assertTrue(backend.needs_restart())
+
+    def test_returns_true_when_sink_sample_rate_changes(self):
+        backend = self._make_backend(sample_rate=48000)
+        speaker = SimpleNamespace(
+            id="alsa_output.pci-0000_00_1f.3.analog-stereo",
+            name="Built-in Audio Analog Stereo",
+        )
+        fake_sc = SimpleNamespace(default_speaker=lambda: speaker)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=96000):
+            self.assertTrue(backend.needs_restart())
+
+    def test_returns_false_when_sample_rate_is_explicitly_pinned(self):
+        backend = self._make_backend(sample_rate=48000, follow_sample_rate=False)
+        speaker = SimpleNamespace(
+            id="alsa_output.pci-0000_00_1f.3.analog-stereo",
+            name="Built-in Audio Analog Stereo",
+        )
+        fake_sc = SimpleNamespace(default_speaker=lambda: speaker)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=96000):
+            self.assertFalse(backend.needs_restart())
+
+    def test_returns_false_when_sample_rate_probe_unavailable(self):
+        backend = self._make_backend(sample_rate=48000)
+        speaker = SimpleNamespace(
+            id="alsa_output.pci-0000_00_1f.3.analog-stereo",
+            name="Built-in Audio Analog Stereo",
+        )
+        fake_sc = SimpleNamespace(default_speaker=lambda: speaker)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=0):
+            self.assertFalse(backend.needs_restart())
+
+    def test_returns_false_when_output_device_is_explicitly_pinned(self):
+        backend = self._make_backend(follow_default=False)
+        self.assertFalse(backend.needs_restart())
+
+    def test_returns_false_when_closed(self):
+        backend = self._make_backend(closed=True)
+        self.assertFalse(backend.needs_restart())
+
+    def test_returns_false_when_default_speaker_is_none(self):
+        backend = self._make_backend()
+        fake_sc = SimpleNamespace(default_speaker=lambda: None)
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc):
+            self.assertFalse(backend.needs_restart())
+
+    def test_returns_false_when_probe_raises(self):
+        backend = self._make_backend()
+        with patch("wune.soundcard_compat.get_soundcard", side_effect=IndexError("no soundcard with id @DEFAULT_SINK@")):
+            self.assertFalse(backend.needs_restart())
+
+    def test_fallback_monitor_does_not_loop_when_no_exact_monitor_exists(self):
+        backend = self._make_backend(
+            device_id="sink_unknown",
+            speaker_name="Unknown Sink",
+            device_name="Generic Monitor",
+            exact_match=False,
+        )
+        speaker = SimpleNamespace(id="sink_unknown", name="Unknown Sink")
+        fake_sc = MagicMock()
+        fake_sc.default_speaker.return_value = speaker
+        fake_sc.get_microphone.side_effect = IndexError("Not found")
+        fake_sc.all_microphones.return_value = [
+            SimpleNamespace(id="generic.monitor", name="Generic Monitor", isloopback=True)
+        ]
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=48000):
+            self.assertFalse(backend.needs_restart())
+
+    def test_fallback_monitor_restarts_when_exact_monitor_appears(self):
+        backend = self._make_backend(
+            device_id="sink_unknown",
+            speaker_name="Unknown Sink",
+            device_name="Generic Monitor",
+            exact_match=False,
+        )
+        speaker = SimpleNamespace(id="sink_unknown", name="Unknown Sink")
+        exact_mon = SimpleNamespace(id="sink_unknown.monitor", name="Monitor of Unknown Sink", isloopback=True)
+        fake_sc = MagicMock()
+        fake_sc.default_speaker.return_value = speaker
+        fake_sc.get_microphone.return_value = exact_mon
+        with patch("wune.soundcard_compat.get_soundcard", return_value=fake_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=48000):
+            self.assertTrue(backend.needs_restart())
+
+    def test_uninitialized_instance_returns_false(self):
         pa = PulseAudioLoopbackBackend.__new__(PulseAudioLoopbackBackend)
         self.assertFalse(pa.needs_restart())
 

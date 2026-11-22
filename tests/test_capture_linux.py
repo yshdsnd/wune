@@ -1,4 +1,5 @@
 """Tests for Linux and Unix PulseAudio / PipeWire capture backend."""
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 import sys
 import unittest
@@ -10,7 +11,11 @@ from wune.capture import (
     PulseAudioLoopbackBackend,
     create_capture_backend,
 )
-from wune.soundcard_compat import get_soundcard
+from wune.soundcard_compat import (
+    get_soundcard,
+    output_sample_rate,
+    pulseaudio_output_sample_rate,
+)
 
 
 class PulseAudioCaptureBackendTests(unittest.TestCase):
@@ -246,9 +251,42 @@ class PulseAudioCaptureBackendTests(unittest.TestCase):
         with patch("wune.soundcard_compat.get_soundcard", return_value=mock_sc):
             backend = PulseAudioLoopbackBackend(Config())
             backend.close()
-            # __exit__ should have been called on recorder context
+            backend.close()
+            # __exit__ should have been called exactly once on recorder context
             recorder_ctx = loopback.recorder.return_value
             recorder_ctx.__exit__.assert_called_once()
+
+    def test_record_after_close_raises_runtime_error(self):
+        mock_sc = MagicMock()
+        speaker = self._create_mock_speaker()
+        loopback = self._create_mock_loopback()
+        mock_sc.default_speaker.return_value = speaker
+        mock_sc.get_microphone.return_value = loopback
+
+        with patch("wune.soundcard_compat.get_soundcard", return_value=mock_sc):
+            backend = PulseAudioLoopbackBackend(Config())
+            backend.close()
+            with self.assertRaisesRegex(RuntimeError, "closed"):
+                backend.record(256)
+
+    def test_default_sample_rate_uses_detected_pulseaudio_sink_rate(self):
+        mock_sc = MagicMock()
+        speaker = self._create_mock_speaker(name="USB Hi-Res DAC", id_val="alsa_output.usb-dac")
+        loopback = self._create_mock_loopback(name="Monitor of USB Hi-Res DAC", id_val="alsa_output.usb-dac.monitor")
+        mock_sc.default_speaker.return_value = speaker
+        mock_sc.get_microphone.return_value = loopback
+
+        with patch("wune.soundcard_compat.get_soundcard", return_value=mock_sc), \
+             patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=96000):
+            cfg = Config(sample_rate=None)
+            backend = PulseAudioLoopbackBackend(cfg)
+            self.assertEqual(backend.sample_rate, 96000)
+            loopback.recorder.assert_called_once_with(
+                samplerate=96000,
+                channels=[0, 1],
+                blocksize=cfg.block_size,
+            )
+            backend.close()
 
     def test_audio_spectrum_integration_on_linux(self):
         from wune.spectrum_audio import AudioSpectrum
@@ -287,3 +325,57 @@ class SoundCardCompatTests(unittest.TestCase):
                     self.assertIsNotNone(sc)
                     # Platform should be restored
                     self.assertEqual(sys.platform, "freebsd14")
+
+    def test_pulseaudio_output_sample_rate_reads_sink_spec(self):
+        null_ptr = object()
+        fake_sink = SimpleNamespace(sample_spec=SimpleNamespace(rate=96000))
+
+        def fake_get_sink_info(context, sink_name, cb, userdata):
+            self.assertEqual(sink_name, b"alsa_output.usb-dac")
+            cb(context, fake_sink, 0, userdata)
+            cb(context, null_ptr, 1, userdata)
+
+        fake_pa = SimpleNamespace(
+            _ffi=SimpleNamespace(NULL=null_ptr, callback=lambda sig: (lambda fn: fn)),
+            _pulse=SimpleNamespace(
+                context=object(),
+                _pa_context_get_sink_info_by_name=fake_get_sink_info,
+            ),
+        )
+        fake_sc = SimpleNamespace(pulseaudio=fake_pa)
+        speaker = SimpleNamespace(id="alsa_output.usb-dac")
+        self.assertEqual(pulseaudio_output_sample_rate(speaker, sc=fake_sc), 96000)
+
+    def test_pulseaudio_output_sample_rate_returns_zero_when_missing_or_error(self):
+        null_ptr = object()
+
+        def fake_missing(context, sink_name, cb, userdata):
+            cb(context, null_ptr, -1, userdata)
+
+        fake_pa = SimpleNamespace(
+            _ffi=SimpleNamespace(NULL=null_ptr, callback=lambda sig: (lambda fn: fn)),
+            _pulse=SimpleNamespace(
+                context=object(),
+                _pa_context_get_sink_info_by_name=fake_missing,
+            ),
+        )
+        fake_sc = SimpleNamespace(pulseaudio=fake_pa)
+        speaker = SimpleNamespace(id="missing_sink")
+        self.assertEqual(pulseaudio_output_sample_rate(speaker, sc=fake_sc), 0)
+
+        broken_pa = SimpleNamespace(
+            _ffi=SimpleNamespace(NULL=null_ptr, callback=lambda sig: (lambda fn: fn)),
+            _pulse=SimpleNamespace(
+                context=object(),
+                _pa_context_get_sink_info_by_name=MagicMock(side_effect=RuntimeError("pa error")),
+            ),
+        )
+        self.assertEqual(pulseaudio_output_sample_rate(speaker, sc=SimpleNamespace(pulseaudio=broken_pa)), 0)
+
+    def test_output_sample_rate_dispatches_to_pulseaudio_on_linux_and_freebsd(self):
+        speaker = SimpleNamespace(id="sink-1")
+        for platform in ("linux", "freebsd14"):
+            with patch("wune.soundcard_compat.sys.platform", platform), \
+                 patch("wune.soundcard_compat.pulseaudio_output_sample_rate", return_value=44100) as mock_rate:
+                self.assertEqual(output_sample_rate(speaker), 44100)
+                mock_rate.assert_called_once_with(speaker)
