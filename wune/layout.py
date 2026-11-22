@@ -122,6 +122,21 @@ def clamp_window_size(size, cfg):
     return tuple(max(int(value), limit) for value, limit in zip(size, minimum_window_size(cfg)))
 
 
+def resizable_minimum_window_size(cfg):
+    """Minimum window size allowed during interactive resize.
+
+    When auto-adjust is enabled for LEDs or bar gap, allow shrinking down to
+    the minimum possible segment count / bar gap rather than locking the window
+    at the current segment count or bar gap.
+    """
+    effective = cfg
+    if getattr(cfg, "auto_adjust_leds_on_resize", False) and cfg.leds_per_bar > 10:
+        effective = replace(effective, leds_per_bar=10)
+    if getattr(cfg, "auto_adjust_bar_gap_on_resize", False) and getattr(cfg, "bar_gap", 2) > 1:
+        effective = replace(effective, bar_gap=1)
+    return minimum_window_size(effective)
+
+
 def _vertical_overhead(size, cfg, scale: float) -> tuple[int, int]:
     """Calculate the safe top boundary and bottom clearance margin for plots."""
     width, height = size
@@ -263,24 +278,29 @@ def calculate_optimal_leds_per_bar(size, cfg, min_leds: int = 20, max_leds: int 
     # current cfg.leds_per_bar so that a large current segment count does not
     # inflate the window size when shrinking.
     min_cfg = replace(cfg, leds_per_bar=10)
+    if getattr(cfg, "auto_adjust_bar_gap_on_resize", False) and getattr(cfg, "bar_gap", 2) > 1:
+        min_cfg = replace(min_cfg, bar_gap=1)
     size = clamp_window_size(size, min_cfg)
-    best_k = getattr(cfg, "leds_per_bar", 20)
+    best_k = 10
     best_area = -1
-    for search_min in (min_leds, 10):
-        for k in range(search_min, max_leds + 1):
-            c = replace(cfg, leds_per_bar=k)
-            if tuple(size) != clamp_window_size(size, c):
-                continue
-            try:
-                layout = calculate_layout(size, c)
-            except ValueError:
-                continue
-            if not layout_has_clearance(layout, c, size):
-                continue
-            area = layout.plots[0][2] * layout.plots[0][3]
-            if area > best_area:
-                best_area = area
-                best_k = k
+    for require_clearance in (True, False):
+        for search_min in (min_leds, 10):
+            for k in range(search_min, max_leds + 1):
+                c = replace(cfg, leds_per_bar=k)
+                if tuple(size) != clamp_window_size(size, c):
+                    continue
+                try:
+                    layout = calculate_layout(size, c)
+                except ValueError:
+                    continue
+                if require_clearance and not layout_has_clearance(layout, c, size):
+                    continue
+                area = layout.plots[0][2] * layout.plots[0][3]
+                if area > best_area:
+                    best_area = area
+                    best_k = k
+            if best_area > 0:
+                break
         if best_area > 0:
             break
     return max(10, min(max_leds, best_k))
@@ -293,33 +313,38 @@ def calculate_optimal_bar_gap(size, cfg, min_gap: int = 1, max_gap: int = 15) ->
     (around 18% of bar width, scaled with UI scale) while ensuring all safety clearances.
     """
     min_cfg = replace(cfg, bar_gap=min_gap)
+    if getattr(cfg, "auto_adjust_leds_on_resize", False) and cfg.leds_per_bar > 10:
+        min_cfg = replace(min_cfg, leds_per_bar=10)
     size = clamp_window_size(size, min_cfg)
     scale = calculate_ui_scale(size)
-    best_gap = getattr(cfg, "bar_gap", 2)
+    best_gap = min_gap
     best_score = float("inf")
     target_ratio = 0.18
 
-    for g in range(min_gap, max_gap + 1):
-        c = replace(cfg, bar_gap=g)
-        if tuple(size) != clamp_window_size(size, c):
-            continue
-        try:
-            layout = calculate_layout(size, c)
-        except ValueError:
-            continue
-        if not layout_has_clearance(layout, c, size):
-            continue
-        bar_w = layout.bar_width
-        if bar_w <= 0:
-            continue
-        actual_ratio = g / bar_w
-        scaled_pref = 2.0 * scale
-        gap_diff = abs(g - scaled_pref) / max(1.0, scaled_pref)
-        ratio_diff = abs(actual_ratio - target_ratio) / target_ratio
-        score = ratio_diff * 0.7 + gap_diff * 0.3
-        if score < best_score:
-            best_score = score
-            best_gap = g
+    for require_clearance in (True, False):
+        for g in range(min_gap, max_gap + 1):
+            c = replace(cfg, bar_gap=g)
+            if tuple(size) != clamp_window_size(size, c):
+                continue
+            try:
+                layout = calculate_layout(size, c)
+            except ValueError:
+                continue
+            if require_clearance and not layout_has_clearance(layout, c, size):
+                continue
+            bar_w = layout.bar_width
+            if bar_w <= 0:
+                continue
+            actual_ratio = g / bar_w
+            scaled_pref = 2.0 * scale
+            gap_diff = abs(g - scaled_pref) / max(1.0, scaled_pref)
+            ratio_diff = abs(actual_ratio - target_ratio) / target_ratio
+            score = ratio_diff * 0.7 + gap_diff * 0.3
+            if score < best_score:
+                best_score = score
+                best_gap = g
+        if best_score < float("inf"):
+            break
 
     return max(0, min(20, best_gap))
 

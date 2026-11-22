@@ -417,15 +417,6 @@ class LedBarRenderer:
         y0 = self.ch_y0[ch]
         ch_h = self.ch_h
 
-        denom = (self.cfg.db_max - self.cfg.db_min) or 1.0
-        rng = np.arange(self.cfg.db_max, self.cfg.db_min - 0.1, -self.cfg.db_step)
-        for db in rng:
-            ratio = (db - self.cfg.db_min) / denom
-            y = int(y0 + ch_h - ratio * ch_h)
-            label = f"{int(db)}"
-            ts = self.font_scale.render(label, True, self.cfg.theme.db_text)
-            self.surf.blit(ts, (x_right - ts.get_width(), y - ts.get_height() // 2))
-
         # dB の位置を先に決める（各段の上端から少し下げる）
         unit = self.font_scale.render("dB", True, self.cfg.theme.unit_text)
         unit_x = x_right - unit.get_width()
@@ -438,9 +429,35 @@ class LedBarRenderer:
         lr_x  = x_right - ts_lr.get_width()
         lr_y  = unit_y - ts_lr.get_height() - max(2, round(2 * scale))
 
-        # 描画
-        self.surf.blit(ts_lr, (lr_x,  lr_y))
-        self.surf.blit(unit,  (unit_x, unit_y))
+        denom = (self.cfg.db_max - self.cfg.db_min) or 1.0
+        rng = np.arange(self.cfg.db_max, self.cfg.db_min - 0.1, -self.cfg.db_step)
+        label_h = self.font_scale.get_height()
+        min_pad = max(2, round(2 * scale))
+        slot_h = label_h + min_pad
+        px_per_step = (self.cfg.db_step / denom) * ch_h
+
+        drawn_any = False
+        if px_per_step > 0 and ch_h >= slot_h * 1.5:
+            stride = max(1, math.ceil(slot_h / px_per_step))
+            occupied = [pg.Rect(unit_x, unit_y, unit.get_width(), unit.get_height()).inflate(0, min_pad)]
+            for db in rng[::stride]:
+                ratio = (db - self.cfg.db_min) / denom
+                y = int(y0 + ch_h - ratio * ch_h)
+                ts = self.font_scale.render(f"{int(db)}", True, self.cfg.theme.db_text)
+                rect = ts.get_rect(topright=(x_right, y - ts.get_height() // 2))
+                if any(rect.colliderect(used) for used in occupied):
+                    continue
+                self.surf.blit(ts, rect)
+                occupied.append(rect.inflate(0, min_pad))
+                drawn_any = True
+
+        # 描画（数値が全て省略された極小サイズでは dB 単位も省略し、L/R ラベルのみ残す）
+        if drawn_any:
+            self.surf.blit(unit, (unit_x, unit_y))
+            self.surf.blit(ts_lr, (lr_x, lr_y))
+        else:
+            fallback_lr_y = y0 - ts_lr.get_height() - max(6, round(self.cfg.db_unit_offset * scale))
+            self.surf.blit(ts_lr, (lr_x, fallback_lr_y))
 
     def draw(self, levels: np.ndarray, dt=None):
         self.resize(self.surf)

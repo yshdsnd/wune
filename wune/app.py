@@ -251,6 +251,10 @@ class App:
             self._geometry_window().set_windowed()
         except Exception:
             pass
+        if getattr(self.cfg, "auto_adjust_bar_gap_on_resize", False):
+            self.cfg.bar_gap = calculate_optimal_bar_gap(self._windowed_size, self.cfg)
+        if getattr(self.cfg, "auto_adjust_leds_on_resize", False):
+            self.cfg.leds_per_bar = calculate_optimal_leds_per_bar(self._windowed_size, self.cfg)
         self._set_mode(clamp_window_size(self._windowed_size, self.cfg), self._windowed_flags())
         self._fullscreen = False
         self._restore_position()
@@ -344,7 +348,7 @@ class App:
         self._appearance_size = self._windowed_size if self._fullscreen else self.screen.get_size()
         self._settings_closing = False
         path = self.settings_store.path if self.settings_store is not None else settings_path()
-        self.settings_dialog = SettingsDialog(state, path, window_size=self._appearance_size)
+        self.settings_dialog = SettingsDialog(state, path, window_size=self.screen.get_size())
 
     def preview_appearance(self, state, size=None):
         self._redraw_requested = True
@@ -405,7 +409,9 @@ class App:
 
     def cancel_settings(self):
         if self._appearance_baseline is not None:
-            self.preview_appearance(self._appearance_baseline, self._appearance_size)
+            restore_size = (None if (self._fullscreen or self._appearance_size == self.screen.get_size())
+                            else self._appearance_size)
+            self.preview_appearance(self._appearance_baseline, restore_size)
             self._appearance_baseline = None
 
     def poll_settings(self):
@@ -471,15 +477,16 @@ class App:
 
     def resize_window(self, size):
         self._redraw_requested = True
-        if getattr(self.cfg, "auto_adjust_leds_on_resize", False):
-            optimal = calculate_optimal_leds_per_bar(size, self.cfg)
-            if optimal != self.cfg.leds_per_bar:
-                self.cfg.leds_per_bar = optimal
-                self.save_settings()
+        effective_size = self.screen.get_size() if self._fullscreen else size
         if getattr(self.cfg, "auto_adjust_bar_gap_on_resize", False):
-            optimal_gap = calculate_optimal_bar_gap(size, self.cfg)
+            optimal_gap = calculate_optimal_bar_gap(effective_size, self.cfg)
             if optimal_gap != self.cfg.bar_gap:
                 self.cfg.bar_gap = optimal_gap
+                self.save_settings()
+        if getattr(self.cfg, "auto_adjust_leds_on_resize", False):
+            optimal = calculate_optimal_leds_per_bar(effective_size, self.cfg)
+            if optimal != self.cfg.leds_per_bar:
+                self.cfg.leds_per_bar = optimal
                 self.save_settings()
         if self._fullscreen and self.screen.get_size() != clamp_window_size(self.screen.get_size(), self.cfg):
             self.toggle_fullscreen()
@@ -487,7 +494,7 @@ class App:
         if not self._fullscreen:
             size = clamp_window_size(size, self.cfg)
             if self.screen.get_size() != size:
-                self._set_mode(size, pg.RESIZABLE)
+                self._set_mode(size, self._windowed_flags())
             self._windowed_size = size
         self.renderer.resize(self.screen)
         if self.settings_dialog is not None:
@@ -540,8 +547,8 @@ class App:
                 on_left, on_right, on_top, on_bottom = self._window_resizing
                 orig_w, orig_h = self._resize_start_size
                 orig_x, orig_y = self._resize_start_win_pos
-                from .layout import minimum_window_size
-                min_w, min_h = minimum_window_size(self.cfg)
+                from .layout import resizable_minimum_window_size
+                min_w, min_h = resizable_minimum_window_size(self.cfg)
                 new_w, new_h = orig_w, orig_h
                 new_x, new_y = orig_x, orig_y
                 if on_right:
@@ -554,7 +561,12 @@ class App:
                 elif on_top:
                     new_h = max(min_h, orig_h - dy)
                     new_y = orig_y + (orig_h - new_h)
-                clamped = clamp_window_size((new_w, new_h), self.cfg)
+                self.resize_window((new_w, new_h))
+                clamped = self._windowed_size
+                if on_left:
+                    new_x = orig_x + (orig_w - clamped[0])
+                if on_top:
+                    new_y = orig_y + (orig_h - clamped[1])
                 try:
                     win = self._geometry_window()
                     win.size = clamped
@@ -563,8 +575,6 @@ class App:
                         self._windowed_position = (new_x, new_y)
                 except Exception:
                     pass
-                self.resize_window(clamped)
-                self._windowed_size = clamped
             elif getattr(self, "_window_dragging", False):
                 cur_pos = self._get_cursor_pos(event.pos)
                 if cur_pos and self._drag_start_cursor:
