@@ -37,6 +37,7 @@ class ApplicationMenu:
         if not fullscreen:
             items.append(("borderless", t("menu.exit_borderless" if is_borderless else "menu.enter_borderless"), "F10"))
             items.append(("window_size", t("menu.window_size"), ">"))
+        items.append(("reload_audio", t("menu.reload_audio"), "F5"))
         items.append(("exit", t("menu.exit"), "Q" if fullscreen else "Q / Esc"))
         return tuple(items)
 
