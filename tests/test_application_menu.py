@@ -21,7 +21,7 @@ class ApplicationMenuTests(unittest.TestCase):
     def test_button_and_right_click_share_commands(self):
         for event in (dict(button=1, pos=self.menu.button_rect(self.font, "en").center),
                       dict(button=3, pos=(470, 390))):
-            for index, expected in enumerate(("settings", "fullscreen", "borderless", "window_size", "exit")):
+            for index, expected in enumerate(("settings", "fullscreen", "borderless", "window_size", "reload_audio", "exit")):
                 self.menu.close()
                 self.assertEqual(self.handle(pg.MOUSEBUTTONDOWN, **event), (True, None))
                 rect, rows = self.menu.geometry((480, 400), self.font, "en", False)

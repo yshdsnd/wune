@@ -16,6 +16,8 @@ typedef struct WuneTapContext {
     AudioObjectID tapID;
     AudioDeviceID aggDeviceID;
     AudioDeviceIOProcID procID;
+    AudioDeviceID defaultDeviceID;
+    char defaultDeviceUID[256];
     uint32_t sampleRate;
     uint32_t channels;
 
@@ -251,6 +253,11 @@ WuneTapContext* wune_tap_create(uint32_t* out_sample_rate, uint32_t* out_channel
             (__bridge NSString*)CFSTR("taps"): @[ subTapDict ]
         };
 
+        char defaultDeviceUID[256] = {0};
+        if (defUID) {
+            CFStringGetCString(defUID, defaultDeviceUID, sizeof(defaultDeviceUID), kCFStringEncodingUTF8);
+        }
+
         AudioDeviceID aggDevice = 0;
         status = AudioHardwareCreateAggregateDevice((__bridge CFDictionaryRef)aggDict, &aggDevice);
         if (tapUID) CFRelease(tapUID);
@@ -270,6 +277,8 @@ WuneTapContext* wune_tap_create(uint32_t* out_sample_rate, uint32_t* out_channel
 
         ctx->tapID = tapID;
         ctx->aggDeviceID = aggDevice;
+        ctx->defaultDeviceID = defaultOutput;
+        memcpy(ctx->defaultDeviceUID, defaultDeviceUID, sizeof(ctx->defaultDeviceUID));
         ctx->sampleRate = (uint32_t)nominalSampleRate;
         ctx->channels = CHANNELS;
         ctx->active = true;
@@ -351,4 +360,59 @@ void wune_tap_destroy(WuneTapContext* ctx) {
     pthread_mutex_destroy(&ctx->mutex);
     pthread_cond_destroy(&ctx->cond);
     free(ctx);
+}
+
+bool wune_tap_needs_restart(WuneTapContext* ctx) {
+    if (!ctx || !ctx->active) return false;
+
+    AudioDeviceID currentDefault = 0;
+    UInt32 size = sizeof(AudioDeviceID);
+    AudioObjectPropertyAddress defAddr = {
+        .mSelector = kAudioHardwarePropertyDefaultOutputDevice,
+        .mScope = kAudioObjectPropertyScopeGlobal,
+        .mElement = kAudioObjectPropertyElementMain
+    };
+    OSStatus status = AudioObjectGetPropertyData(kAudioObjectSystemObject, &defAddr, 0, NULL, &size, &currentDefault);
+    if (status != noErr || currentDefault == 0) {
+        return false;
+    }
+
+    if (currentDefault != ctx->defaultDeviceID) {
+        return true;
+    }
+
+    // Verify UID in case the device ID was reassigned
+    CFStringRef curUID = NULL;
+    size = sizeof(CFStringRef);
+    AudioObjectPropertyAddress uidAddr = {
+        .mSelector = kAudioDevicePropertyDeviceUID,
+        .mScope = kAudioObjectPropertyScopeGlobal,
+        .mElement = kAudioObjectPropertyElementMain
+    };
+    status = AudioObjectGetPropertyData(currentDefault, &uidAddr, 0, NULL, &size, &curUID);
+    if (status == noErr && curUID) {
+        char buf[256] = {0};
+        CFStringGetCString(curUID, buf, sizeof(buf), kCFStringEncodingUTF8);
+        CFRelease(curUID);
+        if (strncmp(buf, ctx->defaultDeviceUID, sizeof(buf)) != 0) {
+            return true;
+        }
+    }
+
+    // Verify nominal sample rate of current default device
+    Float64 currentSampleRate = 0.0;
+    size = sizeof(Float64);
+    AudioObjectPropertyAddress srAddr = {
+        .mSelector = kAudioDevicePropertyNominalSampleRate,
+        .mScope = kAudioObjectPropertyScopeGlobal,
+        .mElement = kAudioObjectPropertyElementMain
+    };
+    status = AudioObjectGetPropertyData(currentDefault, &srAddr, 0, NULL, &size, &currentSampleRate);
+    if (status == noErr && isfinite(currentSampleRate) && currentSampleRate > 0) {
+        if ((uint32_t)currentSampleRate != ctx->sampleRate) {
+            return true;
+        }
+    }
+
+    return false;
 }

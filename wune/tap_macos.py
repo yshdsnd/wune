@@ -96,6 +96,10 @@ class CoreAudioTapBackend:
         self._lib.wune_tap_destroy.restype = None
         self._lib.wune_tap_destroy.argtypes = [ctypes.c_void_p]
 
+        if hasattr(self._lib, "wune_tap_needs_restart"):
+            self._lib.wune_tap_needs_restart.restype = ctypes.c_bool
+            self._lib.wune_tap_needs_restart.argtypes = [ctypes.c_void_p]
+
         sr = ctypes.c_uint32(0)
         ch = ctypes.c_uint32(0)
         self._handle = self._lib.wune_tap_create(ctypes.byref(sr), ctypes.byref(ch))
@@ -105,6 +109,18 @@ class CoreAudioTapBackend:
         self._sample_rate = int(sr.value if sr.value > 0 else 48000)
         self._channels = int(ch.value if ch.value > 0 else 2)
         self._device_name = "System Audio (Core Audio Tap)"
+        self._follow_default = (cfg.output_device is None) if cfg is not None else True
+        self._follow_sample_rate = (cfg.sample_rate is None) if cfg is not None else True
+        self._device_id = ""
+        try:
+            from .soundcard_compat import get_soundcard
+
+            sc = get_soundcard()
+            sp = sc.default_speaker()
+            if sp is not None:
+                self._device_id = str(getattr(sp, "id", ""))
+        except Exception:
+            pass
         self._closed = False
 
     def record(self, numframes: int) -> np.ndarray:
@@ -138,6 +154,37 @@ class CoreAudioTapBackend:
     @property
     def device_name(self) -> str:
         return self._device_name
+
+    def needs_restart(self) -> bool:
+        """Return True if the macOS default output device or sample rate changed."""
+        if not self._follow_default:
+            return False
+        if self._closed or not self._handle:
+            return False
+        checker = getattr(self._lib, "wune_tap_needs_restart", None)
+        if checker is not None:
+            try:
+                return bool(checker(self._handle))
+            except Exception:
+                pass
+        try:
+            from .soundcard_compat import get_soundcard, output_sample_rate
+
+            sc = get_soundcard()
+            speaker = sc.default_speaker()
+            if speaker is None:
+                return False
+            current_id = str(getattr(speaker, "id", ""))
+            current_name = str(getattr(speaker, "name", ""))
+            if self._device_id and current_id != self._device_id:
+                return True
+            if self._follow_sample_rate:
+                current_rate = int(output_sample_rate(speaker))
+                if current_rate > 0 and current_rate != self._sample_rate:
+                    return True
+        except Exception:
+            return False
+        return False
 
     def close(self) -> None:
         if not self._closed:

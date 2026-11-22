@@ -413,6 +413,15 @@ class _Dialog:
         pos_combo.bind("<<ComboboxSelected>>", lambda event: self.layout("info_position", pos_options[pos_var.get()]))
         self.combos["info_position"] = (pos_combo, pos_options)
 
+        ver_opts = ttk.Frame(info_tab)
+        ver_opts.grid(row=11, column=0, columnspan=2, sticky="w", pady=pad_y)
+        self.info_show_version = tk.BooleanVar(root)
+        ttk.Checkbutton(ver_opts, text=self.t('settings.show_info_version'), variable=self.info_show_version,
+                        command=lambda: self.layout("info_show_version", self.info_show_version.get())).pack(side="left", padx=(0, 16))
+        from .build_identity import application_identity
+        self.version_label = ttk.Label(ver_opts, text=self.t('settings.version', identity=application_identity()))
+        self.version_label.pack(side="left")
+
         # Tab 3: Background
         background.columnconfigure(1, weight=1)
         choice(background, 0, "background_mode", self.t("background.mode"),
@@ -563,6 +572,7 @@ class _Dialog:
         self.confirm_keyboard_exit.set(state.layout["confirm_keyboard_exit"])
         self.borderless.set(bool(state.layout.get("borderless", False)))
         self.info.set(state.layout["info_enabled"])
+        self.info_show_version.set(bool(state.layout.get("info_show_version", False)))
         self.show_now_playing.set(state.layout.get("show_now_playing", True))
         self.limit_to_20khz.set(state.layout["limit_to_20khz"])
         self.label_font_size.set(str(state.layout.get("label_font_size", 14)))
