@@ -71,8 +71,8 @@ class InfoVersionRendererTests(unittest.TestCase):
             self.assertIn("Wune v1.3.1", fitted_inputs)
             self.assertNotIn("| Wune v1.3.1", fitted_inputs)
 
-        # Long text that reaches close to version -> dynamic pipe separator appears
-        renderer.info_text = "OUTPUT: Realtek High Definition Audio Speakers (Loopback Capture Device) | 192.0 kHz | 2 ch"
+        # Long text that is guaranteed to exceed the bar width on any system font -> dynamic pipe separator appears
+        renderer.info_text = "OUTPUT: " + ("Realtek High Definition Audio Speakers (Loopback) " * 4) + "| 192.0 kHz | 2 ch"
         with patch.object(renderer, "_fit_text", wraps=renderer._fit_text) as mock_fit:
             renderer.draw_panel()
             fitted_inputs = [call.args[0] for call in mock_fit.call_args_list]
