@@ -51,12 +51,19 @@ class SoundCardCaptureBackend:
         channels: int,
         sample_rate: int,
         exit_stack: ExitStack,
+        *,
+        device_id: str = "",
+        follow_default: bool = False,
+        follow_sample_rate: bool = False,
     ):
         self._stream = stream
         self._device_name = str(device_name)
+        self._device_id = str(device_id)
         self._channels = int(channels)
         self._sample_rate = int(sample_rate)
         self._exit_stack = exit_stack
+        self._follow_default = follow_default
+        self._follow_sample_rate = follow_sample_rate
 
     def record(self, numframes: int) -> np.ndarray:
         return self._stream.record(numframes=numframes)
@@ -72,6 +79,29 @@ class SoundCardCaptureBackend:
     @property
     def device_name(self) -> str:
         return self._device_name
+
+    def needs_restart(self) -> bool:
+        """Return True if the macOS default output device or sample rate changed."""
+        if not self._follow_default:
+            return False
+        try:
+            from .soundcard_compat import get_soundcard, output_sample_rate
+
+            sc = get_soundcard()
+            speaker = sc.default_speaker()
+            if speaker is None:
+                return False
+            current_id = str(getattr(speaker, "id", ""))
+            current_name = str(getattr(speaker, "name", ""))
+            if current_id != self._device_id or current_name != self._device_name:
+                return True
+            if self._follow_sample_rate:
+                current_rate = int(output_sample_rate(speaker))
+                if current_rate > 0 and current_rate != self._sample_rate:
+                    return True
+        except Exception:
+            return False
+        return False
 
     def close(self) -> None:
         self._exit_stack.close()
@@ -119,6 +149,18 @@ def _open_macos_virtual_loopback(
     requested_rate = cfg.sample_rate or getattr(loopback_mic, "samplerate", 48000)
     samplerate = int(requested_rate)
     stack = ExitStack()
+    follow_default = cfg.output_device is None
+    device_id = ""
+    if follow_default:
+        try:
+            from .soundcard_compat import get_soundcard
+
+            sc = get_soundcard()
+            sp = sc.default_speaker()
+            if sp is not None:
+                device_id = str(getattr(sp, "id", ""))
+        except Exception:
+            pass
     try:
         stream, device_name, channels_eff = open_macos_capture(
             endpoint=loopback_mic,
@@ -132,6 +174,9 @@ def _open_macos_virtual_loopback(
             channels=channels_eff,
             sample_rate=samplerate,
             exit_stack=stack,
+            device_id=device_id,
+            follow_default=follow_default,
+            follow_sample_rate=cfg.sample_rate is None,
         )
     except BaseException:
         stack.close()
@@ -200,6 +245,9 @@ def open_macos_capture_backend(
             channels=channels_eff,
             sample_rate=samplerate,
             exit_stack=stack,
+            device_id=str(getattr(endpoint, "id", "")),
+            follow_default=cfg.output_device is None,
+            follow_sample_rate=cfg.sample_rate is None,
         )
     except BaseException:
         stack.close()

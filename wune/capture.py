@@ -267,6 +267,8 @@ class MacOsCaptureBackend:
     def __init__(self, cfg: Config, blocksize: int | None = None):
         from .capture_macos import open_macos_capture_backend
 
+        self._follow_default = cfg.output_device is None
+        self._follow_sample_rate = cfg.sample_rate is None
         self._backend = open_macos_capture_backend(cfg, blocksize=blocksize)
 
     def record(self, numframes: int) -> np.ndarray:
@@ -285,7 +287,15 @@ class MacOsCaptureBackend:
         return self._backend.device_name
 
     def needs_restart(self) -> bool:
-        """Extension hook for future macOS automatic device tracking."""
+        """Return True if the macOS default playback device or mix rate changed."""
+        if not self._follow_default:
+            return False
+        checker = getattr(self._backend, "needs_restart", None)
+        if callable(checker):
+            try:
+                return bool(checker())
+            except Exception:
+                pass
         return False
 
     def close(self) -> None:

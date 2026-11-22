@@ -145,6 +145,19 @@ def _install_recorder_exit(backend):
 
 def output_sample_rate(speaker):
     """Read the selected endpoint's shared-mode mix rate before capture starts."""
+    if sys.platform == "darwin":
+        try:
+            from soundcard import coreaudio as ca
+            device_id = getattr(speaker, "id", getattr(speaker, "_id", None))
+            if device_id is not None:
+                rate = ca._CoreAudio.get_property(
+                    device_id, ca._cac.kAudioDevicePropertyNominalSampleRate, "Float64"
+                )
+                if rate and len(rate) > 0 and rate[0] > 0:
+                    return int(rate[0])
+        except Exception:
+            pass
+        return 0
     from soundcard import mediafoundation
     return _mix_sample_rate(speaker, mediafoundation)
 
