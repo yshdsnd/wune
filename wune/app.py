@@ -33,6 +33,8 @@ class App:
         # Keep fullscreen visible when another monitor receives keyboard focus.
         # Set before SDL initialization; do not raise the window or force topmost.
         os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
+        # Deliver the activating click to buttons/menus on unfocused windows.
+        os.environ.setdefault("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
         if sys.platform == "win32":
             os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
         elif sys.platform == "darwin":
