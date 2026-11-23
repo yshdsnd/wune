@@ -79,7 +79,7 @@ Python.3.13の部分は使用中のPythonで変わります。この説明はSto
 - channels = 2、bars = 64：既定のステレオ表示とバンド数。
 
 音源ファイルのレートやDAC内部の動作レートを検出するものではありません。
-起動後のデバイス・レート変更には追従せず、再起動が必要です。
+既定出力（`output_device = None`）使用時は、起動後の既定デバイス切り替えやサンプルレート変更を約2秒周期で自動検知して再接続します（`F5` キー／メニューから手動再読み込みも可能）。明示的に `output_device` を指定した場合はそのデバイスに固定されます。
 自動取得に失敗した場合はエラーで終了し、別のレート・マイク・疑似音声へ切り替えません。
 WindowsではSoundCardによる共有モードのWASAPIループバック、macOSではCore Audio Process Tap、LinuxではPulseAudio/PipeWireモニターキャプチャ、FreeBSDではSoundCardのPulseAudioバックエンドを使います。
 
@@ -198,7 +198,7 @@ version 1の選択中テーマのLED設定は独立設定へ引き継ぎ、次�
 固定音声でのFFT／レベル・動作、設定保存、翻訳、描画、ウィンドウ寿命、アイコンなどを検証します。
 音声制御のテストでは実機入力の代替を使います。自動テストだけでは音声経路の動作確認はできません。
 配布ビルドは依存物を同梱したEXEを別フォルダーで起動して検証します。
-実機での再生・停止、出力先・レート、メニューボタンと右クリック、F2、Alt+Enter（F11も互換対応）、テーマ、設定保存と再起動も確認してください。
+実機での再生・停止、出力先・レート（およびデバイス切替時の自動追従・F5手動再読み込み）、メニューボタンと右クリック、F2、F10（ボーダレス）、Alt+Enter（F11も互換対応）、テーマ、設定保存と再起動も確認してください。
 
 ## macOS開発
 
@@ -249,4 +249,4 @@ CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" .venv/bin/pip install p
 Ports スケルトンやパッケージ生成（`.pkg`）については [FreeBSD Ports / Pkg ガイド](../packaging/freebsd/README.md) を参照してください。
 FreeBSD の設定は `~/.config/Wune/settings.json`、ログは `~/.config/Wune/Wune.log` に保存されます。
 
-現在の開発本線はmainです（次期リリース: v1.3.1）。[統合記録](integration-v1.3.1.md)を参照してください。
+現在の開発本線はmainです（次期リリース: v1.4.0）。[統合記録](integration-v1.4.0.md)を参照してください。

@@ -77,7 +77,7 @@ The `Python.3.13` part depends on your installed Python version.
 - `channels = 2`, `bars = 64`: Default stereo display and frequency bands.
 
 Wune does not inspect file bitrates or DAC internal clock rates.
-Device or sample rate changes while Wune is running require restarting the app.
+When using the default output (`output_device = None`), Wune automatically detects default device switches and sample rate changes every ~2 seconds and reconnects (manual reload is also available via `F5` or the menu). When `output_device` is explicitly set, capture remains pinned to that device.
 If capture initialization fails, Wune exits with an error without silently falling back to a microphone or synthetic audio.
 Windows uses WASAPI loopback via SoundCard, macOS uses Core Audio Process Tap, Linux uses PulseAudio/PipeWire monitor capture, and FreeBSD uses SoundCard's PulseAudio backend.
 
@@ -209,4 +209,4 @@ CFLAGS="-I/usr/local/include" LDFLAGS="-L/usr/local/lib" .venv/bin/pip install p
 See the [FreeBSD Ports / Pkg Guide](../../packaging/freebsd/README.md) for ports and package generation.
 Settings are stored in `~/.config/Wune/settings.json`, and logs in `~/.config/Wune/Wune.log`.
 
-The active development branch is `main` (Next release: v1.3.1). See the [Integration Log](integration-v1.3.1.md).
+The active development branch is `main` (Next release: v1.4.0). See the [Integration Log](integration-v1.4.0.md).

@@ -30,7 +30,7 @@ WUNE_TEST_LIVE_AUDIO=1 python -m unittest discover -s tests -p test_tap_macos.py
 Linux での音声キャプチャは `wune/capture_linux.py` を使用し、ネイティブ PulseAudio サーバーおよび `pipewire-pulse` を用いた PipeWire 環境の両方をサポートします：
 - **ネイティブ C ライブラリバインディング**: `ctypes` を用いて `libpulse-simple.so.0` および `libpulse.so.0` に直接リンクし、最小の遅延と低 CPU 負荷を実現。
 - **サブプロセスフォールバック**: `libpulse-simple` が利用できない場合、`parec` または `pw-record` から PCM フレームをストリーミング取得するフォールバックを搭載。
-- **自動モニター検出**: デフォルトのオーディオシンクを照会し、その `.monitor` ソースへ自動接続。音声出力先が別のカードやデバイスへ切り替わった場合、Wune を再起動することで新しいデフォルトデバイスへ追従します。
+- **自動モニター検出・自動追従**: デフォルトのオーディオシンクを照会し、その `.monitor` ソースへ自動接続します。既定出力デバイス追従モード（`output_device = None`）では約2秒周期で既定シンクの変更を自動検知し、新しいデフォルトデバイスへ自動再接続します。また `F5` キーやメニューの「音声出力を再読み込み」から手動での即時再接続も可能です。
 
 ## FreeBSD 音声キャプチャ
 
