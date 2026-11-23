@@ -28,17 +28,20 @@ Click the main window before using keyboard shortcuts.
 | Action | Function |
 | --- | --- |
 | F2 (also Command+, on Mac) | Open Settings |
+| Top-left menu (three-line icon) or right-click | Settings, fullscreen, borderless, window size, reload audio output, and exit |
 | Alt+Enter / F11 (also Command+F on Mac) | Toggle fullscreen / windowed mode |
-| Top-left menu or right-click | Settings, fullscreen, and exit |
+| F10 | Toggle borderless / standard window |
+| F5 | Manually reload the audio output device |
 | Space | Pause / resume the display; music playback continues |
 | T, or left-click the theme name at the top right | Switch to the next color theme |
 | I | Show / hide the output information bar |
 | Esc | Leave fullscreen; otherwise ask to quit |
 | Q | Ask to quit, including in fullscreen |
 | Close button or Menu → Exit | Quit immediately |
-| Drag the window border | Resize the display |
+| Drag the window border | Resize the display (in borderless mode, drag inside the window to move) |
 
-You can freely resize the window width and height (constrained only by a minimum window size to prevent layout breakdown). Depending on the window's aspect ratio, empty margins may appear around the spectrum. You can eliminate these margins by enabling "Adaptive Fill" or clicking the "Auto-adjust" buttons for "LEDs per bar" and "Bar gap" (or enabling automatic adjustments on resize) in Settings. You can also manually fine-tune the number of LEDs and bar spacing to your preference.
+You can freely resize the window width and height (constrained only by a minimum window size to prevent layout breakdown). Depending on the window's aspect ratio, empty margins may appear around the spectrum. You can eliminate these margins by enabling "Adaptive Fill" or clicking the "Auto-adjust" buttons for "LEDs per bar" and "Bar gap" (or enabling automatic adjustments on resize) in Settings. When auto-adjust on resize is enabled for LEDs or bar gap, shrinking the window automatically reduces segments and gaps down to the minimum layout size. You can also manually fine-tune the number of LEDs and bar spacing to your preference.
+Even when the window is unfocused, clicking buttons such as the menu icon or theme badge brings the window to the front and activates the button in a single click.
 F2 or the menu opens Settings above the main window while keeping fullscreen active. Preview, save, and cancel changes without leaving fullscreen.
 While Settings is open, theme changes through T or the theme badge, and information-bar changes through I, are disabled.
 The exit prompt defaults to Cancel. Use Tab/arrows to select, Enter/Space to activate, or Esc to cancel. Confirming Exit with "Don't ask again when exiting" disables future prompts. Re-enable them in Settings → General → Confirm before quitting with Q / Esc.
@@ -52,11 +55,11 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 | Tab | Main settings |
 | --- | --- |
 | Spectrum | Channel arrangement (separate/mix, stacked/side-by-side), frequency direction, 20 kHz display limit, display gain (dB), LED rendering style/shape/aspect ratio, Adaptive Fill, auto-adjust LEDs/bar gap |
-| Info & Text | Scale, info bar, and button/badge font sizes, font family selection, bold text option, dynamic font scaling, Now Playing track display, info bar visibility and position |
+| Info & Text | Scale, info bar, and button/badge font sizes, font family selection, bold text option, dynamic font scaling, Now Playing track display, info bar visibility and position, show version in info bar / version display |
 | Themes and colors | Select, create, duplicate, rename, or delete color themes; edit individual colors |
 | Background | Solid color / image, image sizing (Fit / Fill), choose background image |
 | Motion | Attack time, release time, peak hold time, and peak fall speed |
-| General | Window size presets, display language, exit confirmation prompt |
+| General | Window size presets, display language, exit confirmation prompt, borderless window |
 
 ### Spectrum settings
 - **Channel display**: Choose between separate L/R channels or Stereo Mix. Stereo Mix averages left/right power into a single spectrum so opposite-phase signals do not cancel. Signals on only one side appear about 3 dB lower than the same audio on both sides. Switching does not interrupt audio capture.
@@ -66,9 +69,10 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 - **Adaptive Fill and auto-adjust**: Enabling "Adaptive Fill" dynamically eliminates empty margins as the window resizes. Use the "Auto-adjust" buttons next to "LEDs per bar" and "Bar gap" to calculate and apply optimal values for the current window size in a single click (functional even if the "on resize" checkboxes are disabled).
 
 ### Info & Text settings
-- **Font sizes and dynamic scaling**: Adjust font sizes independently for scale labels, the info bar, menu buttons, and preset badges. Enable "Sync with info font size" to keep button and badge sizes matched with the info bar. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
+- **Font sizes and dynamic scaling**: Adjust font sizes independently for scale labels, the info bar, menu buttons, and preset badges. Enable "Link button and badge sizes" to keep button and badge sizes synchronized. Enable dynamic font scaling to enlarge text proportionally when the window is expanded.
 - **Font family selection and bold text**: Choose a custom font family for the information bar from detected system fonts, or enter a font family name manually. When running in non-Latin locales (e.g., Japanese, Chinese, Korean), a filter checkbox is available to show only fonts that support the active language's glyphs. Enable "Bold text" to improve readability on darker backgrounds or with thin font weights.
-- **Now Playing track display**: Show current track and artist name in the information bar (supported on Windows via standard media session [GSMTC] across browsers like YouTube, Apple Music, Spotify, etc., and Sony Music Center for PC v2.7.3; on macOS via Apple Music; on Linux via MPRIS2 [playerctl / DBus]).
+- **Now Playing track display**: Show current track and artist name in the unified top header row between the menu icon and theme badge (supported on Windows via standard media session [GSMTC] across browsers like YouTube, Apple Music, Spotify, etc., and Sony Music Center for PC v2.7.3; on macOS via Apple Music; on Linux via MPRIS2 [playerctl / DBus]).
+- **Version display**: The Info & Text tab displays the current application version inline. Enabling "Show version in info bar" also renders the version on the right side of the output information bar (automatically inserting a `|` separator when the bar is narrow), which is especially useful when the title bar is hidden in borderless mode.
 
 ### Themes and colors
 - Themes store colors only; LED shapes, layout, and motion are saved independently.
@@ -83,6 +87,7 @@ Press **F2** to open Settings. Preview changes in real time in the main display 
 ### General settings and window size presets
 - Apply popular resolution presets such as 640x360, 960x540, 1280x720, or 1920x1080 with a single click.
 - Switch display languages (System / English / Japanese) and configure the exit confirmation dialog.
+- **Borderless window**: Toggle a frameless display without a title bar or OS border (also available via `F10` or the menu). While borderless, drag inside the window to move it and drag the edges or corners to resize.
 
 | Button | Behavior |
 | --- | --- |
@@ -146,12 +151,12 @@ This deletes the existing settings file; back it up first if needed.
 - On Linux, hardware verification has only been performed on Fedora 44. RHEL and Ubuntu/Debian packages are provided and smoke-tested in CI but have not been tested on physical hardware; we welcome users who can test them and report any issues on [GitHub Issues](https://github.com/yshdsnd/wune/issues).
 - An output device capable of stereo audio playback is required.
 - Windows 10 and Windows on ARM have not been tested. No packages are available for 32-bit Windows or Intel Mac (for FreeBSD, see the source build and run guide in [FreeBSD installation guide](INSTALL_FREEBSD.en.md)).
-- Audio is captured from the startup default output through WASAPI on Windows, Core Audio Process Tap on Mac, and PulseAudio/PipeWire loopback on Linux / FreeBSD. Microphone input and direct audio-file loading are not supported.
-- Output-device and sample-rate changes are not followed automatically while Wune is running.
+- Audio is captured from the OS default output through WASAPI on Windows, Core Audio Process Tap on Mac, and PulseAudio/PipeWire loopback on Linux / FreeBSD. Microphone input and direct audio-file loading are not supported.
+- Default output-device and sample-rate changes are automatically detected every ~2 seconds and reconnected seamlessly (Windows / macOS / Linux / FreeBSD). Disconnected streams also recover automatically, and you can manually trigger an immediate reload via `F5` or Menu → Reload Audio Output.
 - Capture uses channels 0 and 1. Full surround downmixing and mono-only devices are not supported.
 - The Settings window does not include audio-device selection or band-count controls.
 - At higher sample rates, the display range extends up to 40 kHz. Use “Limit display to 20 kHz (keep capture rate)” to focus on the audible range.
-- Some scale labels are omitted in narrow layouts. Levels are per-band indications, not sound-pressure or true-peak measurements.
+- In narrow or compact layouts, frequency and dB scale labels are automatically thinned or omitted to prevent overlap. Levels are per-band indications, not sound-pressure or true-peak measurements.
 - Now-playing track display in the information bar supports Windows Global System Media Transport Controls (GSMTC) and Sony Music Center for PC (verified with v2.7.3) on Windows, Apple Music on macOS, and MPRIS2 (playerctl/DBus) on Linux / FreeBSD. Because Music Center for PC metadata is retrieved by parsing its window title, future updates to the player that alter the title format may prevent track information from being displayed. In addition, while its playback state is determined by monitoring Windows audio sessions, there may be a delay of several seconds after playback is paused or stopped before the session becomes inactive. If you want to immediately switch the display to another player (such as Apple Music), close Music Center for PC.
 - Changes to DPI or display configuration while running have not been tested.
 
@@ -162,7 +167,7 @@ This deletes the existing settings file; back it up first if needed.
 | Wune will not start or closes immediately | Extract the entire ZIP/archive and check that _internal is next to the executable. Check any error message and Wune.log |
 | Blocked by a security prompt on launch | On Windows, if prompted with "Windows protected your PC", click "More info" and select "Run anyway" (see the [Windows guide](INSTALL_WINDOWS.en.md)). On macOS, allow Wune in System Settings → Privacy & Security (see the [macOS guide](INSTALL_MACOS.en.md)). For Linux package installations, see the [Linux guide](INSTALL_LINUX.en.md); for FreeBSD setup, see the [FreeBSD guide](INSTALL_FREEBSD.en.md) |
 | The spectrum does not move | Resume with Space if paused. Check that audio is playing and that the information bar names the same output device used by your playback app |
-| The display stops after switching to headphones or another output | Check the OS output device and restart Wune |
+| The display stops after switching to headphones or another output | Default output switches are normally followed automatically within a few seconds. If it does not switch or after resetting an audio driver, press `F5` or select Menu → Reload Audio Output (or restart Wune if needed) |
 | F2 or other shortcuts do not work | Click the main window first. Check whether Settings is open behind another window |
 | Settings revert or are not saved | Use Save, or Apply followed by a normal exit. Check the save path and log; back up and reset settings if necessary |
 | Only the Settings window stays in the previous language | Save or apply the language, then close and reopen Settings |

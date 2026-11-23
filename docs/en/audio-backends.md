@@ -59,9 +59,10 @@ servers and PipeWire implementations with `pipewire-pulse`:
   `libpulse.so.0` for minimal latency and low CPU overhead.
 - **Subprocess fallback**: If `libpulse-simple` is unavailable, it falls back to
   streaming PCM frames from `parec` or `pw-record`.
-- **Automatic monitor detection**: Queries the default audio sink and connects to its
-  `.monitor` source. If audio playback routes to a different card or device, Wune
-  should be restarted to track the new default device.
+- **Automatic monitor detection & tracking**: Queries the default audio sink and connects to its
+  `.monitor` source. When tracking the default output (`output_device = None`), Wune automatically
+  detects default sink changes every ~2 seconds and reconnects to the new default device. You can
+  also trigger an immediate manual reload via `F5` or Menu → Reload Audio Output.
 
 ## FreeBSD Audio Capture
 
